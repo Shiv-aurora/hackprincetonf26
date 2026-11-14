@@ -1,83 +1,40 @@
 "use client";
-// UI state for sound (on/off, master volume), persisted in localStorage. The audio graph itself lives
-// in engine.ts; this store only mirrors what the UI needs to render.
+// UI state for sound. OFF by default on every load; only the toggle turns it on.
 
 import { create } from "zustand";
 import { soundEngine } from "./engine";
 
-const PREF_KEY = "mayajaal.sound";   // "on" | "off"
-const VOL_KEY = "mayajaal.volume";   // "0".."1"
-
-export type SoundPref = "on" | "off" | null;
-
 interface SoundState {
   /** Audio is unlocked and audible. */
   enabled: boolean;
-  /** Unlock in progress (first click). */
+  /** Unlock in progress. */
   starting: boolean;
   /** Master volume 0..1. */
   volume: number;
-  /** What the user last chose. null = never chose (sound arms on first interaction). */
-  pref: SoundPref;
-  hydrated: boolean;
 }
 
-export const useSound = create<SoundState>(() => ({
-  enabled: false,
-  starting: false,
-  volume: 0.8,
-  pref: null,
-  hydrated: false,
-}));
+export const useSound = create<SoundState>(() => ({ enabled: false, starting: false, volume: 0.8 }));
 
-function read(key: string): string | null {
-  try {
-    return window.localStorage.getItem(key);
-  } catch {
-    return null;
-  }
-}
-function write(key: string, value: string) {
-  try {
-    window.localStorage.setItem(key, value);
-  } catch {}
-}
-
-/** Load saved preferences once on the client. */
-export function hydrateSound() {
-  if (useSound.getState().hydrated || typeof window === "undefined") return;
-  const p = read(PREF_KEY);
-  const v = Number.parseFloat(read(VOL_KEY) ?? "");
-  const volume = Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : 0.8;
-  soundEngine.setVolume(volume);
-  useSound.setState({ hydrated: true, pref: p === "on" || p === "off" ? p : null, volume });
-}
+/** Kept for API compatibility; there is nothing to load. */
+export function hydrateSound() {}
 
 /** Turn sound on. Call from a user gesture. Never throws. */
-export function enableSound(remember = true): Promise<boolean> {
-  if (remember) {
-    write(PREF_KEY, "on");
-    useSound.setState({ pref: "on" });
-  }
+export async function enableSound(): Promise<boolean> {
   useSound.setState({ starting: true });
-  return soundEngine
-    .unlock()
-    .then((ok) => {
-      if (ok && useSound.getState().pref !== "off") soundEngine.setEnabled(true);
-      useSound.setState({ enabled: ok && useSound.getState().pref !== "off", starting: false });
-      return ok;
-    })
-    .catch(() => {
-      useSound.setState({ enabled: false, starting: false });
-      return false;
-    });
+  let ok = false;
+  try {
+    ok = await soundEngine.unlock();
+  } catch {
+    ok = false;
+  }
+  soundEngine.setEnabled(ok);
+  useSound.setState({ enabled: ok, starting: false });
+  return ok;
 }
 
-/** Mute (remembered). */
 export function disableSound() {
-  write(PREF_KEY, "off");
   soundEngine.setEnabled(false);
-  useSound.setState({ enabled: false, pref: "off" });
+  useSound.setState({ enabled: false });
 }
 
 export function toggleSound() {
@@ -85,10 +42,8 @@ export function toggleSound() {
   else void enableSound();
 }
 
-/** Global master volume 0..1 (remembered). */
 export function setMasterVolume(v: number) {
   const volume = Math.min(1, Math.max(0, v));
   soundEngine.setVolume(volume);
-  write(VOL_KEY, String(volume));
   useSound.setState({ volume });
 }

@@ -1,10 +1,10 @@
-// Public API of the MayaJaal soundscape.
+// Public API of the MayaJaal sound cues (minimal: off by default, three quiet cues).
 //
 //   import { Soundscape, SoundToggle } from "@/lib/sound";
-//   <Soundscape />            // once per page: maps hub events → sound (needs connectHub() somewhere)
-//   <SoundToggle fixed />     // top-right mute button + hover master volume
+//   <Soundscape />     // once per page: maps hub events → sound (needs connectHub() somewhere)
+//   <SoundToggle />    // ghost icon button; sound stays silent until it is pressed
 //
-//   soundEngine.reveal()      // fire a cue by hand (e.g. a manual Reveal button)
+//   soundEngine.reveal()   // fire a cue by hand (e.g. a manual Reveal button)
 
 export { soundEngine } from "./engine";
 export type { TickTier, TickActor } from "./engine";
