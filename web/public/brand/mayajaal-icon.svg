@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64"><title>MayaJaal</title><defs>
+  <linearGradient id="j" gradientUnits="userSpaceOnUse" x1="35" y1="22" x2="20" y2="56">
+    <stop offset="0" stop-color="#7cf3ff"/><stop offset="0.5" stop-color="#2de2d0"/><stop offset="1" stop-color="#8b5cf6"/>
+  </linearGradient>
+  <linearGradient id="tl" gradientUnits="userSpaceOnUse" x1="14" y1="6" x2="41.4" y2="26.9">
+    <stop offset="0" stop-color="#8b5cf6" stop-opacity="0.1"/><stop offset="0.7674418604651163" stop-color="#d946ef"/><stop offset="1" stop-color="#d946ef" stop-opacity="0"/>
+  </linearGradient>
+  <linearGradient id="tr" gradientUnits="userSpaceOnUse" x1="56" y1="6" x2="28.6" y2="26.9">
+    <stop offset="0" stop-color="#2de2d0" stop-opacity="0.1"/><stop offset="0.7674418604651163" stop-color="#7cf3ff"/><stop offset="1" stop-color="#7cf3ff" stop-opacity="0"/>
+  </linearGradient>
+  <radialGradient id="k"><stop offset="0" stop-color="#fff"/><stop offset="0.6" stop-color="#7cf3ff"/><stop offset="1" stop-color="#2de2d0"/></radialGradient></defs>
+  <rect width="64" height="64" rx="14" fill="#05070c"/>
+  <g transform="translate(32 32) scale(0.84) translate(-33.7 -31.5)">
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M14 6 L41.4 26.9" stroke="url(#tl)" stroke-width="2.57712"/>
+    <path d="M56 6 L28.6 26.9" stroke="url(#tr)" stroke-width="2.57712"/>
+    <path d="M35 27 V44 A10.5 10.5 0 0 1 14 44" stroke="url(#j)" stroke-width="6.136"/>
+    <circle cx="35" cy="22" r="4.9559999999999995" fill="url(#k)"/>
+  </g></g>
+</svg>
