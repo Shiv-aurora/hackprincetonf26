@@ -26,6 +26,13 @@ Solo HackPrinceton F26 project, built by parallel agents. Read `DESIGN.md` (what
   changes vs. training data — check `web/node_modules/next/dist/docs/` when unsure.
 - Tests: `cd backend && uv run pytest -q`; `cd web && bun run build` must pass.
 
-## Look and feel (UI agents)
-Ink-black night; teal/cyan = real hospital; violet/magenta = shadow (Maya); amber = alert; red only for
-real failures. Smooth, cinematic motion: glide, don't bounce. Mono font for terminals.
+## Look and feel (UI agents) — Vercel/Geist monochrome, minimal
+- Use the tokens in `web/app/globals.css` and the primitives in `web/components/ui` (Logo, SiteHeader, Button,
+  ButtonLink, Card, Badge, Dot, Stat, Label, Kbd, cn). Light and dark both work via the system setting.
+- Neutral greys, white/near-black backgrounds, 1px hairline borders, rounded-md/lg, Geist Sans + Geist Mono.
+- **No** glow, neon, gradients, blur, bloom, particles, 3D, scan lines or "hacker" styling. Generous whitespace.
+- Real tier = plain neutral text. Shadow tier = the one accent (`text-shadow`, `bg-shadow-bg`), used sparingly.
+  Amber (`alert`) for warnings. Red (`danger`) ONLY when a protected secret actually leaked or a real failure.
+- Motion: short, subtle fades/slides (150–250 ms). Nothing bounces, nothing loops for decoration.
+- Typography does the work: clear hierarchy, tabular numbers for stats, sentence case, no ALL-CAPS labels.
+- The attacker never has a shell; the product surfaces are the FHIR API and the IT portal over HTTP.
