@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-6 -34 572 176" width="572" height="176" role="img" aria-label="MayaJaal"><title>MayaJaal</title><defs>
+  <linearGradient id="j" gradientUnits="userSpaceOnUse" x1="372" y1="2" x2="342" y2="100">
+    <stop offset="0" stop-color="#7cf3ff"/><stop offset="0.55" stop-color="#2de2d0"/><stop offset="1" stop-color="#8b5cf6"/>
+  </linearGradient>
+  <linearGradient id="tl" gradientUnits="userSpaceOnUse" x1="338" y1="-30" x2="384" y2="13.3">
+    <stop offset="0" stop-color="#8b5cf6" stop-opacity="0"/><stop offset="0.7389240506329114" stop-color="#d946ef" stop-opacity="0.95"/><stop offset="1" stop-color="#d946ef" stop-opacity="0"/>
+  </linearGradient>
+  <linearGradient id="tr" gradientUnits="userSpaceOnUse" x1="406" y1="-30" x2="360" y2="13.3">
+    <stop offset="0" stop-color="#2de2d0" stop-opacity="0"/><stop offset="0.7389240506329114" stop-color="#7cf3ff" stop-opacity="0.95"/><stop offset="1" stop-color="#7cf3ff" stop-opacity="0"/>
+  </linearGradient>
+  <radialGradient id="k"><stop offset="0" stop-color="#fff"/><stop offset="0.6" stop-color="#7cf3ff"/><stop offset="1" stop-color="#2de2d0"/></radialGradient></defs>
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <g stroke="#05070c" stroke-width="8"><path d="M4 96 V6 L40 70 L76 6 V96"/><path d="M156 68 A28 28 0 1 0 100 68 A28 28 0 1 0 156 68 M156 40 V96"/><path d="M180 40 L207 97 M234 40 L192 132"/><path d="M314 68 A28 28 0 1 0 258 68 A28 28 0 1 0 314 68 M314 40 V96"/><path d="M452 68 A28 28 0 1 0 396 68 A28 28 0 1 0 452 68 M452 40 V96"/><path d="M532 68 A28 28 0 1 0 476 68 A28 28 0 1 0 532 68 M532 40 V96"/><path d="M556 4 V96"/></g>
+    <path d="M338 -30 L384 13.3" stroke="url(#tl)"  stroke-width="2.24"/>
+    <path d="M406 -30 L360 13.3" stroke="url(#tr)"  stroke-width="2.24"/>
+    <path d="M372 10 V74 A22 22 0 0 1 328 74" stroke="url(#j)" stroke-width="8"/>
+    <circle cx="372" cy="2" r="6.24" fill="url(#k)"/>
+  </g>
+</svg>
