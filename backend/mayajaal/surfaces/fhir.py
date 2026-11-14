@@ -676,6 +676,11 @@ def add_fhir_routes(router: APIRouter, resolve_world: ResolveWorld, sink: EventS
         else:
             # default policy: a rejected write changes nothing; an accepted one changes only this record
             accepted_by, rejected_by = _default_integrity(stored, obs, call.ctx)
+            # A world that can verify signatures over the content (the real tier) gets the final say:
+            # resubmitting a stored signature with a changed value must not pass.
+            verify = getattr(call.world, "verify_observation", None)
+            if accepted_by and verify is not None and not verify(obs):
+                accepted_by, rejected_by = [], hospital_ids()
             saved = (call.world.put_observation(obs) or obs) if accepted_by else obs
 
         ctx = call.ctx

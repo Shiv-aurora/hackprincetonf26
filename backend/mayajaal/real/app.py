@@ -292,6 +292,10 @@ class Gateway:
             headers = {k: v for k, v in request.headers.items()
                        if k.lower() not in HOP_HEADERS and not k.lower().startswith("x-mj-")}
             headers.update(self.mj_headers(s, run_id, d.lane, config))
+            # Both tiers must build links from the public origin, never their own host:port.
+            headers["X-Forwarded-Host"] = (request.headers.get("x-forwarded-host")
+                                           or request.headers.get("host") or "")
+            headers["X-Forwarded-Proto"] = (request.headers.get("x-forwarded-proto") or request.url.scheme)
             client_ = self.local if d.action == "allow_real" else self.shadow
             url = req_path + (("?" + request.url.query) if request.url.query else "")
             try:

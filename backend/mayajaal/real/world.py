@@ -328,7 +328,13 @@ class RealWorld:
     def observations(self, mrn: str) -> list[Observation]:
         return self.store.observations(mrn) if self.get_patient(mrn) else []
 
+    def verify_observation(self, obs: Observation) -> bool:
+        """True only if obs.signature is the server HMAC over this exact content."""
+        return self.store.verify_observation(obs)
+
     def put_observation(self, obs: Observation) -> Observation:
+        if not self.verify_observation(obs):
+            raise PermissionError("result signature verification failed")
         return self.store.put_observation(obs)
 
     # Admin portal
