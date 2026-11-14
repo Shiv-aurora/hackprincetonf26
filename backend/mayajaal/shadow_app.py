@@ -13,6 +13,7 @@ import contextvars
 from fastapi import FastAPI, Request
 
 from mayajaal.hub.client import emit
+from mayajaal.mirage.shadow_hook import make_planner_middleware
 from mayajaal.shadow import get_shadow_world, get_static_world
 from mayajaal.surfaces import build_router
 from mayajaal.world_api import Observation, SessionContext, WorldProvider
@@ -44,6 +45,9 @@ async def _bind_config(request: Request, call_next):
     finally:
         _config.reset(token)
 
+
+# MIRAGE breadcrumb planner: reads X-MJ-Posterior from the gateway and plants at most one lure per few requests.
+app.middleware("http")(make_planner_middleware(get_shadow_world, emit))
 
 app.include_router(build_router(resolve_world, emit, integrity_check=shadow_integrity))
 

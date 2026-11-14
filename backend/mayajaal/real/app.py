@@ -37,6 +37,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
 
 from mayajaal.contracts import Event, make_event
+from mayajaal.mirage.intent import IntentFilter, features_from_request, make_lane_adjuster
 from mayajaal.real.ledger import CanaryLedger
 from mayajaal.real.policy import (
     Classified, Decision, LaneAdjuster, PolicyInput, classify, decide, shell_technique, technique,
@@ -283,10 +284,13 @@ class Gateway:
         req_path = "/" + path
         query = dict(request.query_params)
         req = classify(request.method, req_path, query, body.decode("utf-8", errors="ignore"))
-        d = self.evaluate(s, config, req)
+        intent = getattr(self, "intent", None)
+        with (intent.bind(s.session_id) if intent is not None else contextlib.nullcontext()):
+            d = self.evaluate(s, config, req)
         await self.apply(s, d, run_id)
 
         tier = d.tier
+        new_touch = False
         if d.action in ("allow_real", "divert_shadow"):
             s.current_config = config
             headers = {k: v for k, v in request.headers.items()
@@ -296,6 +300,8 @@ class Gateway:
             headers["X-Forwarded-Host"] = (request.headers.get("x-forwarded-host")
                                            or request.headers.get("host") or "")
             headers["X-Forwarded-Proto"] = (request.headers.get("x-forwarded-proto") or request.url.scheme)
+            if intent is not None and d.action == "divert_shadow":
+                headers["X-MJ-Posterior"] = intent.header(s.session_id)
             client_ = self.local if d.action == "allow_real" else self.shadow
             url = req_path + (("?" + request.url.query) if request.url.query else "")
             try:
@@ -305,7 +311,7 @@ class Gateway:
                 status, content, up_headers = 502, json.dumps({"error": "bad_gateway"}).encode(), {}
                 print(f"[gateway] upstream {tier} error: {exc!r}")
             if d.action == "divert_shadow":
-                self.touched(s, up_headers.get(HONEYTOKEN_HEADER))
+                new_touch = bool(self.touched(s, up_headers.get(HONEYTOKEN_HEADER)))
             out_headers = {k: v for k, v in up_headers.items()
                            if k.lower() not in RESP_DROP and not k.lower().startswith("x-mj-")}
             resp = Response(content=content, status_code=status, headers=out_headers)
@@ -331,6 +337,15 @@ class Gateway:
             "method": method, "path": shown, "surface": req.surface, "status": status,
             "bytes": len(content or b""), "technique": technique(req, d.lane, req_path)},
             s, run_id, actor=s.actor, tier=tier if status < 500 else "none"))
+
+        if intent is not None and s.authenticated:
+            intent.observe(s.session_id, features_from_request(
+                request.method, req_path, query, status, surface=req.surface,
+                technique=technique(req, d.lane, req_path), honeytoken_touched=new_touch,
+                own_hospital=getattr(s, "hospital_id", None) or None))
+            ev = intent.maybe_event(s.session_id, run_id=run_id, hospital_id=getattr(s, "hospital_id", None) or None)
+            if ev is not None:
+                await self._emit(ev)
 
         if self._is_admin(request.headers):
             resp.headers["X-MJ-Decision"] = d.action
@@ -608,9 +623,13 @@ def create_app(surfaces_factory: SurfacesFactory | None = None, *, store: RealSt
                db_path: Path | str | None = None) -> FastAPI:
     if store is None:
         store = RealStore(db_path)
+    intent = IntentFilter()
+    if lane_adjuster is None:
+        lane_adjuster = make_lane_adjuster(intent)
     gw = Gateway(store=store, sink=sink, surfaces_factory=surfaces_factory, shadow_url=shadow_url,
                  shadow_transport=shadow_transport, shadow_ws_connect=shadow_ws_connect,
                  default_config=default_config, lane_adjuster=lane_adjuster, admin_key_value=admin_key_value)
+    gw.intent = intent
     @contextlib.asynccontextmanager
     async def lifespan(_app: FastAPI):
         yield
