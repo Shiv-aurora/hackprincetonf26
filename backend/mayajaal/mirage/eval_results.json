@@ -1,0 +1,349 @@
+{
+  "label": "Simulation of our own model (hand-written likelihoods), not a measurement of real attackers.",
+  "seeds_per_cell": 500,
+  "max_steps": 30,
+  "confident_threshold": 0.8,
+  "accuracy_step": 10,
+  "noise": 0.5,
+  "strategies": [
+    "mirage",
+    "random",
+    "none"
+  ],
+  "variants": [
+    "matched",
+    "misspecified"
+  ],
+  "summary_attack_goals": {
+    "matched": {
+      "mirage": {
+        "mean_steps_to_0.8": 17.5,
+        "reached_0.8": 0.719,
+        "accuracy_at_10": 0.578
+      },
+      "random": {
+        "mean_steps_to_0.8": 18.75,
+        "reached_0.8": 0.697,
+        "accuracy_at_10": 0.544
+      },
+      "none": {
+        "mean_steps_to_0.8": 21.46,
+        "reached_0.8": 0.619,
+        "accuracy_at_10": 0.462
+      }
+    },
+    "misspecified": {
+      "mirage": {
+        "mean_steps_to_0.8": 19.2,
+        "reached_0.8": 0.659,
+        "accuracy_at_10": 0.495
+      },
+      "random": {
+        "mean_steps_to_0.8": 19.96,
+        "reached_0.8": 0.65,
+        "accuracy_at_10": 0.487
+      },
+      "none": {
+        "mean_steps_to_0.8": 21.46,
+        "reached_0.8": 0.619,
+        "accuracy_at_10": 0.462
+      }
+    }
+  },
+  "results": {
+    "matched": {
+      "benign": {
+        "mirage": {
+          "mean_steps_to_0.8": 1.22,
+          "median_steps_to_0.8": 1.0,
+          "reached_0.8": 1.0,
+          "accuracy_at_10": 1.0,
+          "diverted": 0.016,
+          "breadcrumbs_per_session": 0.04,
+          "mean_info_gain_bits": 0.21
+        },
+        "random": {
+          "mean_steps_to_0.8": 1.23,
+          "median_steps_to_0.8": 1.0,
+          "reached_0.8": 1.0,
+          "accuracy_at_10": 1.0,
+          "diverted": 0.016,
+          "breadcrumbs_per_session": 0.05,
+          "mean_info_gain_bits": 0.156
+        },
+        "none": {
+          "mean_steps_to_0.8": 1.22,
+          "median_steps_to_0.8": 1.0,
+          "reached_0.8": 1.0,
+          "accuracy_at_10": 1.0,
+          "diverted": 0.016,
+          "breadcrumbs_per_session": 0.0,
+          "mean_info_gain_bits": 0.0
+        }
+      },
+      "recon": {
+        "mirage": {
+          "mean_steps_to_0.8": 10.34,
+          "median_steps_to_0.8": 8.0,
+          "reached_0.8": 0.96,
+          "accuracy_at_10": 0.948,
+          "diverted": 1.0,
+          "breadcrumbs_per_session": 3.0,
+          "mean_info_gain_bits": 0.171
+        },
+        "random": {
+          "mean_steps_to_0.8": 12.14,
+          "median_steps_to_0.8": 10.0,
+          "reached_0.8": 0.948,
+          "accuracy_at_10": 0.942,
+          "diverted": 1.0,
+          "breadcrumbs_per_session": 3.0,
+          "mean_info_gain_bits": 0.137
+        },
+        "none": {
+          "mean_steps_to_0.8": 14.7,
+          "median_steps_to_0.8": 13.0,
+          "reached_0.8": 0.942,
+          "accuracy_at_10": 0.952,
+          "diverted": 1.0,
+          "breadcrumbs_per_session": 0.0,
+          "mean_info_gain_bits": 0.0
+        }
+      },
+      "exfil": {
+        "mirage": {
+          "mean_steps_to_0.8": 21.15,
+          "median_steps_to_0.8": 30.0,
+          "reached_0.8": 0.496,
+          "accuracy_at_10": 0.466,
+          "diverted": 1.0,
+          "breadcrumbs_per_session": 3.0,
+          "mean_info_gain_bits": 0.218
+        },
+        "random": {
+          "mean_steps_to_0.8": 22.64,
+          "median_steps_to_0.8": 30.0,
+          "reached_0.8": 0.448,
+          "accuracy_at_10": 0.404,
+          "diverted": 1.0,
+          "breadcrumbs_per_session": 3.0,
+          "mean_info_gain_bits": 0.169
+        },
+        "none": {
+          "mean_steps_to_0.8": 27.05,
+          "median_steps_to_0.8": 30.0,
+          "reached_0.8": 0.24,
+          "accuracy_at_10": 0.19,
+          "diverted": 1.0,
+          "breadcrumbs_per_session": 0.0,
+          "mean_info_gain_bits": 0.0
+        }
+      },
+      "tamper": {
+        "mirage": {
+          "mean_steps_to_0.8": 14.56,
+          "median_steps_to_0.8": 12.0,
+          "reached_0.8": 0.918,
+          "accuracy_at_10": 0.666,
+          "diverted": 1.0,
+          "breadcrumbs_per_session": 3.0,
+          "mean_info_gain_bits": 0.215
+        },
+        "random": {
+          "mean_steps_to_0.8": 16.07,
+          "median_steps_to_0.8": 14.0,
+          "reached_0.8": 0.896,
+          "accuracy_at_10": 0.604,
+          "diverted": 1.0,
+          "breadcrumbs_per_session": 3.0,
+          "mean_info_gain_bits": 0.155
+        },
+        "none": {
+          "mean_steps_to_0.8": 19.04,
+          "median_steps_to_0.8": 18.0,
+          "reached_0.8": 0.838,
+          "accuracy_at_10": 0.49,
+          "diverted": 1.0,
+          "breadcrumbs_per_session": 0.0,
+          "mean_info_gain_bits": 0.0
+        }
+      },
+      "disrupt": {
+        "mirage": {
+          "mean_steps_to_0.8": 23.97,
+          "median_steps_to_0.8": 30.0,
+          "reached_0.8": 0.5,
+          "accuracy_at_10": 0.23,
+          "diverted": 1.0,
+          "breadcrumbs_per_session": 3.0,
+          "mean_info_gain_bits": 0.184
+        },
+        "random": {
+          "mean_steps_to_0.8": 24.13,
+          "median_steps_to_0.8": 30.0,
+          "reached_0.8": 0.494,
+          "accuracy_at_10": 0.226,
+          "diverted": 1.0,
+          "breadcrumbs_per_session": 3.0,
+          "mean_info_gain_bits": 0.145
+        },
+        "none": {
+          "mean_steps_to_0.8": 25.06,
+          "median_steps_to_0.8": 30.0,
+          "reached_0.8": 0.456,
+          "accuracy_at_10": 0.216,
+          "diverted": 1.0,
+          "breadcrumbs_per_session": 0.0,
+          "mean_info_gain_bits": 0.0
+        }
+      }
+    },
+    "misspecified": {
+      "benign": {
+        "mirage": {
+          "mean_steps_to_0.8": 1.22,
+          "median_steps_to_0.8": 1.0,
+          "reached_0.8": 1.0,
+          "accuracy_at_10": 0.998,
+          "diverted": 0.016,
+          "breadcrumbs_per_session": 0.04,
+          "mean_info_gain_bits": 0.203
+        },
+        "random": {
+          "mean_steps_to_0.8": 1.25,
+          "median_steps_to_0.8": 1.0,
+          "reached_0.8": 1.0,
+          "accuracy_at_10": 0.998,
+          "diverted": 0.016,
+          "breadcrumbs_per_session": 0.05,
+          "mean_info_gain_bits": 0.169
+        },
+        "none": {
+          "mean_steps_to_0.8": 1.22,
+          "median_steps_to_0.8": 1.0,
+          "reached_0.8": 1.0,
+          "accuracy_at_10": 1.0,
+          "diverted": 0.016,
+          "breadcrumbs_per_session": 0.0,
+          "mean_info_gain_bits": 0.0
+        }
+      },
+      "recon": {
+        "mirage": {
+          "mean_steps_to_0.8": 11.84,
+          "median_steps_to_0.8": 10.0,
+          "reached_0.8": 0.938,
+          "accuracy_at_10": 0.936,
+          "diverted": 1.0,
+          "breadcrumbs_per_session": 3.0,
+          "mean_info_gain_bits": 0.179
+        },
+        "random": {
+          "mean_steps_to_0.8": 13.2,
+          "median_steps_to_0.8": 11.0,
+          "reached_0.8": 0.934,
+          "accuracy_at_10": 0.924,
+          "diverted": 1.0,
+          "breadcrumbs_per_session": 3.0,
+          "mean_info_gain_bits": 0.141
+        },
+        "none": {
+          "mean_steps_to_0.8": 14.7,
+          "median_steps_to_0.8": 13.0,
+          "reached_0.8": 0.942,
+          "accuracy_at_10": 0.952,
+          "diverted": 1.0,
+          "breadcrumbs_per_session": 0.0,
+          "mean_info_gain_bits": 0.0
+        }
+      },
+      "exfil": {
+        "mirage": {
+          "mean_steps_to_0.8": 23.72,
+          "median_steps_to_0.8": 30.0,
+          "reached_0.8": 0.368,
+          "accuracy_at_10": 0.308,
+          "diverted": 1.0,
+          "breadcrumbs_per_session": 3.0,
+          "mean_info_gain_bits": 0.218
+        },
+        "random": {
+          "mean_steps_to_0.8": 24.49,
+          "median_steps_to_0.8": 30.0,
+          "reached_0.8": 0.352,
+          "accuracy_at_10": 0.294,
+          "diverted": 1.0,
+          "breadcrumbs_per_session": 3.0,
+          "mean_info_gain_bits": 0.167
+        },
+        "none": {
+          "mean_steps_to_0.8": 27.05,
+          "median_steps_to_0.8": 30.0,
+          "reached_0.8": 0.24,
+          "accuracy_at_10": 0.19,
+          "diverted": 1.0,
+          "breadcrumbs_per_session": 0.0,
+          "mean_info_gain_bits": 0.0
+        }
+      },
+      "tamper": {
+        "mirage": {
+          "mean_steps_to_0.8": 16.78,
+          "median_steps_to_0.8": 15.0,
+          "reached_0.8": 0.856,
+          "accuracy_at_10": 0.526,
+          "diverted": 1.0,
+          "breadcrumbs_per_session": 3.0,
+          "mean_info_gain_bits": 0.216
+        },
+        "random": {
+          "mean_steps_to_0.8": 17.45,
+          "median_steps_to_0.8": 16.0,
+          "reached_0.8": 0.848,
+          "accuracy_at_10": 0.526,
+          "diverted": 1.0,
+          "breadcrumbs_per_session": 3.0,
+          "mean_info_gain_bits": 0.156
+        },
+        "none": {
+          "mean_steps_to_0.8": 19.04,
+          "median_steps_to_0.8": 18.0,
+          "reached_0.8": 0.838,
+          "accuracy_at_10": 0.49,
+          "diverted": 1.0,
+          "breadcrumbs_per_session": 0.0,
+          "mean_info_gain_bits": 0.0
+        }
+      },
+      "disrupt": {
+        "mirage": {
+          "mean_steps_to_0.8": 24.45,
+          "median_steps_to_0.8": 30.0,
+          "reached_0.8": 0.474,
+          "accuracy_at_10": 0.21,
+          "diverted": 1.0,
+          "breadcrumbs_per_session": 3.0,
+          "mean_info_gain_bits": 0.188
+        },
+        "random": {
+          "mean_steps_to_0.8": 24.7,
+          "median_steps_to_0.8": 30.0,
+          "reached_0.8": 0.468,
+          "accuracy_at_10": 0.206,
+          "diverted": 1.0,
+          "breadcrumbs_per_session": 3.0,
+          "mean_info_gain_bits": 0.148
+        },
+        "none": {
+          "mean_steps_to_0.8": 25.06,
+          "median_steps_to_0.8": 30.0,
+          "reached_0.8": 0.456,
+          "accuracy_at_10": 0.216,
+          "diverted": 1.0,
+          "breadcrumbs_per_session": 0.0,
+          "mean_info_gain_bits": 0.0
+        }
+      }
+    }
+  }
+}
