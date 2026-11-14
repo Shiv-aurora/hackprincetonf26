@@ -1,37 +1,23 @@
 "use client";
-// Shared primitives for the War Room consoles: glass panels, labels, honesty badge, counters.
+// Shared helpers for the War Room consoles: formatting, run honesty, derived selectors.
 
-import { useEffect, useRef, type ReactNode } from "react";
-import { animate } from "framer-motion";
-import { clsx, type ClassValue } from "clsx";
-import { twMerge } from "tailwind-merge";
+import { useMemo, type ReactNode } from "react";
 import { WORLD, type EventDataMap, type MJEvent } from "@/lib/contracts";
 import { useMJ } from "@/lib/events";
-
-export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
-}
-
-/** Literal token values for things framer-motion must interpolate (CSS vars can't be tweened). */
-export const C = {
-  fg: "#e6edf7", dim: "#8a97ad", faint: "#4b5871", line: "#1c2537",
-  real: "#2de2e6", shadow: "#b26bff", shadowHot: "#ff4fd8", alert: "#ffb02e", danger: "#ff4d5e", ok: "#3ddc97",
-} as const;
-
-/** Cinematic glide. Never bounce. */
-export const GLIDE = [0.16, 1, 0.3, 1] as const;
+import { Badge, Dot, cn } from "@/components/ui";
 
 const HOSPITALS = Object.fromEntries(WORLD.hospitals.map((h) => [h.id, h]));
+
 export function hospitalShort(id: string | null | undefined): string {
-  if (!id) return "—";
+  if (!id) return "";
   return HOSPITALS[id]?.short ?? id;
 }
 export function hospitalName(id: string | null | undefined): string {
-  if (!id) return "—";
+  if (!id) return "";
   return HOSPITALS[id]?.name ?? id;
 }
 export function missionTitle(id: string | undefined): string {
-  return WORLD.missions.find((m) => m.id === id)?.title ?? id ?? "—";
+  return WORLD.missions.find((m) => m.id === id)?.title ?? id ?? "";
 }
 
 export function formatBytes(n: number): string {
@@ -41,29 +27,15 @@ export function formatBytes(n: number): string {
   return `${(n / (1024 * 1024 * 1024)).toFixed(2)} GB`;
 }
 
-/** Translucent ink glass over the 3D scene. */
-export function Glass({ className, children }: { className?: string; children: ReactNode }) {
-  return (
-    <section
-      className={cn(
-        "relative flex min-h-0 flex-col overflow-hidden rounded-2xl border border-line/80",
-        "bg-ink-2/65 backdrop-blur-xl backdrop-saturate-150",
-        "shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04),0_30px_80px_-24px_rgba(0,0,0,0.85)]",
-        className,
-      )}
-    >
-      {children}
-    </section>
-  );
+/** Elapsed time since run start as m:ss (deterministic, no wall clock). */
+export function clock(ts: number, t0: number | null): string {
+  const s = Math.max(0, Math.floor((ts - (t0 ?? ts)) / 1000));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 }
 
-export function SectionLabel({ children, right, className }: { children: ReactNode; right?: ReactNode; className?: string }) {
-  return (
-    <div className={cn("flex items-baseline justify-between gap-3", className)}>
-      <h3 className="text-[11px] font-medium uppercase tracking-[0.2em] text-fg-faint">{children}</h3>
-      {right ? <div className="text-[11px] text-fg-dim">{right}</div> : null}
-    </div>
-  );
+/** Timestamp of the current run's first event. */
+export function useRunStart(): number | null {
+  return useMJ((s) => s.events[0]?.ts ?? null);
 }
 
 /** Mandatory honesty: anything not a live run is labelled on screen. */
@@ -76,55 +48,90 @@ export function runHonesty(run: EventDataMap["run.started"] | null): "live" | "s
 
 export function RunBadge({ className }: { className?: string }) {
   const run = useMJ((s) => s.view.run);
-  const ended = useMJ((s) => s.view.ended);
+  const ended = useMJ((s) => !!s.view.ended);
   const mode = runHonesty(run);
   if (!mode) return null;
   if (mode === "live") {
     return (
-      <span className={cn("inline-flex items-center gap-1.5 rounded-full border border-danger/40 bg-danger/10 px-2 py-0.5 text-[10px] font-semibold tracking-[0.18em] text-danger", className)}>
-        <span className="relative flex size-1.5">
-          {!ended && <span className="absolute inline-flex size-full animate-ping rounded-full bg-danger opacity-70" />}
-          <span className="relative inline-flex size-1.5 rounded-full bg-danger" />
-        </span>
-        {ended ? "LIVE · ENDED" : "LIVE"}
-      </span>
+      <Badge className={cn("text-fg", className)}>
+        <Dot tone="ok" pulse={!ended} />
+        {ended ? "Live run, ended" : "Live"}
+      </Badge>
     );
   }
   return (
-    <span className={cn("inline-flex items-center gap-1.5 rounded-full border border-alert/40 bg-alert/10 px-2 py-0.5 text-[10px] font-semibold tracking-[0.18em] text-alert", className)}>
-      <span className="size-1.5 rounded-full bg-alert" />
-      {mode === "scripted" ? "SCRIPTED DEMO" : "REPLAY"}
+    <Badge className={cn("text-fg", className)} >
+      <Dot tone="alert" />
+      {mode === "scripted" ? "Scripted demo" : "Replay"}
+    </Badge>
+  );
+}
+
+export function StreamStatus() {
+  const connected = useMJ((s) => s.connected);
+  return (
+    <span className="hidden items-center gap-2 text-[13px] text-fg-muted sm:inline-flex">
+      <Dot tone={connected ? "ok" : "neutral"} />
+      {connected ? "Connected" : "Offline"}
     </span>
   );
 }
 
-/** Number that glides to its new value. */
-export function AnimatedNumber({
-  value, decimals = 0, duration = 0.9, className, format,
-}: { value: number; decimals?: number; duration?: number; className?: string; format?: (n: number) => string }) {
-  const ref = useRef<HTMLSpanElement>(null);
-  const prev = useRef(value);
-  const fmt = format ?? ((n: number) => n.toFixed(decimals));
-  const fmtRef = useRef(fmt);
-  useEffect(() => { fmtRef.current = fmt; });
-  useEffect(() => {
-    const from = prev.current;
-    prev.current = value;
-    if (!ref.current) return;
-    const controls = animate(from, value, {
-      duration, ease: GLIDE,
-      onUpdate: (v) => { if (ref.current) ref.current.textContent = fmtRef.current(v); },
-    });
-    return () => controls.stop();
-  }, [value, duration]);
-  return <span ref={ref} className={cn("tabular-nums", className)}>{fmt(value)}</span>;
+/** Column heading above a card: title + one-line description + optional right slot. */
+export function ColumnHeading({ title, description, right }: { title: ReactNode; description?: ReactNode; right?: ReactNode }) {
+  return (
+    <div className="mb-3 flex min-w-0 items-end justify-between gap-4">
+      <div className="min-w-0">
+        <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-fg">{title}</h2>
+        {description && <p className="mt-0.5 truncate text-[13px] text-fg-muted">{description}</p>}
+      </div>
+      {right && <div className="shrink-0">{right}</div>}
+    </div>
+  );
 }
 
-/** The current attacker session id (latest session seen on an attacker event). */
-export function attackerSessionOf(events: MJEvent[]): string | null {
-  for (let i = events.length - 1; i >= 0; i--) {
-    const e = events[i];
-    if (e.actor === "attacker" && e.session_id) return e.session_id;
-  }
-  return null;
+export interface AttackerFacts {
+  sessions: Set<string>;
+  requests: { total: number; real: number; shadow: number; denied: number };
+  clinicianRequests: number;
+  decisions: Extract<MJEvent, { type: "policy.decision" }>[];
+  clinicianAllowed: number;
+  divertedAt: number | null;
+  shadowSession: string | null;
+}
+
+/** Facts about the attacker session(s), derived from the current run's events. */
+export function useAttackerFacts(): AttackerFacts {
+  const events = useMJ((s) => s.events);
+  return useMemo(() => {
+    const sessions = new Set<string>();
+    for (const e of events) if (e.actor === "attacker" && e.session_id) sessions.add(e.session_id);
+    const requests = { total: 0, real: 0, shadow: 0, denied: 0 };
+    let clinicianRequests = 0;
+    const decisions: AttackerFacts["decisions"] = [];
+    let clinicianAllowed = 0;
+    let divertedAt: number | null = null;
+    let shadowSession: string | null = null;
+    for (const e of events) {
+      if (e.type === "request") {
+        if (e.actor !== "attacker") { clinicianRequests++; continue; }
+        requests.total++;
+        if (e.tier === "real") requests.real++;
+        else if (e.tier === "shadow") requests.shadow++;
+        if (e.data.status === 401 || e.data.status === 403) requests.denied++;
+      } else if (e.type === "policy.decision") {
+        const mine = e.session_id && sessions.has(e.session_id);
+        if (mine || e.data.lane !== "normal") decisions.push(e);
+        else clinicianAllowed++;
+      } else if (e.type === "session.diverted" && divertedAt === null) {
+        divertedAt = e.ts;
+        shadowSession = e.session_id;
+      }
+    }
+    return { sessions, requests, clinicianRequests, decisions, clinicianAllowed, divertedAt, shadowSession };
+  }, [events]);
+}
+
+export function shortSession(id: string | null | undefined): string {
+  return id ? id.replace(/^sess-/, "") : "";
 }

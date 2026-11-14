@@ -1,86 +1,90 @@
 "use client";
-// War Room — the main demo screen. Owned by the integrator; composes the agents' components.
-// 3D city (Agent D) full-bleed, consoles (Agent E) as glass panes, soundscape (Agent F).
+// War Room — the main demo screen. Left: what the attacker believes. Right: what actually happened.
+// Below: the city network, key events and lab continuity. The Reveal sheet sits on top.
 
-import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { Sparkles } from "lucide-react";
 import type { MJEvent } from "@/lib/contracts";
+import { WORLD } from "@/lib/contracts";
 import { connectHub, useMJ } from "@/lib/events";
-import { CityScene } from "@/components/city";
+import { Button, Card, SiteHeader, cn } from "@/components/ui";
+import { NetworkMap } from "@/components/map";
 import {
-  AttackerTerminal, ContinuityHUD, DefenderPanel, EventTimeline, RunBadge, TheReveal,
+  AttackerTerminal, ColumnHeading, ContinuityHUD, DefenderPanel, EventTimeline, RunBadge, SoundButton,
+  StreamStatus, TheReveal, WarRoomSound, hospitalName, playRevealCue, useHasContinuity,
 } from "@/components/consoles";
-import { Mark } from "@/components/brand/Mark";
-import { Soundscape, SoundToggle } from "@/lib/sound";
 
 export default function WarRoom() {
   useEffect(() => { connectHub(); }, []);
-  const connected = useMJ((s) => s.connected);
   const canReveal = useMJ((s) => !!(s.view.reveal || s.view.exfil));
-  const [focus, setFocus] = useState<string | null>(null);
+  const hasContinuity = useHasContinuity();
+  const [sel, setSel] = useState<{ id: string; hospital: string | null } | null>(null);
+  const focus = sel?.hospital ?? null;
   const [replay, setReplay] = useState(0);
 
   const onSelect = useCallback((ev: MJEvent) => {
-    setFocus((cur) => (ev.hospital_id && ev.hospital_id !== cur ? ev.hospital_id : null));
+    setSel((cur) => (cur?.id === ev.id ? null : { id: ev.id, hospital: ev.hospital_id }));
   }, []);
 
+  const ep = WORLD.entry_point;
+
   return (
-    <main className="fixed inset-0 overflow-hidden bg-ink text-fg">
-      <Soundscape />
-      <div className="absolute inset-0">
-        <CityScene mode="live" focusHospital={focus} />
-      </div>
-      {/* soft vignette so panels stay legible over the scene */}
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_45%,rgba(5,7,13,0.75)_100%)]" />
+    <div className="flex min-h-dvh flex-col bg-background text-fg lg:h-dvh lg:overflow-hidden">
+      <WarRoomSound />
+      <SiteHeader
+        active="/war-room"
+        right={<>
+          <RunBadge />
+          <StreamStatus />
+          <span className="hidden h-5 w-px bg-border sm:block" />
+          <Button size="sm" disabled={!canReveal} onClick={() => { playRevealCue(); setReplay((n) => n + 1); }}>
+            Reveal
+          </Button>
+          <SoundButton />
+        </>}
+      />
 
-      <div className="pointer-events-none relative z-10 grid h-full grid-cols-[minmax(0,1fr)] grid-rows-[auto_minmax(0,1fr)_68px] gap-3 p-4">
-        <header className="pointer-events-auto flex items-center justify-between px-1">
-          <Link href="/" className="flex items-center gap-3">
-            <Mark className="size-7" />
-            <span className="text-[17px] font-semibold tracking-[-0.01em]">
-              Maya<span className="text-shadow">Jaal</span>
-            </span>
-            <span className="hidden text-[11px] uppercase tracking-[0.3em] text-fg-faint sm:inline">War Room</span>
-          </Link>
-          <div className="flex items-center gap-4 text-[11.5px]">
-            <RunBadge />
-            <span className="flex items-center gap-1.5 text-fg-dim">
-              <span className={connected ? "size-1.5 rounded-full bg-real" : "size-1.5 rounded-full bg-fg-faint"} />
-              {connected ? "stream connected" : "stream offline"}
-            </span>
-            {focus && (
-              <button type="button" onClick={() => setFocus(null)}
-                className="rounded-full border border-line px-3 py-1 text-fg-dim hover:text-fg">
-                Free camera
-              </button>
-            )}
-            <button
-              type="button"
-              disabled={!canReveal}
-              onClick={() => setReplay((n) => n + 1)}
-              className="flex items-center gap-1.5 rounded-full border border-shadow/50 bg-shadow/10 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-shadow transition-colors hover:bg-shadow/20 disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              <Sparkles className="size-3" /> Reveal
-            </button>
-            <SoundToggle />
-          </div>
-        </header>
-
-        <div className="grid min-h-0 grid-cols-[minmax(340px,27vw)_minmax(0,1fr)_minmax(340px,24vw)] gap-4">
-          <div className="pointer-events-auto min-h-0"><AttackerTerminal className="h-full" /></div>
-          <div className="relative min-h-0">
-            <div className="pointer-events-auto absolute right-0 bottom-0 w-[min(100%,380px)]">
-              <ContinuityHUD />
-            </div>
-          </div>
-          <div className="pointer-events-auto min-h-0"><DefenderPanel className="h-full" /></div>
+      <main className="mx-auto flex w-full max-w-[1400px] min-h-0 flex-1 flex-col gap-5 px-4 py-5 sm:px-6">
+        <div className="grid min-h-0 flex-1 grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] lg:gap-6">
+          <section className="flex min-h-0 flex-col">
+            <ColumnHeading
+              title="What the attacker sees"
+              description={`An AI agent using a phished login for ${ep.username}, ${ep.role} at ${hospitalName(ep.hospital_id)}.`}
+            />
+            <AttackerTerminal className="h-[480px] lg:h-auto lg:flex-1" />
+          </section>
+          <section className="flex min-h-0 flex-col">
+            <ColumnHeading
+              title="What actually happened"
+              description="Ground truth from the gateway, the shadow tier and the canary ledger."
+            />
+            <DefenderPanel className="lg:flex-1" />
+          </section>
         </div>
 
-        <div className="pointer-events-auto min-w-0"><EventTimeline onSelect={onSelect} /></div>
-      </div>
+        <div className="grid shrink-0 grid-cols-1 gap-5 lg:h-[clamp(172px,23vh,240px)] lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] lg:gap-6">
+          <Card
+            title="City network"
+            className="h-[240px] lg:h-auto"
+            bodyClassName="relative p-0"
+            action={focus
+              ? <button type="button" onClick={() => setSel(null)} className="text-xs text-fg-muted hover:text-fg">
+                  {hospitalName(focus)} · Clear
+                </button>
+              : <span className="text-xs text-fg-subtle">{WORLD.hospitals.length} hospitals</span>}
+          >
+            <div className="absolute inset-0">
+              <NetworkMap focusHospital={focus} variant="full" />
+            </div>
+          </Card>
+          <div className={cn("grid min-h-0 grid-cols-1 gap-5 lg:gap-4",
+            hasContinuity && "sm:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]")}>
+            <EventTimeline className="h-[260px] lg:h-auto" selected={sel?.id ?? null} onSelect={onSelect} />
+            {hasContinuity && <ContinuityHUD className="lg:h-auto" />}
+          </div>
+        </div>
+      </main>
 
       <TheReveal replayKey={replay} />
-    </main>
+    </div>
   );
 }

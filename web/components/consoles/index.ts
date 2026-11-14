@@ -1,9 +1,12 @@
-// War Room consoles. All are client components that read the shared store (web/lib/events.ts).
+// War Room consoles. Client components that read the shared store (web/lib/events.ts).
 // Call connectHub() once in a top-level client component before rendering these.
 
 export { AttackerTerminal, type AttackerTerminalProps } from "./AttackerTerminal";
-export { DefenderPanel, SessionBadge, CanaryLedger, type DefenderPanelProps } from "./DefenderPanel";
-export { EventTimeline, chipFor, type EventTimelineProps, type TimelineChip } from "./EventTimeline";
-export { TheReveal, useRevealTrigger, type TheRevealProps, type RevealPhase, type RevealTriggerOptions } from "./TheReveal";
-export { ContinuityHUD, type ContinuityHUDProps } from "./ContinuityHUD";
-export { RunBadge, runHonesty, Glass } from "./ui";
+export { DefenderPanel, type DefenderPanelProps } from "./DefenderPanel";
+export { EventTimeline, keyEvents, type EventTimelineProps, type KeyEvent } from "./EventTimeline";
+export { TheReveal, type TheRevealProps } from "./TheReveal";
+export { ContinuityHUD, useHasContinuity, type ContinuityHUDProps } from "./ContinuityHUD";
+export { WarRoomSound, SoundButton, playRevealCue } from "./Sound";
+export {
+  RunBadge, StreamStatus, ColumnHeading, runHonesty, useAttackerFacts, clock, formatBytes, hospitalName, hospitalShort,
+} from "./ui";
