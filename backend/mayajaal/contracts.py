@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import itertools
 import json
+import os
 import time
 import uuid
 from pathlib import Path
@@ -295,6 +296,6 @@ def load_world() -> dict[str, Any]:
 
 
 # Hub endpoints every component uses (see contracts/README.md)
-HUB_URL = "http://127.0.0.1:8002"
+HUB_URL = os.environ.get("MJ_HUB_URL", "http://127.0.0.1:8002")
 HUB_INGEST = HUB_URL + "/events"        # POST one event JSON or a list
-HUB_WS = "ws://127.0.0.1:8002/ws"       # UI subscribes here
+HUB_WS = HUB_URL.replace("http", "ws", 1) + "/ws"  # UI subscribes here

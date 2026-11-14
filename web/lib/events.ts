@@ -146,11 +146,15 @@ export function useMJEvent(fn: Listener) {
 }
 
 let socket: WebSocket | null = null;
+let wanted = false;
 
 /** Connect to the hub once; auto-reconnects. Safe to call many times. */
 export function connectHub(url: string = HUB_WS_URL) {
-  if (typeof window === "undefined" || socket) return;
+  if (typeof window === "undefined") return;
+  wanted = true;
+  if (socket) return;
   const open = () => {
+    if (!wanted) return;
     socket = new WebSocket(url);
     socket.onopen = () => useMJ.setState({ connected: true });
     socket.onmessage = (m) => {
@@ -159,8 +163,17 @@ export function connectHub(url: string = HUB_WS_URL) {
     socket.onclose = () => {
       useMJ.setState({ connected: false });
       socket = null;
-      setTimeout(open, 1500);
+      if (wanted) setTimeout(open, 1500);
     };
   };
   open();
+}
+
+/** Stop the live stream (Replay uses this so live events don't mix into a loaded run). */
+export function disconnectHub() {
+  wanted = false;
+  const s = socket;
+  socket = null;
+  s?.close();
+  useMJ.setState({ connected: false });
 }
