@@ -131,6 +131,34 @@ async def _replay(path: Path, loop: bool, speed: float) -> None:
         await asyncio.sleep(4)
 
 
+async def _publish_event(ev: Event) -> None:
+    await publish(ev.model_dump())
+
+
+def _mount_plugins() -> None:
+    """Routers other components contribute to the hub. Each is optional."""
+    import os
+
+    try:
+        from mayajaal.arena import build_router as build_arena_router, default_admin_key
+        app.include_router(build_arena_router(
+            _publish_event,
+            gateway_url=os.environ.get("MJ_GATEWAY_URL", "http://127.0.0.1:8000"),
+            admin_key_provider=default_admin_key,
+            events_provider=lambda rid: list(_runs.get(rid, [])),
+        ))
+    except ImportError:
+        pass
+    try:
+        from mayajaal.continuity.router import build_router as build_continuity_router
+        app.include_router(build_continuity_router(_publish_event))
+    except ImportError:
+        pass
+
+
+_mount_plugins()
+
+
 def main() -> None:
     import uvicorn
 
