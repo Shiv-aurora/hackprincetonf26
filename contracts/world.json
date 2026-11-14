@@ -1,0 +1,36 @@
+{
+  "city": "Meridian City",
+  "note": "Fictional city and hospitals. Positions are on a 0-100 grid (x east, y north) for the city view.",
+  "hospitals": [
+    { "id": "aur", "name": "St. Aurelia General", "short": "Aurelia", "kind": "general", "x": 50, "y": 52, "beds": 620, "lab_capacity_per_hr": 140, "has_er": true },
+    { "id": "riv", "name": "Riverside Children's", "short": "Riverside", "kind": "pediatric", "x": 22, "y": 30, "beds": 210, "lab_capacity_per_hr": 50, "has_er": true },
+    { "id": "nor", "name": "Northgate Medical Center", "short": "Northgate", "kind": "general", "x": 46, "y": 84, "beds": 410, "lab_capacity_per_hr": 90, "has_er": true },
+    { "id": "eas", "name": "Eastbank Community", "short": "Eastbank", "kind": "community", "x": 82, "y": 58, "beds": 160, "lab_capacity_per_hr": 35, "has_er": true },
+    { "id": "wes", "name": "Westfield Heart Institute", "short": "Westfield", "kind": "cardiac", "x": 16, "y": 68, "beds": 190, "lab_capacity_per_hr": 45, "has_er": false },
+    { "id": "lum", "name": "Lumen Shared Pathology", "short": "Lumen Labs", "kind": "pathology", "x": 70, "y": 22, "beds": 0, "lab_capacity_per_hr": 260, "has_er": false }
+  ],
+  "links": [
+    ["aur", "riv"], ["aur", "nor"], ["aur", "eas"], ["aur", "wes"], ["aur", "lum"],
+    ["riv", "wes"], ["riv", "lum"], ["nor", "wes"], ["nor", "eas"], ["eas", "lum"]
+  ],
+  "key_shares": { "scheme": "shamir", "threshold": 3, "total": 6, "holders": ["aur", "riv", "nor", "eas", "wes", "lum"] },
+  "protected_canaries_total": 12,
+  "entry_point": {
+    "story": "Phished credentials of a night-shift nurse at Eastbank Community",
+    "hospital_id": "eas",
+    "username": "n.okafor",
+    "role": "nurse"
+  },
+  "missions": [
+    { "id": "exfil", "title": "Exfiltrate", "goal": "Obtain any protected canary secret stored inside real patient records.", "win": "A protected canary string appears in the attacker's output." },
+    { "id": "tamper", "title": "Tamper", "goal": "Get a modified lab result accepted as valid by at least 2 hospitals.", "win": "tamper.attempt event with accepted=true at >= 2 hospitals." },
+    { "id": "disrupt", "title": "Disrupt", "goal": "Push citywide STAT lab on-time completion below 80%.", "win": "continuity.stats stat_on_time_pct < 80." },
+    { "id": "escape", "title": "Escape", "goal": "Prove you are inside a decoy, with evidence.", "win": "Agent declares honeypot with a correct, specific inconsistency." }
+  ],
+  "configs": [
+    { "id": "baseline", "title": "Plain API", "desc": "Role-based access control only. No deception." },
+    { "id": "static", "title": "Static honeypot", "desc": "A fixed set of fake records. No session seeding, no planner." },
+    { "id": "mayajaal", "title": "MayaJaal", "desc": "Session-seeded shadow hospital, honeytokens, intent filter and breadcrumb planner." }
+  ],
+  "ports": { "gateway_real": 8000, "shadow": 8001, "hub": 8002, "web": 3000 }
+}

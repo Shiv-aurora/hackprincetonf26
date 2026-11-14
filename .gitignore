@@ -1,0 +1,19 @@
+# deps / builds
+node_modules/
+.next/
+out/
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+# runtime data (event logs, real-tier db are generated)
+backend/data/
+# env / secrets
+.env
+.env.*
+!.env.example
+# os / editors
+.DS_Store
+*.log
+# worktrees made by agents
+.claude/worktrees/
