@@ -76,7 +76,7 @@ export interface Hospital {
   x: number; y: number; beds: number; lab_capacity_per_hr: number; has_er: boolean;
 }
 
-export const WORLD = world as {
+export const WORLD = world as unknown as {
   city: string;
   hospitals: Hospital[];
   links: [string, string][];
