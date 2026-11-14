@@ -1,26 +1,55 @@
 @import "tailwindcss";
 
+/* MayaJaal design tokens — shared by every UI agent. Owned by the integrator.
+   Real hospital = teal/cyan. Shadow (Maya) = violet/magenta. Amber = alert. Red = real failure only. */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --ink: #05070d;          /* page background */
+  --ink-2: #0a0f1a;        /* panels */
+  --ink-3: #111827;        /* raised */
+  --line: #1c2537;         /* hairlines */
+  --fg: #e6edf7;
+  --fg-dim: #8a97ad;
+  --fg-faint: #4b5871;
+
+  --real: #2de2e6;         /* teal/cyan */
+  --real-dim: #0e5e66;
+  --shadow: #b26bff;       /* violet */
+  --shadow-hot: #ff4fd8;   /* magenta */
+  --shadow-dim: #3b1f66;
+  --alert: #ffb02e;        /* amber */
+  --danger: #ff4d5e;       /* red: only real failures */
+  --ok: #3ddc97;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-line: var(--line);
+  --color-fg: var(--fg);
+  --color-fg-dim: var(--fg-dim);
+  --color-fg-faint: var(--fg-faint);
+  --color-real: var(--real);
+  --color-real-dim: var(--real-dim);
+  --color-shadow: var(--shadow);
+  --color-shadow-hot: var(--shadow-hot);
+  --color-shadow-dim: var(--shadow-dim);
+  --color-alert: var(--alert);
+  --color-danger: var(--danger);
+  --color-ok: var(--ok);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html, body {
+  background: var(--ink);
+  color: var(--fg);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--shadow) 40%, transparent);
 }
