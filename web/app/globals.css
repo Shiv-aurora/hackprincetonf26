@@ -1,55 +1,97 @@
 @import "tailwindcss";
 
-/* MayaJaal design tokens — shared by every UI agent. Owned by the integrator.
-   Real hospital = teal/cyan. Shadow (Maya) = violet/magenta. Amber = alert. Red = real failure only. */
-:root {
-  --ink: #05070d;          /* page background */
-  --ink-2: #0a0f1a;        /* panels */
-  --ink-3: #111827;        /* raised */
-  --line: #1c2537;         /* hairlines */
-  --fg: #e6edf7;
-  --fg-dim: #8a97ad;
-  --fg-faint: #4b5871;
+/* MayaJaal design tokens — Vercel/Geist monochrome. Owned by the integrator.
+   Neutral greys, hairline borders, no glow, no gradients. One restrained accent for the shadow side.
+   "real" is neutral foreground; "shadow" is purple; amber = alert; red ONLY for an actual leak/failure.
+   Legacy names (ink, line, fg-dim, real, shadow...) are kept so older components still map sensibly. */
 
-  --real: #2de2e6;         /* teal/cyan */
-  --real-dim: #0e5e66;
-  --shadow: #b26bff;       /* violet */
-  --shadow-hot: #ff4fd8;   /* magenta */
-  --shadow-dim: #3b1f66;
-  --alert: #ffb02e;        /* amber */
-  --danger: #ff4d5e;       /* red: only real failures */
-  --ok: #3ddc97;
+:root {
+  /* light */
+  --background: #ffffff;
+  --surface: #fafafa;
+  --surface-2: #f2f2f2;
+  --border: #eaeaea;
+  --border-strong: #d4d4d4;
+  --fg: #171717;
+  --fg-muted: #666666;
+  --fg-subtle: #8f8f8f;
+  --shadow: #7c3aed;
+  --shadow-bg: #f5f0ff;
+  --alert: #ab570a;
+  --alert-bg: #fff6e5;
+  --danger: #e5484d;
+  --ok: #297a3a;
+  --focus: #0070f3;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --surface: #111111;
+    --surface-2: #1a1a1a;
+    --border: #262626;
+    --border-strong: #3a3a3a;
+    --fg: #ededed;
+    --fg-muted: #a1a1a1;
+    --fg-subtle: #707070;
+    --shadow: #b48cf2;
+    --shadow-bg: #1d1430;
+    --alert: #f5a524;
+    --alert-bg: #2a1d05;
+    --danger: #ff6166;
+    --ok: #62c073;
+    --focus: #52a8ff;
+  }
 }
 
 @theme inline {
-  --color-ink: var(--ink);
-  --color-ink-2: var(--ink-2);
-  --color-ink-3: var(--ink-3);
-  --color-line: var(--line);
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
   --color-fg: var(--fg);
-  --color-fg-dim: var(--fg-dim);
-  --color-fg-faint: var(--fg-faint);
-  --color-real: var(--real);
-  --color-real-dim: var(--real-dim);
+  --color-fg-muted: var(--fg-muted);
+  --color-fg-subtle: var(--fg-subtle);
   --color-shadow: var(--shadow);
-  --color-shadow-hot: var(--shadow-hot);
-  --color-shadow-dim: var(--shadow-dim);
+  --color-shadow-bg: var(--shadow-bg);
   --color-alert: var(--alert);
+  --color-alert-bg: var(--alert-bg);
   --color-danger: var(--danger);
   --color-ok: var(--ok);
+  --color-focus: var(--focus);
+
+  /* legacy aliases */
+  --color-ink: var(--background);
+  --color-ink-2: var(--surface);
+  --color-ink-3: var(--surface-2);
+  --color-line: var(--border);
+  --color-fg-dim: var(--fg-muted);
+  --color-fg-faint: var(--fg-subtle);
+  --color-real: var(--fg);
+  --color-real-dim: var(--fg-subtle);
+  --color-shadow-hot: var(--shadow);
+  --color-shadow-dim: var(--shadow-bg);
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
 html, body {
-  background: var(--ink);
+  background: var(--background);
   color: var(--fg);
 }
 
 body {
   font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  font-feature-settings: "ss01", "cv11";
 }
 
 ::selection {
-  background: color-mix(in srgb, var(--shadow) 40%, transparent);
+  background: color-mix(in srgb, var(--focus) 25%, transparent);
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
 }
