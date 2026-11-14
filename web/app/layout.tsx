@@ -13,8 +13,10 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"),
   title: "MayaJaal",
   description: "The breach is real. The data isn't.",
+  icons: { icon: "/brand/mayajaal-icon.svg", apple: "/brand/apple-touch-icon.png" },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
