@@ -5,7 +5,7 @@ Solo HackPrinceton F26 project, built by parallel agents. Read `DESIGN.md` (what
 
 ## Golden rules
 1. **Stay in your folders.** Your task names the folders you own. Do not edit files outside them.
-2. **Never edit shared files:** `contracts/**`, `backend/mayajaal/contracts.py`, `web/lib/contracts.ts`,
+2. **Never edit shared files:** `contracts/**`, `backend/mayajaal/contracts.py`, `backend/mayajaal/world_api.py`, `backend/mayajaal/hub/**`, `web/lib/contracts.ts`,
    `web/lib/world.json`, `web/lib/events.ts` (shared event store: use `useMJ`, `useMJEvent`, `connectHub`,
    `foldEvents`), `web/package.json`, `bun.lock`, `backend/pyproject.toml`, `uv.lock`,
    `web/app/layout.tsx`, `web/app/globals.css`, `CLAUDE.md`, `PLAN.md`, `DESIGN.md`.
