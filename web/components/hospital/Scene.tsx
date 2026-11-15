@@ -5,6 +5,7 @@
 
 import { useMemo } from "react";
 import type { MJEvent } from "@/lib/contracts";
+import { WORLD } from "@/lib/contracts";
 import { useMJ } from "@/lib/events";
 import { cn } from "@/components/ui";
 import { roomFor, roomForPlacement, type RoomId } from "./story";
@@ -215,6 +216,8 @@ export function HospitalScene({ className }: { className?: string }) {
         })()}
       </svg>
 
+      <ScatterStrip events={events} />
+
       {/* flat captions for the two campuses */}
       <div className="pointer-events-none absolute inset-x-4 bottom-3 flex justify-between text-[12px]">
         <span className="text-fg-muted"><span className="font-medium text-fg">Real hospital</span> · staff working, sensitive fields encrypted</span>
@@ -222,6 +225,35 @@ export function HospitalScene({ className }: { className?: string }) {
           <span className="font-medium">Decoy hospital</span> · {diverted ? "built for this attacker" : "not built yet"}
         </span>
       </div>
+    </div>
+  );
+}
+
+/** Once the vault has been scattered: an encrypted copy of the real records, cut into pieces and held across
+ *  the six hospitals, the key split k-of-n. The six holders light up one by one; the live database stays put. */
+function ScatterStrip({ events }: { events: MJEvent[] }) {
+  const sc = useMemo(() => {
+    let last: Extract<MJEvent, { type: "vault.scattered" }> | null = null;
+    for (const e of events) {
+      if (e.type === "run.started") last = null;
+      if (e.type === "vault.scattered") last = e;
+    }
+    return last;
+  }, [events]);
+  if (!sc) return null;
+  const d = sc.data;
+  return (
+    <div className="mj-fade pointer-events-none absolute top-3 left-4 flex max-w-[calc(100%-2rem)] flex-wrap items-center gap-x-3 gap-y-1.5 rounded-lg border border-border bg-background/95 px-3 py-2 text-[12px]">
+      <span className="font-medium text-fg">Encrypted copy split across {d.holders.length} hospitals</span>
+      <span className="flex items-center gap-1">
+        {d.holders.map((h, i) => (
+          <span key={h} title={WORLD.hospitals.find((x) => x.id === h)?.name ?? h}
+            className="mj-scatter-dot rounded-[4px] border border-fg/30 bg-surface-2 px-1 font-mono text-[10px] uppercase text-fg"
+            style={{ animationDelay: `${i * 120}ms` }}>{h}</span>
+        ))}
+      </span>
+      <span className="text-fg-muted tabular-nums">{d.pieces} pieces × {d.replicas} copies · key {d.key_threshold} of {d.holders.length}{d.verified ? " · rebuild verified" : ""}</span>
+      <style>{`@keyframes mj-scatter-in { from { opacity: .25 } to { opacity: 1 } } .mj-scatter-dot { animation: mj-scatter-in 200ms ease-out both } @media (prefers-reduced-motion: reduce) { .mj-scatter-dot { animation: none } }`}</style>
     </div>
   );
 }

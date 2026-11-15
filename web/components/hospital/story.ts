@@ -112,6 +112,9 @@ export function storyBeats(events: MJEvent[]): Beat[] {
         else if (e.data.reason.startsWith("First Sight"))
           add(e.id, "First Sight flags the login: its requests don't look like a nurse at work. We keep watching instead of blocking.", "alert");
         break;
+      case "vault.scattered":
+        add(e.id, `Meanwhile, an encrypted copy of the real records is split across the ${e.data.holders.length} hospitals. No hospital holds a whole copy or the key. The live records stay where they are, so care keeps running.`);
+        break;
       case "session.diverted":
         diverted = true;
         add(e.id, "That's not what a nurse does. We don't block them: a block tips them off. From now on every request quietly goes to a decoy hospital.", "shadow");

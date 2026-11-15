@@ -27,7 +27,7 @@ export function BriefCard({ title }: { title: string }) {
         transition={reduce ? { duration: 0 } : { duration: 0.35, ease: [0.16, 1, 0.3, 1] }}>
         <h2 className="mb-4 text-center text-[30px] leading-tight font-semibold tracking-[-0.035em] text-fg sm:text-[36px]">{title}</h2>
         {brief
-          ? <BriefPanel brief={brief} />
+          ? <BriefPanel brief={brief} reportHref="/runs/report-mayajaal.md" />
           : <p className="text-center text-sm text-fg-muted">{failed ? "No brief recorded for this run." : "Loading brief…"}</p>}
       </motion.div>
     </div>

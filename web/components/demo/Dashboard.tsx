@@ -18,6 +18,7 @@ import { HospitalScene } from "@/components/hospital/Scene";
 import { ActsBar } from "@/components/hospital/Acts";
 import { AttackControls } from "@/components/hospital/AttackControls";
 import { FingerprintPanel } from "@/components/hospital/Fingerprint";
+import { LiveBrief } from "@/components/hospital/Brief";
 import {
   AttackerTerminal, ColumnHeading, ContinuityHUD, DefenderPanel, EventTimeline, RunBadge, SoundButton,
   StreamStatus, TheReveal, WarRoomSound, hospitalName, playRevealCue, useHasContinuity,
@@ -82,6 +83,7 @@ export function Dashboard({ mode = "live", revealOpen = false }: DashboardProps)
         </div>
         <FingerprintPanel />
         <HospitalNumbers />
+        {!demo && <LiveBrief />}
 
         {!demo && (
           <details className="group mt-6">

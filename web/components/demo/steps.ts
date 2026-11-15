@@ -126,7 +126,7 @@ export const STEPS: Step[] = [
     anchor: beforeFirstAttacker,
   },
   {
-    label: "Normal shift", focus: ["acts", "scene"], seconds: 6, source: "attack",
+    label: "Normal shift", focus: ["acts", "scene"], seconds: 5, source: "attack",
     headline: "A normal shift",
     sub: "Staff at work. Sensitive records encrypted on disk.",
     anchor: beforeFirstAttacker,
@@ -136,6 +136,12 @@ export const STEPS: Step[] = [
     headline: "A stolen nurse login, flagged at once",
     sub: "A script, not the EHR app, on a device we don't own.",
     anchor: (ev) => settle(ev, find(ev, isFirstSight) ?? after(ev, isRealRead, is("agent.tool_result")) ?? find(ev, is("agent.tool_result"))),
+  },
+  {
+    label: "Scatter", focus: ["scene", "narrator"], seconds: 8, source: "attack",
+    headline: "Meanwhile, the real records are split up",
+    sub: "An encrypted copy spread across six hospitals. No one holds the whole key.",
+    anchor: (ev) => { const i = find(ev, is("vault.scattered")); return i === null ? null : settle(ev, i); },
   },
   {
     label: "Step-up", focus: ["narrator", "scene"], seconds: 8, source: "attack",
@@ -154,12 +160,12 @@ export const STEPS: Step[] = [
     anchor: (ev) => settle(ev, after(ev, is("session.diverted"), is("agent.tool_result"))),
   },
   {
-    label: "Why", card: "why", focus: [], seconds: 9, source: "attack",
+    label: "Why", card: "why", focus: [], seconds: 8, source: "attack",
     headline: "Why we don't stop the attack",
     anchor: (ev) => settle(ev, after(ev, is("session.diverted"), is("agent.tool_result"))),
   },
   {
-    label: "Bulk pull", focus: ["scene", "numbers"], seconds: 8, source: "attack",
+    label: "Bulk pull", focus: ["scene", "numbers"], seconds: 7, source: "attack",
     headline: "Thousands of patients. All fake.",
     sub: "Generated per session. Never copied from real records.",
     anchor: (ev) => {
@@ -168,7 +174,7 @@ export const STEPS: Step[] = [
     },
   },
   {
-    label: "Trackers", focus: ["trackers", "scene"], seconds: 8, source: "attack",
+    label: "Trackers", focus: ["trackers", "scene"], seconds: 7, source: "attack",
     headline: "Decoy files with trackers",
     sub: "Planted where this attacker is looking.",
     anchor: (ev) => {
@@ -177,7 +183,7 @@ export const STEPS: Step[] = [
     },
   },
   {
-    label: "Bait taken", focus: ["trackers", "learned"], seconds: 9, source: "attack",
+    label: "Bait taken", focus: ["trackers", "learned"], seconds: 8, source: "attack",
     headline: (v) => v.honeytokensTouched.length ? "It took the bait" : "Now we know what it wants",
     sub: (v) => `It wants to ${goalWord(v.topGoal).toLowerCase()} (${Math.round((v.posterior[v.topGoal] ?? 0) * 100)}% sure).`,
     anchor: (ev) => {
@@ -196,7 +202,7 @@ export const STEPS: Step[] = [
     },
   },
   {
-    label: "Exfil", focus: ["narrator", "numbers"], seconds: 8, source: "attack",
+    label: "Exfil", focus: ["narrator", "numbers"], seconds: 7, source: "attack",
     headline: "It believes it won",
     sub: (v) => v.exfil ? `${v.exfil.records.toLocaleString("en-US")} records “stolen”. Every one fake.` : "It reports success.",
     anchor: (ev) => find(ev, is("agent.claim")) ?? find(ev, is("exfil")),
@@ -212,13 +218,13 @@ export const STEPS: Step[] = [
     anchor: (ev) => ev.length - 1,
   },
   {
-    label: "Outage", focus: ["scene", "narrator"], seconds: 9, source: "continuity",
+    label: "Outage", focus: ["scene", "narrator"], seconds: 8, source: "continuity",
     headline: "The shared lab goes down",
     sub: "Like Synnovis, 2024. Urgent tests reroute to labs that still work.",
     anchor: (ev) => midOutage(ev),
   },
   {
-    label: "Care", focus: ["numbers"], seconds: 8, source: "continuity",
+    label: "Care", focus: ["numbers"], seconds: 7, source: "continuity",
     headline: "Care continues",
     sub: (v) => v.continuity ? `${Math.round(v.continuity.stat_on_time_pct)}% of urgent tests still on time.` : "",
     anchor: (ev) => lastBefore(ev, is("continuity.stats")),

@@ -11,6 +11,7 @@ import { ChevronRight } from "lucide-react";
 import type { MJEvent } from "@/lib/contracts";
 import { HUB_HTTP_URL } from "@/lib/contracts";
 import { useMJ, useMJEvent } from "@/lib/events";
+import { Download } from "lucide-react";
 import { Badge, Button, cn } from "@/components/ui";
 
 /* ------------------------------------------------------------------ types */
@@ -132,7 +133,7 @@ function factsOf(b: Brief): Fact[] {
 
 const VISIBLE_STEPS = 4;
 
-export function BriefPanel({ brief, className }: { brief: Brief; className?: string }) {
+export function BriefPanel({ brief, className, reportHref }: { brief: Brief; className?: string; reportHref?: string }) {
   const [all, setAll] = useState(false);
   const [open, setOpen] = useState<number | null>(null);
   const seen = brief.facts?.attacker_seen !== false;
@@ -142,12 +143,20 @@ export function BriefPanel({ brief, className }: { brief: Brief; className?: str
 
   return (
     <section className={cn("rounded-lg border border-border bg-background", className)} aria-label="Incident brief">
-      <header className="flex h-10 items-center justify-between gap-3 border-b border-border px-4">
+      <header className="flex min-h-11 items-center justify-between gap-3 border-b border-border px-4 py-2">
         <div className="flex min-w-0 items-center gap-2">
           <h3 className="text-[13px] font-medium text-fg">Incident brief</h3>
           <span className="truncate font-mono text-[11px] text-fg-subtle">{brief.run_id}</span>
         </div>
-        <Badge className="h-5 shrink-0 px-2 text-[11px]">{rulesOnly ? "Rule-based brief" : "Rules + Claude analysis"}</Badge>
+        <div className="flex shrink-0 items-center gap-2">
+          <Badge className="h-5 shrink-0 px-2 text-[11px]">{rulesOnly ? "Rule-based brief" : "Rules + Claude analysis"}</Badge>
+          {reportHref && (
+            <a href={reportHref} download={`mayajaal-forensic-report-${brief.run_id}.md`}
+              className="inline-flex h-7 items-center gap-1.5 rounded-md bg-fg px-2.5 text-xs font-medium text-background transition-opacity hover:opacity-90">
+              <Download className="size-3.5" strokeWidth={2} aria-hidden="true" />Download forensic report
+            </a>
+          )}
+        </div>
       </header>
 
       {!seen ? (
@@ -269,7 +278,8 @@ export function LiveBrief({ className }: { className?: string }) {
     return (
       <motion.div className={className} initial={reduce ? false : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.2, ease: "easeOut" }}>
-        <BriefPanel brief={state.brief} />
+        <BriefPanel brief={state.brief}
+          reportHref={`${HUB_HTTP_URL}/analyst/report?run_id=${encodeURIComponent(state.brief.run_id)}`} />
         <div className="mt-1.5 flex justify-end">
           <button type="button" onClick={() => load(runId)}
             className="h-7 rounded-md px-2 text-xs text-fg-subtle hover:bg-surface-2 hover:text-fg">Refresh brief</button>
@@ -289,9 +299,15 @@ export function LiveBrief({ className }: { className?: string }) {
             : runId && !ended ? "Appears when the run ends." : "Facts and response steps for the last run."}
         </span>
       </div>
-      <Button size="sm" onClick={() => load(runId)} disabled={state.kind === "loading"}>
-        {state.kind === "error" ? "Try again" : "Load brief"}
-      </Button>
+      <div className="flex items-center gap-2">
+        <a href={`${HUB_HTTP_URL}/analyst/report${runId ? `?run_id=${encodeURIComponent(runId)}` : ""}`} download
+          className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border px-3 text-[13px] text-fg-muted transition-colors hover:bg-surface-2 hover:text-fg">
+          <Download className="size-3.5" strokeWidth={2} aria-hidden="true" />Download forensic report
+        </a>
+        <Button size="sm" onClick={() => load(runId)} disabled={state.kind === "loading"}>
+          {state.kind === "error" ? "Try again" : "Load brief"}
+        </Button>
+      </div>
     </section>
   );
 }
