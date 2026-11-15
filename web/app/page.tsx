@@ -80,13 +80,6 @@ export default function Home() {
             <p className="mt-3 text-[26px] leading-tight font-semibold tracking-[-0.03em] text-danger sm:text-[34px] lg:text-[30px] xl:text-[34px]">
               Without stopping the attacks.
             </p>
-            <p className="mt-6 max-w-[680px] text-[17px] leading-[1.65] text-pretty text-fg-muted">
-              Hospitals can&rsquo;t switch off when they&rsquo;re attacked. When someone inside the network starts
-              acting like an attacker, MayaJaal doesn&rsquo;t block them. It quietly moves them into a fake copy of
-              the hospital, built fresh for them, so the attack carries on. They keep &ldquo;stealing&rdquo;, but none
-              of it is real. Doctors and nurses keep working
-              in the real one, and nobody has to pull the plug.
-            </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <ButtonLink href="/demo" variant="primary" className="h-11 px-5">
                 Watch the 3-minute demo <ArrowRight className="size-4" aria-hidden />
