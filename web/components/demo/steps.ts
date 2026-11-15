@@ -24,7 +24,7 @@ export interface Step {
   /** Index of the last event to fold in; null = not found (falls back to the previous step's index). */
   anchor: (events: MJEvent[]) => number | null;
   /** Full-screen content instead of the plain caption. */
-  card?: "title" | "compare" | "close";
+  card?: "title" | "compare" | "close" | "why";
   /** Open the Reveal sheet. */
   reveal?: boolean;
 }
@@ -121,6 +121,11 @@ export const STEPS: Step[] = [
     label: "Detected", focus: ["acts", "scene"], seconds: 13, source: "attack",
     headline: "Moved into a decoy instead",
     sub: "Every request still works. None of it is real.",
+    anchor: (ev) => settle(ev, after(ev, is("session.diverted"), is("agent.tool_result"))),
+  },
+  {
+    label: "Why", card: "why", focus: [], seconds: 13, source: "attack",
+    headline: "Why we don't stop the attack",
     anchor: (ev) => settle(ev, after(ev, is("session.diverted"), is("agent.tool_result"))),
   },
   {

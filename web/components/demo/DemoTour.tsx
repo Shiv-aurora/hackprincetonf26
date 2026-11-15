@@ -9,7 +9,7 @@ import { disconnectHub, useMJ } from "@/lib/events";
 import { Dashboard } from "./Dashboard";
 import { Spotlight } from "./Spotlight";
 import { Caption, Controls } from "./Pills";
-import { CloseCard, CompareCard, TitleCard } from "./Cards";
+import { CloseCard, CompareCard, TitleCard, WhyCard } from "./Cards";
 import { STEPS, resolveAnchors, text } from "./steps";
 import { runLabel, useDemoData } from "./data";
 
@@ -111,7 +111,8 @@ export function DemoTour() {
       {cur.card === "title" && <TitleCard title={headline} sub={sub} />}
       {cur.card === "compare" && ready && <CompareCard title={headline} results={data.results} />}
       {cur.card === "close" && <CloseCard title={headline} />}
-      {cur.card !== "title" && cur.card !== "close" && (
+      {cur.card === "why" && <WhyCard title={headline} />}
+      {cur.card !== "title" && cur.card !== "close" && cur.card !== "why" && (
         <Caption stepKey={step} kicker={kicker} headline={cur.card === "compare" ? "" : headline} sub={cur.card ? undefined : sub} />
       )}
 

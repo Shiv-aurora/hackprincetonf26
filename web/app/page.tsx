@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { ArrowRight } from "lucide-react";
 import { ButtonLink, FloatingNav } from "@/components/ui";
 import { CareVisual, HeroLine, MoveVisual, SpotVisual } from "@/components/landing/Visuals";
+import { WhyNotBlock } from "@/components/landing/Why";
 import results from "../public/runs/results.json";
 import outage from "../public/runs/continuity-compare.json";
 
@@ -60,6 +61,9 @@ export default function Home() {
           <h1 className="max-w-[900px] text-[44px] leading-[1.03] font-semibold tracking-[-0.045em] text-balance sm:text-[64px]">
             Protecting critical hospitals from AI cyberattacks.
           </h1>
+          <p className="mt-3 text-[26px] leading-tight font-semibold tracking-[-0.03em] text-danger sm:text-[34px]">
+            Without stopping the attacks.
+          </p>
           <p className="mt-6 max-w-[680px] text-[17px] leading-[1.65] text-pretty text-fg-muted">
             Hospitals can&rsquo;t switch off when they&rsquo;re attacked. When someone inside the network starts
             acting like an attacker, MayaJaal doesn&rsquo;t block them. It quietly moves them into a fake copy of
@@ -86,6 +90,14 @@ export default function Home() {
               <p className="mt-2 max-w-[300px] text-[13px] leading-relaxed text-fg-muted">{s.label}</p>
             </div>
           ))}
+        </section>
+
+        <section id="why" className="scroll-mt-24 pt-20">
+          <h2 className="text-[36px] font-semibold tracking-[-0.035em] sm:text-[40px]">Why we don&rsquo;t stop the attack</h2>
+          <p className="mt-3 max-w-[620px] text-[15px] leading-relaxed text-fg-muted">
+            Stopping an attacker doesn&rsquo;t make them leave. It makes them look for another way in.
+          </p>
+          <WhyNotBlock className="mt-10" />
         </section>
 
         <section id="how" className="scroll-mt-24 py-20">

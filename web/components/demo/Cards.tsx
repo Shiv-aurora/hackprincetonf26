@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { WORLD } from "@/lib/contracts";
 import { Badge, ButtonLink, cn } from "@/components/ui";
 import type { ResultRow, ResultsFile } from "./data";
+import { WhyNotBlock } from "@/components/landing/Why";
 
 function Center({ children, className }: { children: ReactNode; className?: string }) {
   return (
@@ -20,6 +21,18 @@ export function TitleCard({ title, sub }: { title: string; sub: string }) {
       <div className="mx-auto max-w-[720px] text-center">
         <h1 className="text-[56px] leading-none font-semibold tracking-[-0.045em] text-fg sm:text-[72px]">{title}</h1>
         <p className="mt-5 text-lg text-balance text-fg-muted sm:text-xl">{sub}</p>
+        <p className="mt-2 text-lg font-semibold text-danger sm:text-xl">Without stopping the attacks.</p>
+      </div>
+    </Center>
+  );
+}
+
+export function WhyCard({ title }: { title: string }) {
+  return (
+    <Center>
+      <div className="mx-auto max-w-[1080px]">
+        <h2 className="mb-6 text-center text-[32px] leading-tight font-semibold tracking-[-0.035em] text-fg sm:text-[40px]">{title}</h2>
+        <WhyNotBlock compact />
       </div>
     </Center>
   );
