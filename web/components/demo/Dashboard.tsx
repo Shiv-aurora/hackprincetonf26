@@ -14,7 +14,7 @@ import { Button, ButtonLink, Card, FloatingNav, cn } from "@/components/ui";
 import { NetworkMap } from "@/components/map";
 import { HospitalNumbers, Narrator, TwoHospitals } from "@/components/hospital/HospitalView";
 import { LearnedPanel, SwitchView, TrackersPanel } from "@/components/hospital/Live";
-import { HospitalScene } from "@/components/hospital/Scene";
+import { FlowScene } from "@/components/hospital/Flow";
 import { AttackControls } from "@/components/hospital/AttackControls";
 import { FingerprintPanel } from "@/components/hospital/Fingerprint";
 import { LiveBrief } from "@/components/hospital/Brief";
@@ -72,7 +72,7 @@ export function Dashboard({ mode = "live", revealOpen = false }: DashboardProps)
         <div className={cn("grid min-h-0 grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]",
           demo ? "flex-1" : "lg:h-[min(56vh,540px)]")}>
           <section className="relative min-h-[360px] rounded-xl border border-border bg-background lg:min-h-0">
-            <HospitalScene />
+            <FlowScene />
           </section>
           <div className="grid min-h-0 grid-rows-[minmax(0,1fr)_auto] gap-4">
             <TrackersPanel className="min-h-[220px] lg:min-h-0" />

@@ -33,8 +33,13 @@ export function Spotlight({ targets, dim }: { targets: string[]; dim: number }) 
   // Measure now, on resize/scroll, and whenever a lit panel changes size (e.g. a card appears).
   useLayoutEffect(() => {
     const raf = requestAnimationFrame(measure);
+    // Panels can move without resizing (the narrator wraps to two lines, a panel above grows): re-measure
+    // a few times while the step's layout settles.
+    const later = [120, 350, 800].map((ms) => setTimeout(measure, ms));
     const ro = new ResizeObserver(() => measure());
     ro.observe(document.body);
+    const main = document.querySelector("main");
+    if (main) for (const child of Array.from(main.children)) ro.observe(child);
     for (const name of key ? key.split(",") : []) {
       const el = document.querySelector(`[data-demo="${name}"]`);
       if (el) ro.observe(el);
@@ -43,6 +48,7 @@ export function Spotlight({ targets, dim }: { targets: string[]; dim: number }) 
     window.addEventListener("scroll", measure, true);
     return () => {
       cancelAnimationFrame(raf);
+      later.forEach(clearTimeout);
       ro.disconnect();
       window.removeEventListener("resize", measure);
       window.removeEventListener("scroll", measure, true);
