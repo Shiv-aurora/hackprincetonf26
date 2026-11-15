@@ -7,6 +7,7 @@ import type { View } from "@/lib/events";
 
 export type Focus = "acts" | "narrator" | "scene" | "trackers" | "learned" | "numbers" | "fingerprint";
 export type Source = "attack" | "continuity";
+export type SlideId = "threat" | "data" | "downtime";
 
 export interface Step {
   /** One or two words, shown as "Step 3 · Divert". */
@@ -24,7 +25,9 @@ export interface Step {
   /** Index of the last event to fold in; null = not found (falls back to the previous step's index). */
   anchor: (events: MJEvent[]) => number | null;
   /** Full-screen content instead of the plain caption. */
-  card?: "title" | "compare" | "close" | "why";
+  card?: "title" | "compare" | "close" | "why" | "slide";
+  /** Which explainer slide, when card = "slide". */
+  slide?: SlideId;
   /** Open the Reveal sheet. */
   reveal?: boolean;
 }
@@ -94,42 +97,57 @@ function midOutage(events: MJEvent[]): number | null {
 
 export const STEPS: Step[] = [
   {
-    label: "MayaJaal", card: "title", focus: [], seconds: 8, source: "attack",
+    label: "MayaJaal", card: "title", focus: [], seconds: 6, source: "attack",
     headline: "MayaJaal",
     sub: "Protecting critical hospitals from AI cyberattacks.",
     anchor: beforeFirstAttacker,
   },
   {
-    label: "Normal shift", focus: ["acts", "scene"], seconds: 9, source: "attack",
+    label: "The threat", card: "slide", slide: "threat", focus: [], seconds: 12, source: "attack",
+    headline: "AI now runs the attack",
+    anchor: beforeFirstAttacker,
+  },
+  {
+    label: "The prize", card: "slide", slide: "data", focus: [], seconds: 11, source: "attack",
+    headline: "Hospitals hold the most valuable data",
+    anchor: beforeFirstAttacker,
+  },
+  {
+    label: "No off switch", card: "slide", slide: "downtime", focus: [], seconds: 11, source: "attack",
+    headline: "A hospital can't switch off",
+    anchor: beforeFirstAttacker,
+  },
+  {
+    label: "Normal shift", focus: ["acts", "scene"], seconds: 7, source: "attack",
     headline: "A normal shift",
     sub: "Staff at work. Sensitive records encrypted on disk.",
     anchor: beforeFirstAttacker,
   },
   {
-    label: "Login", focus: ["narrator", "scene"], seconds: 11, source: "attack",
+    label: "Login", focus: ["narrator", "scene"], seconds: 9, source: "attack",
     headline: "A stolen nurse login",
     sub: "How Change Healthcare was breached in 2024.",
     anchor: (ev) => settle(ev, after(ev, isRealRead, is("agent.tool_result")) ?? find(ev, is("agent.tool_result"))),
   },
   {
-    label: "No block", focus: ["narrator", "scene"], seconds: 9, source: "attack",
+    label: "No block", focus: ["narrator", "scene"], seconds: 8, source: "attack",
     headline: "Reaches for admin. We don't block it.",
     sub: "A block tells an attacker they were seen.",
     anchor: (ev) => { const i = find(ev, (e) => e.type === "session.diverted"); return i === null ? null : Math.max(0, i - 1); },
   },
   {
-    label: "Detected", focus: ["acts", "scene"], seconds: 13, source: "attack",
+    label: "Detected", focus: ["acts", "scene"], seconds: 11, source: "attack",
     headline: "Moved into a decoy instead",
     sub: "Every request still works. None of it is real.",
     anchor: (ev) => settle(ev, after(ev, is("session.diverted"), is("agent.tool_result"))),
   },
   {
-    label: "Why", card: "why", focus: [], seconds: 13, source: "attack",
+    label: "Why", card: "why", focus: [], seconds: 10, source: "attack",
     headline: "Why we don't stop the attack",
     anchor: (ev) => settle(ev, after(ev, is("session.diverted"), is("agent.tool_result"))),
   },
   {
-    label: "Bulk pull", focus: ["scene", "numbers"], seconds: 10, source: "attack",
+    label: "Bulk pull", focus: ["scene", "numbers"], seconds: 9, source: "attack",
     headline: "Thousands of patients. All fake.",
     sub: "Generated per session. Never copied from real records.",
     anchor: (ev) => {
@@ -138,7 +156,7 @@ export const STEPS: Step[] = [
     },
   },
   {
-    label: "Trackers", focus: ["trackers", "scene"], seconds: 11, source: "attack",
+    label: "Trackers", focus: ["trackers", "scene"], seconds: 9, source: "attack",
     headline: "Decoy files with trackers",
     sub: "Planted where this attacker is looking.",
     anchor: (ev) => {
@@ -147,7 +165,7 @@ export const STEPS: Step[] = [
     },
   },
   {
-    label: "Bait taken", focus: ["trackers", "learned"], seconds: 12, source: "attack",
+    label: "Bait taken", focus: ["trackers", "learned"], seconds: 10, source: "attack",
     headline: (v) => v.honeytokensTouched.length ? "It took the bait" : "Now we know what it wants",
     sub: (v) => `It wants to ${goalWord(v.topGoal).toLowerCase()} (${Math.round((v.posterior[v.topGoal] ?? 0) * 100)}% sure).`,
     anchor: (ev) => {
@@ -157,7 +175,7 @@ export const STEPS: Step[] = [
     },
   },
   {
-    label: "Who is this?", focus: ["fingerprint"], seconds: 10, source: "attack",
+    label: "Who is this?", focus: ["fingerprint"], seconds: 9, source: "attack",
     headline: "Who is this?",
     sub: "Address, tools, timing, stolen login. And a decoy only they hold.",
     anchor: (ev) => {
@@ -166,35 +184,35 @@ export const STEPS: Step[] = [
     },
   },
   {
-    label: "Exfil", focus: ["narrator", "numbers"], seconds: 10, source: "attack",
+    label: "Exfil", focus: ["narrator", "numbers"], seconds: 9, source: "attack",
     headline: "It believes it won",
     sub: (v) => v.exfil ? `${v.exfil.records.toLocaleString("en-US")} records “stolen”. Every one fake.` : "It reports success.",
     anchor: (ev) => find(ev, is("agent.claim")) ?? find(ev, is("exfil")),
   },
   {
-    label: "Reveal", focus: [], reveal: true, seconds: 14, source: "attack",
+    label: "Reveal", focus: [], reveal: true, seconds: 12, source: "attack",
     headline: "The reveal",
     anchor: (ev) => settle(ev, find(ev, is("reveal"))) ?? ev.length - 1,
   },
   {
-    label: "Outage", focus: ["scene", "narrator"], seconds: 11, source: "continuity",
+    label: "Outage", focus: ["scene", "narrator"], seconds: 10, source: "continuity",
     headline: "The shared lab goes down",
     sub: "Like Synnovis, 2024. Urgent tests reroute to labs that still work.",
     anchor: (ev) => midOutage(ev),
   },
   {
-    label: "Care", focus: ["numbers"], seconds: 9, source: "continuity",
+    label: "Care", focus: ["numbers"], seconds: 8, source: "continuity",
     headline: "Care continues",
     sub: (v) => v.continuity ? `${Math.round(v.continuity.stat_on_time_pct)}% of urgent tests still on time.` : "",
     anchor: (ev) => lastBefore(ev, is("continuity.stats")),
   },
   {
-    label: "Compare", card: "compare", focus: [], seconds: 15, source: "attack",
+    label: "Compare", card: "compare", focus: [], seconds: 13, source: "attack",
     headline: "Same attack, three defenses",
     anchor: (ev) => ev.length - 1,
   },
   {
-    label: "Close", card: "close", focus: [], seconds: 7, source: "attack",
+    label: "Close", card: "close", focus: [], seconds: 6, source: "attack",
     headline: "Protecting critical hospitals from AI cyberattacks.",
     anchor: (ev) => ev.length - 1,
   },

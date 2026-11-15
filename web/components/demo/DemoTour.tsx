@@ -11,6 +11,7 @@ import { Spotlight } from "./Spotlight";
 import { Caption, Controls } from "./Pills";
 import { CloseCard, CompareCard, TitleCard, WhyCard } from "./Cards";
 import { STEPS, resolveAnchors, text } from "./steps";
+import { Slide } from "./slides";
 import { runLabel, useDemoData } from "./data";
 
 const N = STEPS.length;
@@ -106,13 +107,14 @@ export function DemoTour() {
     <>
       <Dashboard mode="demo" revealOpen={!!cur.reveal && ready} />
 
-      <Spotlight targets={ready ? cur.focus : []} dim={cur.card ? 0.9 : 0.65} />
+      <Spotlight targets={ready ? cur.focus : []} dim={cur.card === "slide" ? 0.95 : cur.card ? 0.9 : 0.65} />
 
       {cur.card === "title" && <TitleCard title={headline} sub={sub} />}
       {cur.card === "compare" && ready && <CompareCard title={headline} results={data.results} />}
       {cur.card === "close" && <CloseCard title={headline} />}
       {cur.card === "why" && <WhyCard title={headline} />}
-      {cur.card !== "title" && cur.card !== "close" && cur.card !== "why" && (
+      {cur.card === "slide" && cur.slide && <Slide key={cur.slide} id={cur.slide} title={headline} />}
+      {cur.card !== "title" && cur.card !== "close" && cur.card !== "why" && cur.card !== "slide" && (
         <Caption stepKey={step} kicker={kicker} headline={cur.card === "compare" ? "" : headline} sub={cur.card ? undefined : sub} />
       )}
 
