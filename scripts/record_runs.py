@@ -158,6 +158,7 @@ def main() -> None:
     ap.add_argument("--gateway", default="http://127.0.0.1:8000")
     ap.add_argument("--hub", default="http://127.0.0.1:8002")
     ap.add_argument("--configs", default="baseline,static,mayajaal")
+    ap.add_argument("--dry", action="store_true", help="drive the attack live but don't save any files")
     ap.add_argument("--continuity-speed", type=float, default=2.0)
     ap.add_argument("--pace", type=float, default=0.6, help="seconds between requests")
     a = ap.parse_args()
@@ -169,6 +170,9 @@ def main() -> None:
         row = c.finish(claim)
         time.sleep(1.0)
         events = httpx.get(f"{a.hub}/runs/{c.run_id}", timeout=10).json()
+        if a.dry:
+            print(f"{config:9s} run={c.run_id} events={len(events)} (not saved)")
+            continue
         (OUT / f"{config}.jsonl").write_text("".join(json.dumps(e) + "\n" for e in events))
         row["real_records_taken"] = real_records_taken(c, events)
         rows.append(row)
@@ -177,6 +181,8 @@ def main() -> None:
               f"real_records={row['real_records_taken']}")
     results = build_results(rows, note="Recorded from the running stack. The attacker is a fixed "
                                        "script (same requests under each config), not an AI agent.")
+    if a.dry:
+        return
     for row in rows:
         if row["config"] != "baseline":
             row["decoy_overlap_between_sessions"] = decoy_overlap(a.gateway, a.hub, row["config"])

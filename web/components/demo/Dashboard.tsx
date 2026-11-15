@@ -12,6 +12,7 @@ import { WORLD } from "@/lib/contracts";
 import { useMJ } from "@/lib/events";
 import { Button, Card, SiteHeader, cn } from "@/components/ui";
 import { NetworkMap } from "@/components/map";
+import { HospitalNumbers, Narrator, TwoHospitals } from "@/components/hospital/HospitalView";
 import {
   AttackerTerminal, ColumnHeading, ContinuityHUD, DefenderPanel, EventTimeline, RunBadge, SoundButton,
   StreamStatus, TheReveal, WarRoomSound, hospitalName, playRevealCue, useHasContinuity,
@@ -39,7 +40,7 @@ export function Dashboard({ mode = "live", revealOpen = false }: DashboardProps)
   const ep = WORLD.entry_point;
 
   return (
-    <div className="flex min-h-dvh flex-col bg-background text-fg lg:h-dvh lg:overflow-hidden">
+    <div className={cn("flex min-h-dvh flex-col bg-background text-fg", demo && "h-dvh overflow-hidden")}>
       {!demo && <WarRoomSound />}
       {!demo && (
         <SiteHeader
@@ -57,59 +58,59 @@ export function Dashboard({ mode = "live", revealOpen = false }: DashboardProps)
       )}
 
       <DemoFrame demo={demo}>
-      <main className={cn(
-        "mx-auto flex w-full max-w-[1400px] min-h-0 flex-1 flex-col gap-5 px-4 sm:px-6",
-        demo ? "lg:gap-4" : "py-5",
-      )}>
-        <div className="grid min-h-0 flex-1 grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] lg:gap-6">
-          <section data-demo="attacker" className="flex min-h-0 flex-col">
-            <ColumnHeading
-              title="What the attacker sees"
-              description={`Someone using a phished login for ${ep.username}, ${ep.role} at ${hospitalName(ep.hospital_id)}.`}
-            />
-            <AttackerTerminal className="h-[480px] lg:h-auto lg:flex-1" />
-          </section>
-          <section data-demo="defender" className="flex min-h-0 flex-col">
-            <ColumnHeading
-              title="What actually happened"
-              description="Ground truth from the gateway, the shadow tier and the canary ledger."
-            />
-            <DefenderPanel className="lg:flex-1" />
-          </section>
-        </div>
+      <main className={cn("mx-auto flex w-full max-w-[1400px] flex-col gap-4 px-4 sm:px-6", demo ? "min-h-0 flex-1" : "py-5")}>
+        <Narrator />
+        <TwoHospitals className={demo ? "min-h-0 flex-1" : "lg:h-[min(52vh,520px)]"} />
+        <HospitalNumbers />
 
-        <div className={cn(
-          "grid shrink-0 grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] lg:gap-6",
-          demo ? "lg:h-[clamp(168px,22vh,232px)]" : "lg:h-[clamp(172px,23vh,240px)]",
-        )}>
-          <Slot name="map" className="h-[240px] lg:h-auto">
-            <Card
-              title="City network"
-              className="h-full"
-              bodyClassName="relative p-0"
-              action={focus
-                ? <button type="button" onClick={() => setSel(null)} className="text-xs text-fg-muted hover:text-fg">
-                    {hospitalName(focus)} · Clear
-                  </button>
-                : <span className="text-xs text-fg-subtle">{WORLD.hospitals.length} hospitals</span>}
-            >
-              <div className="absolute inset-0">
-                <NetworkMap focusHospital={focus} variant="full" />
-              </div>
-            </Card>
-          </Slot>
-          <div className={cn("grid min-h-0 grid-cols-1 gap-5 lg:gap-4",
-            hasContinuity && "sm:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]")}>
-            <Slot name="timeline" className="h-[260px] lg:h-auto">
-              <EventTimeline className="h-full" selected={sel?.id ?? null} onSelect={onSelect} />
-            </Slot>
-            {hasContinuity && (
-              <Slot name="continuity" className="lg:h-auto">
-                <ContinuityHUD className="h-full" />
+        {!demo && (
+          <>
+            <h2 className="mt-8 text-[13px] font-medium text-fg-muted">Under the hood</h2>
+            <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] lg:gap-6">
+              <section data-demo="attacker" className="flex min-h-0 flex-col">
+                <ColumnHeading
+                  title="What the attacker sees"
+                  description={`Someone using a phished login for ${ep.username}, ${ep.role} at ${hospitalName(ep.hospital_id)}.`}
+                />
+                <AttackerTerminal className="h-[520px]" />
+              </section>
+              <section data-demo="defender" className="flex min-h-0 flex-col">
+                <ColumnHeading
+                  title="What actually happened"
+                  description="Ground truth from the gateway, the shadow tier and the canary ledger."
+                />
+                <DefenderPanel className="lg:h-[520px]" />
+              </section>
+            </div>
+            <div className={cn("grid grid-cols-1 gap-5 lg:gap-6",
+              hasContinuity ? "lg:grid-cols-3" : "lg:grid-cols-2")}>
+              <Slot name="map" className="h-[260px]">
+                <Card
+                  title="City network"
+                  className="h-full"
+                  bodyClassName="relative p-0"
+                  action={focus
+                    ? <button type="button" onClick={() => setSel(null)} className="text-xs text-fg-muted hover:text-fg">
+                        {hospitalName(focus)} · Clear
+                      </button>
+                    : <span className="text-xs text-fg-subtle">{WORLD.hospitals.length} hospitals</span>}
+                >
+                  <div className="absolute inset-0">
+                    <NetworkMap focusHospital={focus} variant="full" />
+                  </div>
+                </Card>
               </Slot>
-            )}
-          </div>
-        </div>
+              <Slot name="timeline" className="h-[260px]">
+                <EventTimeline className="h-full" selected={sel?.id ?? null} onSelect={onSelect} />
+              </Slot>
+              {hasContinuity && (
+                <Slot name="continuity" className="h-[260px]">
+                  <ContinuityHUD className="h-full" />
+                </Slot>
+              )}
+            </div>
+          </>
+        )}
       </main>
       </DemoFrame>
 

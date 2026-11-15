@@ -39,8 +39,10 @@ export function useRunStart(): number | null {
 }
 
 /** Mandatory honesty: anything not a live run is labelled on screen. */
-export function runHonesty(run: EventDataMap["run.started"] | null): "live" | "scripted" | "replay" | null {
+export function runHonesty(run: EventDataMap["run.started"] | null): "live" | "scripted" | "replay" | "stack" | null {
   if (!run) return null;
+  // Real backend, driven by a fixed script (scripts/record_runs.py): real system, scripted attacker.
+  if (run.model === "scripted" && run.live && run.attacker_label === "Scripted client") return "stack";
   if (run.model === "scripted") return "scripted";
   if (!run.live) return "replay";
   return "live";
@@ -62,7 +64,7 @@ export function RunBadge({ className }: { className?: string }) {
   return (
     <Badge className={cn("text-fg", className)} >
       <Dot tone="alert" />
-      {mode === "scripted" ? "Scripted demo" : "Replay"}
+      {mode === "scripted" ? "Scripted demo" : mode === "stack" ? "Real system · scripted attacker" : "Replay"}
     </Badge>
   );
 }
