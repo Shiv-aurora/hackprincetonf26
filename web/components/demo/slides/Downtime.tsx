@@ -1,6 +1,6 @@
 "use client";
-// "A hospital can't switch off": a live heart trace that keeps running while the hospital's systems go
-// dark one by one, then the real-world cost of shutting down (a sourced incident).
+// "What we can't shut down: healthcare." A heart trace that keeps running while the hospital's systems go
+// dark one by one, next to real hospitals that were hit and what it cost them (each sourced in facts.ts).
 
 import { useEffect, useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
@@ -17,13 +17,13 @@ function Ecg() {
   const reduce = useReducedMotion();
   const d = "M0 50 " + Array.from({ length: 10 }, () => BEAT).join(" ");
   return (
-    <div className="relative h-[120px] overflow-hidden rounded-xl border border-border bg-surface">
+    <div className="relative h-[150px] overflow-hidden rounded-xl border border-border bg-surface">
       <motion.svg viewBox="0 0 1200 100" preserveAspectRatio="none" className="absolute inset-y-0 left-0 h-full w-[200%]"
-        animate={reduce ? undefined : { x: ["0%", "-50%"] }}
+        initial={{ x: "0%" }} animate={reduce ? { x: "0%" } : { x: ["0%", "-50%"] }} style={{ top: -14 }}
         transition={reduce ? { duration: 0 } : { duration: 6, ease: "linear", repeat: Infinity }}>
-        <path d={d} fill="none" stroke="currentColor" strokeWidth={2} strokeLinejoin="round" className="text-fg" vectorEffect="non-scaling-stroke" />
+        <path d={d} fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinejoin="round" className="text-fg" vectorEffect="non-scaling-stroke" />
       </motion.svg>
-      <span className="absolute top-3 left-4 text-xs text-fg-muted">Patient in surgery · can&apos;t pause</span>
+      <span className="absolute bottom-3 left-5 text-[15px] text-fg-muted">Patient in surgery · can&apos;t pause</span>
     </div>
   );
 }
@@ -33,41 +33,44 @@ export function DowntimeSlide({ title }: { title: string }) {
   const [down, setDown] = useState(0);
   useEffect(() => {
     if (down >= SYSTEMS.length) return;
-    const t = setTimeout(() => setDown((n) => (reduce ? SYSTEMS.length : n + 1)), reduce ? 0 : down === 0 ? 1200 : 380);
+    const t = setTimeout(() => setDown((n) => (reduce ? SYSTEMS.length : n + 1)), reduce ? 0 : down === 0 ? 1100 : 320);
     return () => clearTimeout(t);
   }, [down, reduce]);
 
   return (
-    <SlideFrame kicker="Why you can't just pull the plug" title={title}
+    <SlideFrame kicker="Software can be switched off. A hospital can't." title={title}
       note={<>Shut down to stop the thief, and patients wait. Stay up, and the data walks out. <span className="text-fg">Hospitals need a third option.</span></>}
-      source={DOWNTIME.case.source ? `Source: ${DOWNTIME.case.source}` : undefined}>
-      <div className="grid gap-6 lg:grid-cols-[1.25fr_1fr] lg:gap-10">
+      source={`Sources: ${DOWNTIME.sources}`}>
+      <div className="grid grid-cols-[1.05fr_1fr] gap-12">
         <div className="flex flex-col gap-4">
           <Ecg />
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 gap-2.5">
             {SYSTEMS.map((s, i) => {
               const off = i < down;
               return (
-                <div key={s} className={cn("flex items-center gap-2 rounded-lg border px-3 py-2.5 text-[13px] transition-colors duration-200",
+                <div key={s} className={cn("flex items-center gap-2.5 rounded-lg border px-4 py-3 text-[17px] transition-colors duration-200",
                   off ? "border-alert/40 bg-alert-bg text-fg" : "border-border text-fg-muted")}>
-                  <span className={cn("size-1.5 shrink-0 rounded-full transition-colors duration-200", off ? "bg-alert" : "bg-ok")} />
+                  <span className={cn("size-2 shrink-0 rounded-full transition-colors duration-200", off ? "bg-alert" : "bg-ok")} />
                   <span className="truncate">{s}</span>
-                  <span className="ml-auto text-xs text-fg-subtle">{off ? "offline" : "up"}</span>
+                  <span className="ml-auto text-[14px] text-fg-subtle">{off ? "offline" : "up"}</span>
                 </div>
               );
             })}
           </div>
         </div>
 
-        <div className="flex flex-col justify-center gap-1">
-          <Appear delay={1.6}><p className="text-sm text-fg-muted">When a hospital went dark: {DOWNTIME.case.name} <span className="text-fg-subtle">· {DOWNTIME.case.when}</span></p></Appear>
-          <div className="mt-2 flex flex-col divide-y divide-border">
-            {DOWNTIME.impacts.map((m, i) => (
-              <motion.div key={m.label} className="flex items-baseline gap-4 py-3"
-                initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }}
-                transition={reduce ? { duration: 0 } : { duration: 0.45, delay: 2.2 + i * 0.35, ease: EASE }}>
-                <span className="w-[120px] shrink-0 text-[34px] leading-none font-semibold tracking-[-0.04em] text-fg tabular-nums">{m.value}</span>
-                <span className="text-[15px] text-fg-muted">{m.label}</span>
+        <div className="flex flex-col">
+          <Appear delay={1.2}><p className="text-[17px] text-fg-muted">Hospitals that went dark</p></Appear>
+          <div className="mt-3 flex flex-col divide-y divide-border border-t border-border">
+            {DOWNTIME.hospitals.map((h, i) => (
+              <motion.div key={h.who} className="grid grid-cols-[120px_1fr] gap-4 py-4"
+                initial={{ opacity: 0, x: 18 }} animate={{ opacity: 1, x: 0 }}
+                transition={reduce ? { duration: 0 } : { duration: 0.45, delay: 1.5 + i * 0.4, ease: EASE }}>
+                <span className="pt-0.5 text-[15px] text-fg-subtle tabular-nums">{h.date}</span>
+                <div>
+                  <p className="text-[20px] leading-snug font-medium text-fg">{h.who}</p>
+                  <p className="mt-0.5 text-[17px] leading-snug text-fg-muted">{h.what}</p>
+                </div>
               </motion.div>
             ))}
           </div>

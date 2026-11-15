@@ -7,6 +7,7 @@ import { Badge, ButtonLink, cn } from "@/components/ui";
 import type { ResultRow, ResultsFile } from "./data";
 import { WhyNotBlock } from "@/components/landing/Why";
 import { TitleSlide } from "./slides/Title";
+import { SlideStage } from "./slides/Frame";
 
 function Center({ children, className }: { children: ReactNode; className?: string }) {
   return (
@@ -18,9 +19,9 @@ function Center({ children, className }: { children: ReactNode; className?: stri
 
 export function TitleCard({ title, sub }: { title: string; sub: string }) {
   return (
-    <Center>
+    <SlideStage>
       <TitleSlide title={title} sub={sub} />
-    </Center>
+    </SlideStage>
   );
 }
 

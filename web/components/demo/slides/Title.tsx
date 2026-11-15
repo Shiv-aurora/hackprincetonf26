@@ -80,7 +80,7 @@ function Web({ reduce }: { reduce: boolean }) {
 function Eye({ reduce }: { reduce: boolean }) {
   const t = (duration: number, delay: number) => (reduce ? { duration: 0 } : { duration, delay, ease: EASE });
   return (
-    <motion.div className="relative size-[104px] text-fg [@media(min-height:800px)]:size-[136px]"
+    <motion.div className="relative size-[150px] text-fg"
       initial={{ rotate: -140, scale: 0.86 }} animate={{ rotate: 0, scale: 1 }} transition={t(1.4, 0.1)}>
       <motion.div className="size-full" initial={{ rotate: 0 }} animate={{ rotate: reduce ? 0 : 360 }}
         transition={reduce ? { duration: 0 } : { duration: 90, delay: 2.4, ease: "linear", repeat: Infinity }}>
@@ -115,8 +115,8 @@ export function TitleSlide({ title, sub }: { title: string; sub: string }) {
     <motion.section role="dialog" aria-label={title}
       initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }}
       transition={reduce ? { duration: 0 } : { duration: 0.35, ease: EASE }}
-      className="relative mx-auto w-full max-w-[880px] overflow-hidden rounded-2xl border border-border bg-background">
-      <div className="relative flex flex-col items-center px-6 pt-12 pb-11 text-center sm:px-10 [@media(min-height:800px)]:pt-16 [@media(min-height:800px)]:pb-14">
+      className="relative mx-auto w-full max-w-[1160px] overflow-hidden rounded-2xl border border-border bg-background">
+      <div className="relative flex flex-col items-center px-10 pt-16 pb-16 text-center">
         {/* The web is centred on the eye; the panel clips it. */}
         <div className="relative flex items-center justify-center">
           <Web reduce={reduce} />
@@ -124,20 +124,20 @@ export function TitleSlide({ title, sub }: { title: string; sub: string }) {
         </div>
 
         <motion.h1 {...rise(0.9, 16)}
-          className="relative mt-8 text-[52px] leading-none font-semibold tracking-[-0.05em] text-fg sm:text-[76px] [@media(min-height:800px)]:mt-10">
+          className="relative mt-10 text-[96px] leading-none font-semibold tracking-[-0.05em] text-fg">
           {title}
         </motion.h1>
-        <motion.p {...rise(1.2, 6)} className="relative mt-3 text-[13px] text-fg-subtle">
+        <motion.p {...rise(1.2, 6)} className="relative mt-4 text-[18px] text-fg-subtle">
           <span className="font-mono">Maya · Jaal</span>
           <span aria-hidden="true"> — </span>
           <span className="text-fg-muted">illusion trap</span>
         </motion.p>
 
         <motion.p {...rise(1.45)}
-          className="relative mt-7 max-w-[560px] text-lg text-balance text-fg-muted sm:text-xl">
+          className="relative mt-9 max-w-[900px] text-[34px] leading-tight tracking-[-0.02em] text-balance text-fg-muted">
           {sub}
         </motion.p>
-        <motion.p {...rise(1.8)} className="relative mt-1.5 text-lg font-semibold text-danger sm:text-xl">
+        <motion.p {...rise(1.8)} className="relative mt-2 text-[34px] leading-tight font-semibold tracking-[-0.02em] text-danger">
           Without stopping the attacks.
         </motion.p>
       </div>

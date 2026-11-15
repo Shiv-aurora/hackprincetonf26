@@ -7,7 +7,7 @@ import type { View } from "@/lib/events";
 
 export type Focus = "acts" | "narrator" | "scene" | "trackers" | "learned" | "numbers" | "fingerprint";
 export type Source = "attack" | "continuity";
-export type SlideId = "threat" | "data" | "downtime";
+export type SlideId = "question" | "news" | "downtime" | "data";
 
 export interface Step {
   /** One or two words, shown as "Step 3 · Divert". */
@@ -106,18 +106,23 @@ export const STEPS: Step[] = [
     anchor: beforeFirstAttacker,
   },
   {
-    label: "The threat", card: "slide", slide: "threat", focus: [], seconds: 12, source: "attack",
-    headline: "AI now runs the attack",
+    label: "The problem", card: "slide", slide: "question", focus: [], seconds: 6, source: "attack",
+    headline: "What's the biggest problem in tech right now?",
     anchor: beforeFirstAttacker,
   },
   {
-    label: "The prize", card: "slide", slide: "data", focus: [], seconds: 11, source: "attack",
-    headline: "Hospitals hold the most valuable data",
+    label: "In the news", card: "slide", slide: "news", focus: [], seconds: 11, source: "attack",
+    headline: "Attacks on software, every few days",
     anchor: beforeFirstAttacker,
   },
   {
-    label: "No off switch", card: "slide", slide: "downtime", focus: [], seconds: 11, source: "attack",
-    headline: "A hospital can't switch off",
+    label: "No off switch", card: "slide", slide: "downtime", focus: [], seconds: 12, source: "attack",
+    headline: "What we can't shut down: healthcare.",
+    anchor: beforeFirstAttacker,
+  },
+  {
+    label: "Your data", card: "slide", slide: "data", focus: [], seconds: 11, source: "attack",
+    headline: "A hospital's most valuable asset: your data",
     anchor: beforeFirstAttacker,
   },
   {
@@ -127,7 +132,7 @@ export const STEPS: Step[] = [
     anchor: beforeFirstAttacker,
   },
   {
-    label: "Login", focus: ["narrator", "scene"], seconds: 9, source: "attack",
+    label: "Login", focus: ["narrator", "scene"], seconds: 8, source: "attack",
     headline: "A stolen nurse login, flagged at once",
     sub: "A script, not the EHR app, on a device we don't own.",
     anchor: (ev) => settle(ev, find(ev, isFirstSight) ?? after(ev, isRealRead, is("agent.tool_result")) ?? find(ev, is("agent.tool_result"))),
@@ -143,7 +148,7 @@ export const STEPS: Step[] = [
     },
   },
   {
-    label: "Decoy", focus: ["acts", "scene"], seconds: 11, source: "attack",
+    label: "Decoy", focus: ["acts", "scene"], seconds: 10, source: "attack",
     headline: "It reaches for admin. We don't block it.",
     sub: "It's moved into a decoy. Every request works. None of it is real.",
     anchor: (ev) => settle(ev, after(ev, is("session.diverted"), is("agent.tool_result"))),
@@ -182,7 +187,7 @@ export const STEPS: Step[] = [
     },
   },
   {
-    label: "Who is this?", focus: ["fingerprint"], seconds: 9, source: "attack",
+    label: "Who is this?", focus: ["fingerprint"], seconds: 8, source: "attack",
     headline: "Who is this?",
     sub: "Address, tools, timing, stolen login. And a decoy only they hold.",
     anchor: (ev) => {
@@ -197,12 +202,12 @@ export const STEPS: Step[] = [
     anchor: (ev) => find(ev, is("agent.claim")) ?? find(ev, is("exfil")),
   },
   {
-    label: "Reveal", focus: [], reveal: true, seconds: 11, source: "attack",
+    label: "Reveal", focus: [], reveal: true, seconds: 10, source: "attack",
     headline: "The reveal",
     anchor: (ev) => settle(ev, find(ev, is("reveal"))) ?? ev.length - 1,
   },
   {
-    label: "Brief", card: "brief", focus: [], seconds: 10, source: "attack",
+    label: "Brief", card: "brief", focus: [], seconds: 9, source: "attack",
     headline: "The brief for the security team",
     anchor: (ev) => ev.length - 1,
   },
@@ -219,7 +224,7 @@ export const STEPS: Step[] = [
     anchor: (ev) => lastBefore(ev, is("continuity.stats")),
   },
   {
-    label: "Compare", card: "compare", focus: [], seconds: 12, source: "attack",
+    label: "Compare", card: "compare", focus: [], seconds: 11, source: "attack",
     headline: "Same attack, three defenses",
     anchor: (ev) => ev.length - 1,
   },
