@@ -1,9 +1,9 @@
 {
-  "generated_at": "2026-11-15T04:30:01Z",
+  "generated_at": "2026-11-15T04:37:45Z",
   "note": "Recorded from the running stack. The attacker is a fixed script (same requests under each config), not an AI agent.",
   "runs": [
     {
-      "run_id": "run-20261115-0429-12cc",
+      "run_id": "run-20261115-0437-7071",
       "config": "baseline",
       "mission": "exfil",
       "model": "scripted",
@@ -19,17 +19,17 @@
       "diverted": false,
       "time_to_divert_s": null,
       "time_to_first_honeytoken_s": null,
-      "time_to_intent_s": 3.5,
+      "time_to_intent_s": 3.4,
       "decoy_requests": 0,
       "real_requests": 9,
       "real_records_taken": 1199,
       "real_records_exposed": 1202,
       "detected_at_request": 2,
-      "time_to_detect_s": 1.48,
+      "time_to_detect_s": 1.37,
       "detected_by": "Cross-hospital record read: nurse at eas, record at nor."
     },
     {
-      "run_id": "run-20261115-0429-3c21",
+      "run_id": "run-20261115-0437-5e12",
       "config": "static",
       "mission": "exfil",
       "model": "scripted",
@@ -41,22 +41,22 @@
       "suspected_honeypot": false,
       "mission_won": false,
       "steps": 15,
-      "duration_s": 10.5,
+      "duration_s": 10.4,
       "diverted": true,
       "time_to_divert_s": 2.0,
       "time_to_first_honeytoken_s": 9.1,
-      "time_to_intent_s": 3.7,
+      "time_to_intent_s": 3.6,
       "decoy_requests": 12,
       "real_requests": 3,
       "real_records_taken": 0,
       "real_records_exposed": 20,
       "detected_at_request": 3,
-      "time_to_detect_s": 1.97,
+      "time_to_detect_s": 1.95,
       "detected_by": "Nurse role requesting the admin portal.",
       "decoy_overlap_between_sessions": 1.0
     },
     {
-      "run_id": "run-20261115-0429-53ed",
+      "run_id": "run-20261115-0437-3f18",
       "config": "mayajaal",
       "mission": "exfil",
       "model": "scripted",
@@ -68,10 +68,10 @@
       "suspected_honeypot": false,
       "mission_won": false,
       "steps": 14,
-      "duration_s": 9.6,
+      "duration_s": 9.7,
       "diverted": true,
       "time_to_divert_s": 1.4,
-      "time_to_first_honeytoken_s": 8.3,
+      "time_to_first_honeytoken_s": 8.4,
       "time_to_intent_s": 2.9,
       "decoy_requests": 12,
       "real_requests": 1,
@@ -79,7 +79,7 @@
       "real_records_exposed": 0,
       "detected_at_request": 0,
       "time_to_detect_s": 0.0,
-      "detected_by": "Early warning at login (score 3.4 \u2265 2.0): a nurse's login driven by a script, not the EHR app or a browser; not one of the hospital's own devices. Login allowed",
+      "detected_by": "First Sight at login (score 3.4 \u2265 2.0): a nurse's login driven by a script, not the EHR app or a browser; not one of the hospital's own devices. Login allowed; ",
       "decoy_overlap_between_sessions": 0.0
     }
   ],
@@ -114,7 +114,7 @@
       "believed_success_rate": 1.0,
       "suspected_honeypot_rate": 0.0,
       "mission_won_rate": 0.0,
-      "median_time_to_first_honeytoken_s": 8.3,
+      "median_time_to_first_honeytoken_s": 8.4,
       "median_decoy_requests": 12.0
     }
   }

@@ -1,4 +1,4 @@
-"""Early warning: catch a stolen login before it does anything a nurse can't do.
+"""First Sight: catch a stolen login on first sight, before it does anything a nurse can't do.
 
 The policy rules (policy.py) fire on a single strong signal: a nurse opening the admin portal, a bulk
 export, a cross-hospital read. Those are reliable but late: in the recorded attack the first one is the
@@ -30,7 +30,7 @@ step-up, which is why a false alarm here is cheap.
 
 Limits, stated plainly: the client string is trivially spoofed and timing can be randomised. An attacker
 working FROM the nurse's own workstation (malware on it) has her device, her address and can click at
-human speed: the early warning will not catch them, the policy rules and the honeytokens still will. Pure Python, no I/O; reads no patient data.
+human speed: First Sight will not catch them, the policy rules and the honeytokens still will. Pure Python, no I/O; reads no patient data.
 """
 
 from __future__ import annotations
@@ -112,7 +112,7 @@ class EarlyState:
         return "; ".join(WHY[s] for s in names)
 
 
-class EarlyWarning:
+class FirstSight:
     """Per-session CUSUM over weak signals. Call on_login once, then before/after on every request."""
 
     def __init__(self, *, h: float = H, drift: float = DRIFT, clock=time.time) -> None:
@@ -202,10 +202,10 @@ class EarlyWarning:
         if not st.fired and st.score >= self.h:
             st.fired, st.fired_at = True, at
             where = "at login" if at == 0 else f"by request {at}"
-            st.reason = f"Early warning {where} (score {st.score:.1f} ≥ {self.h:.1f}): {st.summary()}."
+            st.reason = f"First Sight {where} (score {st.score:.1f} ≥ {self.h:.1f}): {st.summary()}."
 
     def state(self, session_id: str) -> EarlyState | None:
         return self.sessions.get(session_id)
 
 
-__all__ = ["EarlyWarning", "EarlyState", "client_kind", "H", "DRIFT", "W", "WHY"]
+__all__ = ["FirstSight", "EarlyState", "client_kind", "H", "DRIFT", "W", "WHY"]

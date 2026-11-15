@@ -1,11 +1,11 @@
-"""Early warning (CUSUM over weak signals): unit behaviour and its effect at the gateway."""
+"""First Sight (CUSUM over weak signals): unit behaviour and its effect at the gateway."""
 
 from __future__ import annotations
 
 import pytest
 from fastapi.testclient import TestClient
 
-from mayajaal.real.early import H, EarlyWarning, client_kind
+from mayajaal.real.firstsight import H, FirstSight, client_kind
 
 from mayajaal.real.seed import PHISHED_USER as PHISHED
 from test_real_gateway import ADMIN, EHR_UA, Rig, store  # noqa: F401  (store is a fixture)
@@ -29,21 +29,21 @@ def test_client_kind() -> None:
 
 
 def test_scripted_nurse_login_fires_at_login() -> None:
-    ew = EarlyWarning(clock=Clock())
+    ew = FirstSight(clock=Clock())
     st = ew.on_login("s1", username="n.okafor", role="nurse", ua="python-httpx/0.28.1", ip="10.0.0.9")
     assert st.fired and st.fired_at == 0 and st.score >= H
     assert "script" in st.reason and "at login" in st.reason
 
 
 def test_service_account_script_is_not_flagged() -> None:
-    ew = EarlyWarning(clock=Clock())
+    ew = FirstSight(clock=Clock())
     st = ew.on_login("s1", username="svc.lis", role="service", ua="python-requests/2.32", ip="10.0.0.9")
     assert not st.fired
 
 
 def test_ehr_client_never_fires_even_when_fast() -> None:
     clk = Clock()
-    ew = EarlyWarning(clock=clk)
+    ew = FirstSight(clock=clk)
     ew.on_login("s1", username="a.nurse", role="nurse", ua="MeridianEHR/4.2", ip="10.0.0.5")
     for i in range(80):
         clk.t += 0.05                                   # bursts and polling, like a real EHR client
@@ -54,7 +54,7 @@ def test_ehr_client_never_fires_even_when_fast() -> None:
 
 def test_browser_at_machine_pace_fires_within_a_few_requests() -> None:
     clk = Clock()
-    ew = EarlyWarning(clock=clk)
+    ew = FirstSight(clock=clk)
     ew.on_login("s1", username="n.okafor", role="nurse", ua="Mozilla/5.0 Chrome/131", ip="10.0.0.9")
     fired_at = None
     for _ in range(10):
@@ -68,7 +68,7 @@ def test_browser_at_machine_pace_fires_within_a_few_requests() -> None:
 
 def test_browser_at_human_pace_stays_quiet() -> None:
     clk = Clock()
-    ew = EarlyWarning(clock=clk)
+    ew = FirstSight(clock=clk)
     ew.on_login("s1", username="n.okafor", role="nurse", ua="Mozilla/5.0 Chrome/131", ip="10.0.0.9")
     for gap in [14, 3, 40, 9, 22, 5, 61, 12, 8, 30]:
         clk.t += gap
@@ -78,7 +78,7 @@ def test_browser_at_human_pace_stays_quiet() -> None:
 
 def test_new_address_and_failed_logins_add_up() -> None:
     clk = Clock()
-    ew = EarlyWarning(clock=clk)
+    ew = FirstSight(clock=clk)
     ew.on_login("old", username="n.okafor", role="nurse", ua="Mozilla/5.0", ip="10.0.0.5")
     for _ in range(3):
         ew.on_failed_login("203.0.113.7")
@@ -89,7 +89,7 @@ def test_new_address_and_failed_logins_add_up() -> None:
 
 def test_probing_raises_the_score() -> None:
     clk = Clock()
-    ew = EarlyWarning(clock=clk)
+    ew = FirstSight(clock=clk)
     ew.on_login("s1", username="n.okafor", role="nurse", ua="Mozilla/5.0", ip="10.0.0.9")
     for _ in range(5):                                  # five misses in a row, at a human pace
         clk.t += 20
@@ -117,7 +117,7 @@ def _login(rig: Rig) -> dict[str, str]:
 def test_gateway_scripted_login_sees_no_real_patient(scripted) -> None:
     h = _login(scripted)
     first = [e for e in scripted.events if e.type == "policy.decision"]
-    assert first and first[0].data["lane"] == "suspicious" and "Early warning at login" in first[0].data["reason"]
+    assert first and first[0].data["lane"] == "suspicious" and "First Sight at login" in first[0].data["reason"]
     r = scripted.client.get("/fhir/Patient?_count=20", headers=h)        # the nurse's ward list
     assert r.status_code == 401 and r.headers["x-mj-decision"] == "step_up"
     assert "entry" not in r.text
@@ -154,7 +154,7 @@ def test_device_token_roundtrip() -> None:
 
 
 def test_unmanaged_device_alone_is_not_enough_but_with_new_address_is() -> None:
-    ew = EarlyWarning(clock=Clock())
+    ew = FirstSight(clock=Clock())
     st = ew.on_login("home", username="n.okafor", role="nurse", ua="Mozilla/5.0", ip="10.0.0.5", managed=False)
     assert not st.fired                                       # first-ever login, from home: no history
     st = ew.on_login("away", username="n.okafor", role="nurse", ua="Mozilla/5.0", ip="198.51.100.4",
@@ -167,8 +167,8 @@ def test_gateway_reads_device_certificate(store) -> None:
     rig = Rig(store, "mayajaal")
     r = rig.client.post("/auth/login", json={"username": PHISHED[0], "password": PHISHED[1]},
                         headers={"X-Device-Token": mint("ws-eas-07")})
-    st = rig.gw.early.state(r.json()["session_id"])
+    st = rig.gw.first_sight.state(r.json()["session_id"])
     assert st is not None and not any(s == "unmanaged_device" for _, s, _ in st.evidence)
     r = rig.client.post("/auth/login", json={"username": PHISHED[0], "password": PHISHED[1]})
-    st = rig.gw.early.state(r.json()["session_id"])
+    st = rig.gw.first_sight.state(r.json()["session_id"])
     assert any(s == "unmanaged_device" for _, s, _ in st.evidence)

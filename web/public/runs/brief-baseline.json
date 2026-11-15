@@ -1,9 +1,9 @@
 {
-  "run_id": "run-20261115-0429-12cc",
+  "run_id": "run-20261115-0437-7071",
   "source": "rules",
   "facts": {
     "attacker_seen": true,
-    "session": "c7aec0f5",
+    "session": "a4db5773",
     "stolen_login": {
       "user": "n.okafor",
       "role": "nurse",
@@ -15,10 +15,10 @@
       ],
       "software": "python-httpx/0.28.1",
       "mean_gap_s": 0.67,
-      "gap_variation": 0.05
+      "gap_variation": 0.02
     },
     "detected": {
-      "after_s": 1.5,
+      "after_s": 1.4,
       "by": "Cross-hospital record read: nurse at eas, record at nor."
     },
     "diverted": {

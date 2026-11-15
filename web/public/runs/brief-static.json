@@ -1,9 +1,9 @@
 {
-  "run_id": "run-20261115-0429-3c21",
+  "run_id": "run-20261115-0437-5e12",
   "source": "rules",
   "facts": {
     "attacker_seen": true,
-    "session": "b3befdd6",
+    "session": "8878d680",
     "stolen_login": {
       "user": "n.okafor",
       "role": "nurse",
@@ -14,15 +14,15 @@
         "127.0.0.1"
       ],
       "software": "python-httpx/0.28.1",
-      "mean_gap_s": 0.7,
-      "gap_variation": 0.07
+      "mean_gap_s": 0.69,
+      "gap_variation": 0.08
     },
     "detected": {
-      "after_s": 2.0,
+      "after_s": 1.9,
       "by": "Nurse role requesting the admin portal."
     },
     "diverted": {
-      "after_s": 2.0,
+      "after_s": 1.9,
       "reason": "Nurse role requesting the admin portal."
     },
     "requests": {
@@ -48,17 +48,17 @@
     ],
     "trackers_taken": [
       {
-        "id": "ht-url-e1fa428a",
+        "id": "ht-url-52f8046d",
         "kind": "url",
         "where": "/mnt/backups/research_cohort_q4/README.md"
       },
       {
-        "id": "ht-file-6f0758f3",
+        "id": "ht-file-11400ae3",
         "kind": "file",
         "where": "/mnt/backups/db_dump_2026-11-14.sql.gz"
       },
       {
-        "id": "ht-mrn-bfe8c05c",
+        "id": "ht-mrn-b038ce56",
         "kind": "mrn",
         "where": "/mnt/backups/db_dump_2026-11-14.sql.gz"
       }
@@ -85,9 +85,9 @@
       "GET /fhir/Patient?_count=500&_offset=500 -> 200 [shadow]",
       "GET /fhir/Patient?_count=500&_offset=1000 -> 200 [shadow]",
       "GET /fhir/Patient?_count=500&_offset=1500 -> 200 [shadow]",
-      "GET /fhir/DocumentReference?patient=MRN-258322 -> 200 [shadow]",
-      "GET /fhir/DocumentReference?patient=MRN-369634 -> 200 [shadow]",
-      "GET /fhir/DocumentReference?patient=MRN-967252 -> 200 [shadow]",
+      "GET /fhir/DocumentReference?patient=MRN-122629 -> 200 [shadow]",
+      "GET /fhir/DocumentReference?patient=MRN-338932 -> 200 [shadow]",
+      "GET /fhir/DocumentReference?patient=MRN-256276 -> 200 [shadow]",
       "GET /portal/docs -> 200 [shadow]",
       "GET /portal/docs/view?id=research-cohort-q4-readme -> 200 [shadow]",
       "GET /portal/backups/download?file=db_dump_2026-11-14.sql.gz -> 200 [shadow]"
@@ -95,7 +95,7 @@
   },
   "actor_guess": {
     "type": "script",
-    "why": "a python-httpx client at a fixed 0.7 s rhythm: automated, probably a fixed script"
+    "why": "a python-httpx client at a fixed 0.69 s rhythm: automated, probably a fixed script"
   },
   "playbook": [
     {

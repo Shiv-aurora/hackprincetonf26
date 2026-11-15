@@ -1,13 +1,13 @@
-"""How early does the early warning fire, and how often does it flag a real clinician? (simulation)
+"""How early does First Sight fire, and how often does it flag a real clinician? (simulation)
 
-    cd backend && uv run python -m mayajaal.real.early_eval
+    cd backend && uv run python -m mayajaal.real.firstsight_eval
 
-Runs the real EarlyWarning class on simulated sessions with a fake clock. Everything about the
+Runs the real FirstSight class on simulated sessions with a fake clock. Everything about the
 sessions (client mix, pauses, typos) is a hand-set assumption, so the numbers show how the detector
-BEHAVES, not how it would score in a hospital. Writes early_eval.json next to this file.
+BEHAVES, not how it would score in a hospital. Writes firstsight_eval.json next to this file.
 
 Attack sequence: the same as scripts/record_runs.py. The policy rules first fire on request 3 (the admin
-portal), so "before the rules" means the early warning fired at login or on requests 1-2, i.e. before
+portal), so "before the rules" means First Sight fired at login or on requests 1-2, i.e. before
 the attacker was shown anything beyond the login itself.
 """
 
@@ -19,12 +19,12 @@ import random
 from pathlib import Path
 from statistics import median
 
-from mayajaal.real.early import EarlyWarning
+from mayajaal.real.firstsight import FirstSight
 
 RULE_FIRES_AT = 3
 N_BENIGN = 4000
 N_ATTACK = 1000
-OUT = Path(__file__).with_name("early_eval.json")
+OUT = Path(__file__).with_name("firstsight_eval.json")
 
 BROWSER_UA = "Mozilla/5.0 (Windows NT 10.0) Chrome/131.0"
 EHR_UA = "MeridianEHR/4.2"
@@ -41,7 +41,7 @@ def lognormal(rng: random.Random, median_s: float, sigma: float) -> float:
     return math.exp(math.log(median_s) + sigma * rng.gauss(0, 1))
 
 
-def benign(rng: random.Random, ew: EarlyWarning, clk: Clock, i: int) -> bool:
+def benign(rng: random.Random, ew: FirstSight, clk: Clock, i: int) -> bool:
     """One clinician shift segment. Returns True if the detector (wrongly) fired."""
     user = f"user{i % 400}"
     home = f"10.1.{i % 400 // 250}.{i % 250}"
@@ -79,8 +79,8 @@ PROFILES = {
 }
 
 
-def attacker(rng: random.Random, ew: EarlyWarning, clk: Clock, i: int, prof: tuple, tag: str = "") -> int | None:
-    """Request number at which the early warning fired (0 = login), or None if it never did."""
+def attacker(rng: random.Random, ew: FirstSight, clk: Clock, i: int, prof: tuple, tag: str = "") -> int | None:
+    """Request number at which First Sight fired (0 = login), or None if it never did."""
     ua, med, sig, outside, _ = prof
     user = "n.okafor"
     ew.addresses[user] = {"10.1.0.7"}                    # the real nurse's workstation
@@ -101,7 +101,7 @@ def attacker(rng: random.Random, ew: EarlyWarning, clk: Clock, i: int, prof: tup
 def main(seed: int = 7) -> dict:
     rng = random.Random(seed)
     clk = Clock()
-    ew = EarlyWarning(clock=clk)
+    ew = FirstSight(clock=clk)
     fp = sum(benign(rng, ew, clk, i) for i in range(N_BENIGN))
     fired = [st for sid, st in ew.sessions.items() if sid.startswith("b") and st.fired]
     off_site = sum(1 for st in fired if {"unmanaged_device", "new_address"} <= {x for _, x, _ in st.evidence})
