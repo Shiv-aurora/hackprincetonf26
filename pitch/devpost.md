@@ -1,9 +1,32 @@
 # MayaJaal — Devpost submission text
 
+> **For whoever fills in Devpost (person or AI):** each `##` section below maps to a Devpost field. Copy it
+> as written, or shorten it, but keep the numbers exactly as they are; every number comes from a recorded
+> run or a labelled simulation in this repo. Sponsor sections go in the matching prize write-ups.
+>
+> **Claims you can make**
+> - On the running system, the same scripted attack showed the attacker 1,202 real patients with no defense, 20 with a static decoy, and 0 with MayaJaal.
+> - First Sight caught it at login, and the attacker still believed it had succeeded.
+> - Two attackers share 0% of their decoy hospital (a static honeypot: 100%).
+> - In a simulated lab outage, 15/16 urgent tests were on time instead of 0/16.
+> - Scatter split an encrypted copy of the database across six hospital sites and verified it (2 MB, 0.02 s).
+> - The incident briefs and forensic reports were written by Claude (`claude-opus-5-5`). The LangChain Investigator made one real run: a plan, three sub-agents and 11 lead-agent tool calls.
+> - Two scenarios are modelled on the public outline of real 2024 incidents: Change Healthcare (stolen login) and Synnovis (shared lab outage).
+>
+> **Claims you must NOT make**
+> - That it was benchmarked against live AI agents, red teams or other people. The recorded attacker is a fixed script.
+> - That it was tested on real hospital or patient data. Everything is synthetic.
+> - That it identifies the attacker's AI model, their prompts or the real person. It captures address, client software, behaviour and the trackers taken.
+> - That it shuts attackers down or takes any action against them. It defends, records and recommends.
+> - That Scatter moves the live database. It makes an encrypted, split *copy*; the live database stays so care keeps running.
+> - That the six hospital sites are separate machines. In the demo they are folders on one laptop.
+> - That First Sight catches everyone at login. In simulation it misses an attacker working from the nurse's own PC, and those are caught later by the policy rules.
+
 **Tagline (one line):** Protecting critical hospitals from AI cyberattacks. Without stopping the attacks.
 
 **Links:** live site https://mayajaal-gamma.vercel.app · guided demo https://mayajaal-gamma.vercel.app/demo ·
-paper https://mayajaal-gamma.vercel.app/mirage.pdf · code https://github.com/Shiv-aurora/hackprincetonf26
+the Investigator (LangChain) https://mayajaal-gamma.vercel.app/langchain · paper https://mayajaal-gamma.vercel.app/mirage.pdf ·
+code https://github.com/Shiv-aurora/hackprincetonf26
 
 ---
 
@@ -58,7 +81,7 @@ like an attacker:
 - **Analyst:** the Anthropic Python SDK (`claude-opus-5-5`) with structured outputs, plus a rule-based layer that always runs.
 - **Investigator:** a LangChain Deep Agent with three sub-agents and read-only tools over the event log.
 - **Frontend:** Next.js 16 + React 19 + Tailwind on Vercel. A guided 3-minute demo plays on top of the real dashboard, replaying recorded runs.
-- **Tests:** 267 tests, covering policy rules, gateway behaviour, First Sight, device tokens, vault encryption, Scatter rebuilds, MIRAGE and the analyst.
+- **Tests:** 270 tests, covering policy rules, gateway behaviour, First Sight, device tokens, vault encryption, Scatter rebuilds, MIRAGE, the analyst and the Investigator.
 - **Paper:** a 3-page LaTeX paper on MIRAGE-S, with its numbers generated from the recorded runs.
 
 ## Challenges we ran into
@@ -110,7 +133,8 @@ Every attacker session produces an **incident brief** and a **downloadable foren
   - whether anything real left.
 - **Judgement calls** (actor type, likely goal, next moves, which response steps matter most) come from Claude via structured outputs. The attacker's own strings (paths, user agents) are wrapped as untrusted data, and the model has no tools: it can only write the brief.
 - **Response playbook:** keep them in the decoy; reset the stolen password and leave the decoy session running; phone the nurse to find the phishing email; watch the indicators across all hospitals; alert on tracker reuse; share with H-ISAC; give the privacy officer the evidence for the HIPAA risk assessment.
-- **Honesty:** the brief says "rule-based" when no model wrote it, and never states a fact that isn't in the events.
+- **Recorded with the real model:** the briefs and reports for all three recorded runs were written by `claude-opus-5-5` (`web/public/runs/brief-*.json`, `report-*.md`).
+- **Honesty:** without a model the brief says "rule-based". It never states a fact that isn't in the events.
 
 ### Peri — forward deployed engineer
 
@@ -134,6 +158,12 @@ that works an incident the way an analyst would:
 Why it's a deep agent and not one prompt: the investigation needs many tool calls across the timeline,
 decisions, trackers, intent history and other sessions, and the sub-agents keep each line of inquiry in its
 own context.
+
+**It has run for real.** On the recorded attack, `claude-opus-5-5` wrote a plan, used all three sub-agents and
+made 11 lead-agent tool calls. It produced an accurate case file, and noticed on its own that the attacker's
+tool and address only matched test-like sessions. Everything (plan, each sub-agent's findings, every tool
+call, the case file) is shown at https://mayajaal-gamma.vercel.app/langchain and saved in
+`web/public/runs/investigation-mayajaal.json`.
 
 It's safe on hostile material. Every tool is read-only over the event log, and the filesystem is the
 in-memory `StateBackend` (no disk, no shell). Prompts mark every attacker-supplied string as evidence, never

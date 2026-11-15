@@ -3,7 +3,9 @@
 **Protecting critical hospitals from AI cyberattacks. Without stopping the attacks.**
 
 **Live:** https://mayajaal-gamma.vercel.app · **3-minute guided demo:** https://mayajaal-gamma.vercel.app/demo ·
-**Paper:** [MIRAGE-S (PDF)](https://mayajaal-gamma.vercel.app/mirage.pdf)
+**Live dashboard:** https://mayajaal-gamma.vercel.app/war-room · **The Investigator (LangChain Deep Agents):**
+https://mayajaal-gamma.vercel.app/langchain · **Paper:** [MIRAGE-S (PDF)](https://mayajaal-gamma.vercel.app/mirage.pdf) ·
+**Devpost text:** [`pitch/devpost.md`](pitch/devpost.md)
 
 *Maya* (illusion) + *Jaal* (net). When someone uses a stolen login against a hospital, MayaJaal does not
 block them, because a block only tells them to try another door. It quietly moves them into a fake copy of
@@ -21,8 +23,8 @@ never notice. Built solo at HackPrinceton Fall 2026.
 | 4 | **Trackers** | Every fake file, password, record and URL in the decoy is a honeytoken. If one is used anywhere, we know who has it. | `shadow/honeytokens.py`, `breadcrumbs.py` |
 | 5 | **Scatter** | The moment First Sight fires, an encrypted copy of the real database (fresh AES-256-GCM key) is cut into 3 pieces, each stored at 2 hospitals. The key is Shamir-split 3-of-6, and the copy is proven rebuildable from other hospitals. | `real/scatter.py` |
 | 6 | **Vault** | Sensitive fields (notes, SSNs, addresses, passwords, canaries) are encrypted at rest. The data key is wrapped by a key that is itself split 3-of-6 across the hospitals. | `real/vault.py` |
-| 7 | **Incident brief and forensic report** | Who it probably is (script, AI agent or person, and why), how we noticed, ATT&CK techniques, indicators, trackers taken, what they believe they stole, and a response playbook, plus a downloadable Markdown report with the full timeline. Rule-based facts always. With `ANTHROPIC_API_KEY`, Claude writes the judgement calls with schema-checked output, and the attacker's own strings are treated as untrusted data. | `mayajaal/analyst.py` |
-| 7b | **Investigator** | A LangChain Deep Agent that plans its own investigation, delegates to timeline, indicator-hunting and response sub-agents (read-only tools, including a search of every other recorded session for repeat indicators), and writes a case file. In-memory filesystem, no shell. Needs `ANTHROPIC_API_KEY`. | `mayajaal/investigator.py` |
+| 7 | **Incident brief and forensic report** | Who it probably is (script, AI agent or person, and why), how we noticed, ATT&CK techniques, indicators, trackers taken, what they believe they stole, and a response playbook, plus a downloadable Markdown report with the full timeline. Facts come from the event log by rule. Claude (`claude-opus-5-5`) writes the judgement calls with schema-checked output, and the attacker's own strings are treated as untrusted data. Without an API key it falls back to rules and says so. | `mayajaal/analyst.py` |
+| 7b | **Investigator** | A LangChain Deep Agent that plans its own investigation, delegates to timeline, indicator-hunting and response sub-agents (read-only tools, including a search of every other recorded session for repeat indicators), and writes a case file. In-memory filesystem, no shell. Shown on [`/langchain`](https://mayajaal-gamma.vercel.app/langchain). | `mayajaal/investigator.py` |
 | 8 | **VitalSwitch** | If the attack takes a shared lab down (like Synnovis, London 2024), urgent tests are rerouted to hospital labs that still work. | `continuity/` |
 
 MayaJaal is a gateway in front of a standard **FHIR** API and an IT portal, so a hospital can put it in
@@ -48,8 +50,14 @@ The same scripted attack ran against each configuration through the real gateway
 - **First Sight (simulation, hand-set assumptions):** every attacker using the stolen password from their own machine is caught at login (script, AI agent posing as Chrome, a person, or a copy of the EHR client). An attacker working from the nurse's own PC is *not* caught early; the policy rules catch them at request 3. 4.0% of simulated clinician sessions get an extra MFA prompt, mostly (3.6%) nurses on their own laptop at a new location.
 - **MIRAGE-S (in-model simulation):** a cautious attacker abandons 8.6% of sessions instead of 68.9%, and the true goal is identified in 64.9% instead of 45.5%. Against a bold attacker it is slower (+0.84 requests).
 
+- **AI layer, real model runs:** the incident briefs and forensic reports in `web/public/runs/` (`brief-*.json`, `report-*.md`) were written by `claude-opus-5-5`. The Investigator's case file (`investigation-mayajaal.md` / `.json`) comes from one real Deep Agents run: a plan, three sub-agents and 11 tool calls by the lead agent.
+
+**Two scenarios, modelled on real 2024 incidents** (public outline only, synthetic hospital, no real patient data):
+1. *Stolen login*, after Change Healthcare (2024): the recorded attack above.
+2. *Shared lab goes down*, after the Synnovis outage in London (2024): the lab-rerouting run.
+
 **Honest limits:**
-- The recorded attacker is a fixed script, not a live AI agent.
+- The recorded attacker is a fixed script, not a live AI agent. The AI pieces (brief, report, Investigator) analyse the attack; they don't perform it.
 - There is no human red-team data.
 - We identify the client software and the address, not which AI model it is.
 - In the demo all six "hospitals" are folders on one machine.
