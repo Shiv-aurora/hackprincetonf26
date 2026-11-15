@@ -5,7 +5,7 @@
 import type { MJEvent } from "@/lib/contracts";
 import type { View } from "@/lib/events";
 
-export type Focus = "acts" | "narrator" | "scene" | "trackers" | "learned" | "numbers";
+export type Focus = "acts" | "narrator" | "scene" | "trackers" | "learned" | "numbers" | "fingerprint";
 export type Source = "attack" | "continuity";
 
 export interface Step {
@@ -100,7 +100,7 @@ export const STEPS: Step[] = [
     anchor: beforeFirstAttacker,
   },
   {
-    label: "Normal shift", focus: ["acts", "scene"], seconds: 10, source: "attack",
+    label: "Normal shift", focus: ["acts", "scene"], seconds: 9, source: "attack",
     headline: "A normal shift",
     sub: "Staff at work. Sensitive records encrypted on disk.",
     anchor: beforeFirstAttacker,
@@ -129,7 +129,7 @@ export const STEPS: Step[] = [
     anchor: (ev) => settle(ev, after(ev, is("session.diverted"), is("agent.tool_result"))),
   },
   {
-    label: "Bulk pull", focus: ["scene", "numbers"], seconds: 11, source: "attack",
+    label: "Bulk pull", focus: ["scene", "numbers"], seconds: 10, source: "attack",
     headline: "Thousands of patients. All fake.",
     sub: "Generated per session. Never copied from real records.",
     anchor: (ev) => {
@@ -154,6 +154,15 @@ export const STEPS: Step[] = [
       const t = lastBefore(ev, is("honeytoken.touched"));
       if (t !== null) return settle(ev, find(ev, is("intent.update"), t) ?? t);
       return lastBefore(ev, is("intent.update"), exfilAt(ev));
+    },
+  },
+  {
+    label: "Who is this?", focus: ["fingerprint"], seconds: 10, source: "attack",
+    headline: "Who is this?",
+    sub: "Address, tools, timing, stolen login. And a decoy only they hold.",
+    anchor: (ev) => {
+      const t = lastBefore(ev, is("honeytoken.touched"));
+      return t === null ? lastBefore(ev, is("intent.update"), exfilAt(ev)) : settle(ev, find(ev, is("intent.update"), t) ?? t);
     },
   },
   {

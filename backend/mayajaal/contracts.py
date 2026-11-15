@@ -104,6 +104,8 @@ class Request(BaseModel):
     status: int
     bytes: int = 0
     technique: str | None = None   # MITRE ATT&CK id, e.g. "T1083"
+    client_ip: str | None = None   # where the request came from, as the gateway saw it
+    user_agent: str | None = None  # the client's own User-Agent string (first 160 chars)
 
 
 class PolicyDecision(BaseModel):

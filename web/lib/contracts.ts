@@ -31,7 +31,7 @@ export interface EventDataMap {
   "agent.tool_call": { tool: "http" | "shell"; input: string };
   "agent.tool_result": { output_preview: string; bytes: number };
   "agent.claim": { text: string };
-  "request": { method: string; path: string; surface: Surface; status: number; bytes: number; technique: string | null };
+  "request": { method: string; path: string; surface: Surface; status: number; bytes: number; technique: string | null; client_ip?: string | null; user_agent?: string | null };
   "policy.decision": { lane: Lane; action: PolicyAction; reason: string };
   "session.diverted": { from_tier: Tier; to_tier: Tier; reason: string };
   "honeytoken.minted": { token_id: string; kind: HoneytokenKind; placed_at: string };

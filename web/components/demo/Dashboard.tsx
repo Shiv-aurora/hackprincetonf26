@@ -17,6 +17,7 @@ import { LearnedPanel, SwitchView, TrackersPanel } from "@/components/hospital/L
 import { HospitalScene } from "@/components/hospital/Scene";
 import { ActsBar } from "@/components/hospital/Acts";
 import { AttackControls } from "@/components/hospital/AttackControls";
+import { FingerprintPanel } from "@/components/hospital/Fingerprint";
 import {
   AttackerTerminal, ColumnHeading, ContinuityHUD, DefenderPanel, EventTimeline, RunBadge, SoundButton,
   StreamStatus, TheReveal, WarRoomSound, hospitalName, playRevealCue, useHasContinuity,
@@ -79,6 +80,7 @@ export function Dashboard({ mode = "live", revealOpen = false }: DashboardProps)
             <LearnedPanel />
           </div>
         </div>
+        <FingerprintPanel />
         <HospitalNumbers />
 
         {!demo && (

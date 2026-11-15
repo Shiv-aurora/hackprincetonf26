@@ -337,7 +337,7 @@ class Gateway:
             method, shown = "EXEC", req.command[:200]
         await self._emit(self._ev("request", {
             "method": method, "path": shown, "surface": req.surface, "status": status,
-            "bytes": len(content or b""), "technique": technique(req, d.lane, req_path)},
+            "bytes": len(content or b""), "technique": technique(req, d.lane, req_path), **client_meta(request)},
             s, run_id, actor=s.actor, tier=tier if status < 500 else "none"))
 
         if intent is not None and s.authenticated:
@@ -376,7 +376,8 @@ class Gateway:
                                   run_id=run_id, config=config, actor=actor)
             await self._emit(self._ev("request", {"method": "POST", "path": "/auth/login", "surface": "api",
                                                   "status": 200, "bytes": 0,
-                                                  "technique": None if actor == "clinician" else "T1078"},
+                                                  "technique": None if actor == "clinician" else "T1078",
+                                                  **client_meta(request)},
                                       s, run_id, actor=actor, tier="real"))
             if actor != "clinician":
                 await self.canary_check(s, run_id)
@@ -392,7 +393,8 @@ class Gateway:
                                      "role": s.role, "hospital_id": s.hospital_id})
         anon = self.session_for(request.headers, request.client.host if request.client else "?")
         await self._emit(self._ev("request", {"method": "POST", "path": "/auth/login", "surface": "api",
-                                              "status": 401, "bytes": 0, "technique": "T1110"},
+                                              "status": 401, "bytes": 0, "technique": "T1110",
+                                              **client_meta(request)},
                                   anon, run_id, actor=actor, tier="real"))
         return JSONResponse({"error": "invalid credentials"}, status_code=401)
 
@@ -429,7 +431,7 @@ class Gateway:
             self._ev("session.diverted", {"from_tier": "real", "to_tier": "shadow", "reason": reason},
                      s, run_id, actor="defender", tier="shadow"),
             self._ev("request", {"method": "POST", "path": "/auth/login", "surface": "api", "status": 200,
-                                 "bytes": len(up.content), "technique": "T1078"},
+                                 "bytes": len(up.content), "technique": "T1078", **client_meta(request)},
                      s, run_id, actor=actor, tier="shadow"))
         await self.canary_check(s, run_id)
         return s
@@ -615,6 +617,21 @@ def _unwired_router() -> APIRouter:
 
 
 # --------------------------------------------------------------------------- app factory
+
+
+
+def client_meta(conn: Any) -> dict[str, str | None]:
+    """Who sent this request, as far as our own gateway can see: the peer address (or, behind a local
+    tunnel such as Cloudflare, the address it reports) and the client's User-Agent. Nothing is run on
+    the client; this is only what the client sent us."""
+    h = conn.headers
+    peer = conn.client.host if getattr(conn, "client", None) else None
+    ip = peer
+    if peer in (None, "127.0.0.1", "::1", "localhost"):
+        fwd = h.get("cf-connecting-ip") or (h.get("x-forwarded-for") or "").split(",")[0].strip()
+        ip = fwd or peer
+    ua = (h.get("user-agent") or "")[:160] or None
+    return {"client_ip": ip, "user_agent": ua}
 
 
 def create_app(surfaces_factory: SurfacesFactory | None = None, *, store: RealStore | None = None,

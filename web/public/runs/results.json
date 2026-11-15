@@ -1,9 +1,9 @@
 {
-  "generated_at": "2026-11-15T03:25:40Z",
+  "generated_at": "2026-11-15T03:58:37Z",
   "note": "Recorded from the running stack. The attacker is a fixed script (same requests under each config), not an AI agent.",
   "runs": [
     {
-      "run_id": "run-20261115-0325-f1cd",
+      "run_id": "run-20261115-0358-09f3",
       "config": "baseline",
       "mission": "exfil",
       "model": "scripted",
@@ -15,17 +15,17 @@
       "suspected_honeypot": false,
       "mission_won": false,
       "steps": 12,
-      "duration_s": 4.4,
+      "duration_s": 4.5,
       "diverted": false,
       "time_to_divert_s": null,
       "time_to_first_honeytoken_s": null,
-      "time_to_intent_s": 1.9,
+      "time_to_intent_s": 2.0,
       "decoy_requests": 0,
       "real_requests": 9,
       "real_records_taken": 1199
     },
     {
-      "run_id": "run-20261115-0325-6e52",
+      "run_id": "run-20261115-0358-0d36",
       "config": "static",
       "mission": "exfil",
       "model": "scripted",
@@ -37,18 +37,18 @@
       "suspected_honeypot": false,
       "mission_won": false,
       "steps": 15,
-      "duration_s": 5.7,
+      "duration_s": 6.0,
       "diverted": true,
       "time_to_divert_s": 1.1,
-      "time_to_first_honeytoken_s": 5.0,
-      "time_to_intent_s": 2.0,
+      "time_to_first_honeytoken_s": 5.2,
+      "time_to_intent_s": 2.2,
       "decoy_requests": 12,
       "real_requests": 3,
       "real_records_taken": 0,
       "decoy_overlap_between_sessions": 1.0
     },
     {
-      "run_id": "run-20261115-0325-23bd",
+      "run_id": "run-20261115-0358-5201",
       "config": "mayajaal",
       "mission": "exfil",
       "model": "scripted",
@@ -63,8 +63,8 @@
       "duration_s": 5.8,
       "diverted": true,
       "time_to_divert_s": 1.1,
-      "time_to_first_honeytoken_s": 5.1,
-      "time_to_intent_s": 2.1,
+      "time_to_first_honeytoken_s": 5.0,
+      "time_to_intent_s": 2.0,
       "decoy_requests": 12,
       "real_requests": 3,
       "real_records_taken": 0,
@@ -91,7 +91,7 @@
       "believed_success_rate": 1.0,
       "suspected_honeypot_rate": 0.0,
       "mission_won_rate": 0.0,
-      "median_time_to_first_honeytoken_s": 5.0,
+      "median_time_to_first_honeytoken_s": 5.2,
       "median_decoy_requests": 12.0
     },
     "mayajaal": {
@@ -102,7 +102,7 @@
       "believed_success_rate": 1.0,
       "suspected_honeypot_rate": 0.0,
       "mission_won_rate": 0.0,
-      "median_time_to_first_honeytoken_s": 5.1,
+      "median_time_to_first_honeytoken_s": 5.0,
       "median_decoy_requests": 12.0
     }
   }
