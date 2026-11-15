@@ -8,6 +8,8 @@
   (http://127.0.0.1:8001, same path/query/body, plus X-MJ-* headers), or refused (step_up / deny).
 - WS /shell is proxied to ws://127.0.0.1:8001/shell when diverted, else served locally.
 - Every outgoing body and shell frame is scanned by the canary ledger.
+- real.db is encrypted at rest (real/vault.py); RealStore decrypts in-process only for what the real
+  tier serves. GET /_mj/vault (X-MJ-Admin) shows what is encrypted, key custody and a raw-bytes check.
 
 Config: env MJ_CONFIG = baseline | static | mayajaal (default mayajaal), overridable per request
 with header X-MJ-Config. X-MJ-Run sets the run id. X-MJ-Actor: clinician labels simulator traffic

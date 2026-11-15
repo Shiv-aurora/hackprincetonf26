@@ -1,7 +1,8 @@
 """Seed the REAL tier: backend/data/real/real.db (SQLite).
 
     uv run python -m mayajaal.real.seed            # create if missing
-    uv run python -m mayajaal.real.seed --force    # rebuild from scratch
+    uv run python -m mayajaal.real.seed --force    # rebuild from scratch (reuses existing key shares)
+    (an existing plaintext real.db is encrypted in place the first time RealStore opens it)
 
 What goes in:
 - ~1,200 synthetic patients across the 5 clinical hospitals (aur, riv, nor, eas, wes), weighted by
@@ -357,6 +358,13 @@ def main() -> None:
     o = conn.execute("SELECT COUNT(*) FROM observations").fetchone()[0]
     c = conn.execute("SELECT COUNT(*) FROM canaries").fetchone()[0]
     print(f"real tier at {path}: {n} patients, {o} observations, {c} protected canaries")
+    from mayajaal.real.world import RealStore      # opening the store migrates a legacy plaintext db
+
+    store = RealStore(path)
+    check = store.vault_report()["self_check"]
+    print(f"vault: AES-256-GCM, {len(store.vault.holders_used)} of {len(store.vault.holders)} shares used, "
+          f"{store.migrated} plaintext values migrated, raw-bytes canary check "
+          f"{'ok' if check['ok'] else 'FAILED'}")
 
 
 if __name__ == "__main__":
