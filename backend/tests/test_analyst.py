@@ -25,6 +25,7 @@ def test_facts_from_recorded_mayajaal_run() -> None:
 
 def test_rule_brief_without_key(monkeypatch) -> None:
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.setattr("mayajaal.investigator.load_env_key", lambda: None)
     b = brief(load("mayajaal.jsonl"))
     assert b["source"] == "rules" and b["analyst"] is None
     assert b["actor_guess"]["type"] == "script"
@@ -34,6 +35,7 @@ def test_rule_brief_without_key(monkeypatch) -> None:
 
 def test_baseline_brief_flags_real_exposure(monkeypatch) -> None:
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.setattr("mayajaal.investigator.load_env_key", lambda: None)
     b = brief(load("baseline.jsonl"))
     assert b["facts"]["requests"]["real_data_served"] > 0
     assert any("Start a HIPAA breach risk assessment" in s["do"] for s in b["playbook"])
@@ -71,6 +73,7 @@ def test_model_failure_falls_back_to_rules() -> None:
 def test_forensic_report_has_brief_indicators_and_timeline(monkeypatch) -> None:
     from mayajaal.analyst import report_markdown
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.setattr("mayajaal.investigator.load_env_key", lambda: None)
     md = report_markdown(load("mayajaal.jsonl"))
     assert md.startswith("# MayaJaal forensic report")
     assert "rule-based brief" in md and "## Indicators" in md and "## Timeline" in md

@@ -205,6 +205,8 @@ session running (cutting it off tips them off). Plain English, no hype."""
 
 def analyst_view(f: dict[str, Any], *, client: Any = None) -> AnalystView | None:
     if client is None:
+        from mayajaal.investigator import load_env_key
+        load_env_key()
         if not os.environ.get("ANTHROPIC_API_KEY"):
             return None
         import anthropic

@@ -22,6 +22,7 @@ from collections import OrderedDict
 from pathlib import Path
 from typing import Any
 
+from pydantic import BaseModel
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -190,6 +191,24 @@ def analyst_report(run_id: str | None = None):
         raise HTTPException(404, "unknown run")
     return PlainTextResponse(report_markdown(list(_runs[rid])), media_type="text/markdown; charset=utf-8",
                              headers={"Content-Disposition": f'attachment; filename="mayajaal-report-{rid}.md"'})
+
+
+class InvestigateIn(BaseModel):
+    run_id: str | None = None
+    question: str | None = None
+
+
+@app.post("/investigate")
+def investigate_run(body: InvestigateIn):
+    """Run the Deep Agents investigator over a run (default: current). Read-only over recorded events;
+    every other run in the hub is searchable for repeat indicators. Needs ANTHROPIC_API_KEY."""
+    from mayajaal.investigator import investigate
+
+    rid = body.run_id or _current_run
+    if not rid or rid not in _runs:
+        raise HTTPException(404, "unknown run")
+    others = {k: list(v) for k, v in _runs.items() if k != rid}
+    return {"run_id": rid, **investigate(list(_runs[rid]), others, question=body.question)}
 
 
 def _attack_running() -> bool:
