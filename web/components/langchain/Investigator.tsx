@@ -177,7 +177,7 @@ export function InvestigatorView({ recorded }: { recorded: Investigation }) {
       </section>
 
       <section className="pt-20">
-        <Head title="Its plan" sub="Written to /plan.md before it looked at anything." />
+        <Head title="Its plan" sub="Written to /plan.md before it delegates." />
         <Reading className="mt-10"><Markdown text={data.plan ?? ""} /></Reading>
       </section>
 
