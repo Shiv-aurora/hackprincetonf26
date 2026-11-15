@@ -32,6 +32,10 @@ MIN_GAIN = 0.03
 BUDGET = 3            # lures per session: enough to learn, few enough to stay believable
 MAX_HEADER = 1024
 LURES_KEY = "lures"   # optional key in X-MJ-Posterior: {"<kind>": <info gain in bits>, ...}
+# Chance per request that a diverted session opens each lure host page (rough averages of the
+# request model in mirage/intent.py; judgement calls). The planner uses them to price waiting:
+# a page that has not been viewed yet will not stay that way.
+VIEW_RATE: dict[str, float] = {"docs": 0.15, "backups": 0.05}
 
 
 def parse_lure_directives(value: str | bytes | None) -> dict[str, float] | None:
@@ -231,12 +235,19 @@ class StealthPlanner(Planner):
     q is what makes this stealthy: a lure on a page the session has already viewed, a lure right
     after another one, and each additional lure all raise it (see SuspicionModel.weight). With
     p_cautious = 0 the suspicion terms vanish and this is a paced-by-nothing greedy planner.
+
+    Looking ahead also prices the closing window: the next lure is assumed to come `burst_gap`
+    requests later, by which time each host page has been opened with probability
+    1 - (1 - view_rate)^gap and a lure there would be late. Inside the burst window the planner
+    compares planting now (burst penalty) with waiting it out (risk of the page being viewed).
     """
 
     def __init__(self, *, depth: int = 2, suspicion: SuspicionModel = DEFAULT_SUSPICION, gamma: float = 0.9,
                  engage_value: float = 0.5, budget: int = len(KINDS), min_gain: float = MIN_GAIN,
-                 trust: float = 1.0, host: Mapping[str, str] | None = None, **kw: Any) -> None:
+                 trust: float = 1.0, host: Mapping[str, str] | None = None,
+                 view_rate: Mapping[str, float] | None = None, **kw: Any) -> None:
         super().__init__(every=1, min_gain=min_gain, budget=budget, **kw)
+        self.view_rate = dict(VIEW_RATE if view_rate is None else view_rate)
         self.depth = max(1, depth)
         self.suspicion = suspicion
         self.gamma = gamma
@@ -250,7 +261,14 @@ class StealthPlanner(Planner):
         b = normalize(posterior)
         return self._q(b, st, self.depth if depth is None else depth)
 
-    def _q(self, b: Mapping[str, float], st: LureState, depth: int) -> dict[str, float]:
+    def _viewed_within(self, n: int) -> dict[str, float]:
+        """P(each host page gets opened within the next n requests)."""
+        return {p: 1.0 - (1.0 - r) ** max(0, n) for p, r in self.view_rate.items()}
+
+    def _q(self, b: Mapping[str, float], st: LureState, depth: int,
+           viewed_p: Mapping[str, float] | None = None) -> dict[str, float]:
+        """`viewed_p`: for a hypothetical future state, the chance each not-yet-viewed page has been
+        opened by then (the lure would then be late)."""
         if len(st.planted) >= self.budget:
             return {}
         h = entropy(b.values())
@@ -260,17 +278,23 @@ class StealthPlanner(Planner):
                 continue
             row = self.rows[k]
             ig = info_gain(b, row)
-            _, q_cautious = plant_effect(self.suspicion, st, k, self.host)
+            lo, q_cautious = plant_effect(self.suspicion, st, k, self.host)
+            page = self.host.get(k)
+            if viewed_p and page not in st.viewed:
+                v = viewed_p.get(page, 0.0)
+                q_cautious = (1.0 - v) * q_cautious + v * self.suspicion.quit_prob(lo + self.suspicion.w_late)
             q = st.p_cautious * q_cautious
             future = 0.0
             if depth > 1 and ig > 0:
                 nxt = st.copy()
                 survived(nxt, apply_plant(self.suspicion, nxt, k, self.host))
-                nxt.step += self.suspicion.burst_gap           # the next lure would be paced, not a burst
+                gap = self.suspicion.burst_gap                 # the next lure would be paced, not a burst
+                nxt.step += gap
+                later = self._viewed_within(gap)
                 pe = p_engage(b, row)
                 for outcome, po in ((True, pe), (False, 1.0 - pe)):
                     if po > 1e-9:
-                        nq = self._q(posterior_after(b, row, outcome), nxt, depth - 1)
+                        nq = self._q(posterior_after(b, row, outcome), nxt, depth - 1, later)
                         future += po * max(0.0, max(nq.values(), default=0.0))
             out[k] = (1.0 - q) * (ig + self.gamma * future) - q * (h + self.engage_value)
         return out
@@ -283,6 +307,14 @@ class StealthPlanner(Planner):
         kind = max(q, key=lambda k: (q[k], -self.kinds.index(k)))
         if q[kind] < self.min_gain:
             return None
+        if self.depth > 1 and st.last_plant is not None:
+            wait = self.suspicion.burst_gap - (st.step - st.last_plant)
+            if wait > 0:                                       # inside the burst window: plant or wait it out?
+                later = st.copy()
+                later.step += wait
+                qw = self._q(b, later, self.depth, self._viewed_within(wait))
+                if self.gamma ** wait * max(qw.values(), default=0.0) > q[kind]:
+                    return None
         return kind, info_gain(b, self.table[kind])
 
 
