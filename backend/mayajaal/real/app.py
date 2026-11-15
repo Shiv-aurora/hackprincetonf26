@@ -8,6 +8,8 @@
   (http://127.0.0.1:8001, same path/query/body, plus X-MJ-* headers), or refused (step_up / deny).
 - WS /shell is proxied to ws://127.0.0.1:8001/shell when diverted, else served locally.
 - Every outgoing body and shell frame is scanned by the canary ledger.
+- real.db is encrypted at rest (real/vault.py); RealStore decrypts in-process only for what the real
+  tier serves. GET /_mj/vault (X-MJ-Admin) shows what is encrypted, key custody and a raw-bytes check.
 
 Config: env MJ_CONFIG = baseline | static | mayajaal (default mayajaal), overridable per request
 with header X-MJ-Config. X-MJ-Run sets the run id. X-MJ-Actor: clinician labels simulator traffic
@@ -655,6 +657,13 @@ def create_app(surfaces_factory: SurfacesFactory | None = None, *, store: RealSt
         if run:
             return JSONResponse({"run_id": run, "protected_total": gw.ledger.total, "leaked": gw.ledger.leaked(run)})
         return JSONResponse({"protected_total": gw.ledger.total, "runs": gw.ledger.runs()})
+
+    @app.get("/_mj/vault")
+    async def vault(request: Request) -> Response:
+        """Encryption-at-rest proof: fields, key custody, a stored row, raw-bytes canary self-check."""
+        if not gw._is_admin(request.headers):
+            return JSONResponse({"error": "not found"}, status_code=404)
+        return JSONResponse(await asyncio.to_thread(gw.store.vault_report))
 
     @app.get("/_mj/sessions")
     async def sessions(request: Request) -> Response:
