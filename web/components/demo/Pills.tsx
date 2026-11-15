@@ -10,15 +10,16 @@ const FADE = { duration: 0.2, ease: [0.2, 0, 0, 1] as const };
 export function Caption({ stepKey, kicker, headline, sub }: { stepKey: number; kicker: string; headline: string; sub?: string }) {
   const reduce = useReducedMotion();
   return (
-    <div className="pointer-events-none fixed inset-x-0 top-3 z-[60] flex justify-center px-4">
+    <div className="pointer-events-none fixed inset-x-0 top-2 z-[60] flex justify-center px-4">
       <AnimatePresence mode="wait" initial={false}>
         <motion.div key={stepKey}
           initial={reduce ? false : { opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}
           transition={reduce ? { duration: 0 } : FADE}
-          className="pointer-events-auto max-w-[min(900px,100%)] rounded-xl border border-border bg-background px-6 py-2.5 text-center">
-          <p className="text-[14px] text-fg-muted tabular-nums">{kicker}</p>
-          {headline && <h1 className="truncate text-[24px] leading-8 font-semibold tracking-[-0.025em] text-fg">{headline}</h1>}
-          {sub && <p className="truncate text-[17px] leading-6 text-fg-muted">{sub}</p>}
+          className="pointer-events-auto max-w-[min(1160px,100%)] rounded-xl border border-border bg-background px-7 py-2 text-center">
+          {/* 8 + 8 + 20 + 38 + 26 + 8 = 108px: the film, dashboard and cards all start below that. */}
+          <p className="text-[15px] leading-5 text-fg-muted tabular-nums">{kicker}</p>
+          {headline && <h1 className="truncate text-[32px] leading-[38px] font-semibold tracking-[-0.03em] text-fg">{headline}</h1>}
+          {sub && <p className="truncate text-[19px] leading-[26px] text-fg-muted">{sub}</p>}
         </motion.div>
       </AnimatePresence>
     </div>

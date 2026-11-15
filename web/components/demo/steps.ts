@@ -54,23 +54,7 @@ function lastBefore(events: MJEvent[], pred: Pred, end = events.length): number 
   return null;
 }
 
-/** First `b` after the first `a`. */
-function after(events: MJEvent[], a: Pred, b: Pred): number | null {
-  const i = find(events, a);
-  return i === null ? null : find(events, b, i + 1);
-}
 
-/** Extend an index over the defender's immediate bookkeeping (intent / canary updates) for that beat. */
-function settle(events: MJEvent[], i: number | null): number | null {
-  if (i === null) return null;
-  let j = i;
-  while (j + 1 < events.length && (events[j + 1].type === "intent.update" || events[j + 1].type === "canary.check")) j++;
-  return j;
-}
-
-const isRealRead: Pred = (e) =>
-  e.type === "request" && e.actor === "attacker" && e.tier === "real" && e.data.surface === "fhir" && e.data.status < 400;
-const isFirstSight: Pred = (e) => e.type === "policy.decision" && e.data.reason.startsWith("First Sight");
 const isOutage: Pred = (e) => e.type === "node.status" && e.data.status !== "healthy";
 const beforeFirstAttacker = (ev: MJEvent[]) => { const i = find(ev, attacker); return i === null ? null : Math.max(0, i - 1); };
 
@@ -182,28 +166,8 @@ export const STEPS: Step[] = [
     anchor: beforeFirstAttacker,
   },
   {
-    label: "Real system", focus: ["scene", "logs"], seconds: 8, source: "attack",
-    headline: "Now the real system, same attack",
-    sub: "A recorded run. Every line on the right happened.",
-    anchor: (ev) => settle(ev, find(ev, isFirstSight) ?? after(ev, isRealRead, is("agent.tool_result")) ?? find(ev, is("agent.tool_result"))),
-  },
-
-
-  {
-    label: "Decoy", focus: ["scene"], seconds: 8, source: "attack",
-    headline: "It reaches for admin. We don't block it.",
-    sub: "It's moved into a decoy. Every request works. None of it is real.",
-    anchor: (ev) => settle(ev, after(ev, is("session.diverted"), is("agent.tool_result"))),
-  },
-
-
-
-
-
-
-  {
-    label: "No leaks", card: "leak", focus: [], seconds: 10, source: "attack",
-    headline: "Nothing real leaks",
+    label: "Zero leakage", card: "leak", focus: [], seconds: 10, source: "attack",
+    headline: "Zero data leakage",
     anchor: (ev) => ev.length - 1,
   },
   {
