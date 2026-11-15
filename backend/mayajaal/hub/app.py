@@ -167,6 +167,18 @@ _attack: dict[str, Any] = {"proc": None, "config": None}
 _SCRIPT = Path(__file__).resolve().parents[3] / "scripts" / "record_runs.py"
 
 
+@app.get("/analyst/brief")
+def analyst_brief(run_id: str | None = None):
+    """Incident brief for a run (default: the current one). Rule-based facts and playbook always;
+    Claude's analysis on top when ANTHROPIC_API_KEY is set. Sync def: FastAPI runs it in a thread."""
+    from mayajaal.analyst import brief
+
+    rid = run_id or _current_run
+    if not rid or rid not in _runs:
+        raise HTTPException(404, "unknown run")
+    return {"run_id": rid, **brief(list(_runs[rid]))}
+
+
 def _attack_running() -> bool:
     p = _attack["proc"]
     return p is not None and p.returncode is None

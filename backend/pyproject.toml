@@ -12,6 +12,7 @@ dependencies = [
   "websockets>=13",
   "mcp>=1.2",
   "cryptography>=50",
+  "anthropic>=1,<2",
 ]
 
 [dependency-groups]
