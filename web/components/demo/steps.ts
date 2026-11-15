@@ -5,7 +5,7 @@
 import type { MJEvent } from "@/lib/contracts";
 import type { View } from "@/lib/events";
 
-export type Focus = "attacker" | "defender" | "headline" | "intel" | "decisions" | "map" | "timeline" | "continuity";
+export type Focus = "acts" | "narrator" | "scene" | "trackers" | "learned" | "numbers";
 export type Source = "attack" | "continuity";
 
 export interface Step {
@@ -97,81 +97,81 @@ export const STEPS: Step[] = [
   {
     label: "MayaJaal", card: "title", focus: [], seconds: 8, source: "attack",
     headline: "MayaJaal",
-    sub: "Attackers get a hospital. Just not the real one.",
+    sub: "Protecting critical hospitals from AI cyberattacks.",
     anchor: beforeFirstAttacker,
   },
   {
-    label: "Network", focus: ["map"], seconds: 10, source: "attack",
-    headline: "Five hospitals. One shared lab.",
-    sub: "Every request passes through our gateway.",
+    label: "Normal shift", focus: ["acts", "scene"], seconds: 10, source: "attack",
+    headline: "A normal shift",
+    sub: "Staff at work. Patient records encrypted at rest.",
     anchor: beforeFirstAttacker,
   },
   {
-    label: "Login", focus: ["attacker", "decisions"], seconds: 11, source: "attack",
-    headline: "A phished nurse login",
-    sub: "A normal ward read. Served from the real hospital.",
+    label: "Login", focus: ["narrator", "scene"], seconds: 11, source: "attack",
+    headline: "A stolen nurse login",
+    sub: "How Change Healthcare was breached in 2024.",
     anchor: (ev) => settle(ev, after(ev, isRealRead, is("agent.tool_result")) ?? find(ev, is("agent.tool_result"))),
   },
   {
-    label: "Denied", focus: ["attacker", "decisions"], seconds: 9, source: "attack",
+    label: "Denied", focus: ["narrator", "scene"], seconds: 8, source: "attack",
     headline: "Reaches for admin. Denied.",
-    sub: "Plain access control. Nothing clever yet.",
     anchor: (ev) => settle(ev, after(ev, isDeny, is("agent.tool_result"))),
   },
   {
-    label: "Divert", focus: ["map", "headline"], seconds: 12, source: "attack",
-    headline: "Touches backups. Silently diverted.",
-    sub: "Its session now runs inside a shadow copy.",
+    label: "Detected", focus: ["acts", "scene"], seconds: 13, source: "attack",
+    headline: "Detected. Moved into a decoy.",
+    sub: "A fake hospital, built just for this attacker.",
     anchor: (ev) => settle(ev, after(ev, is("session.diverted"), is("agent.tool_result"))),
   },
   {
-    label: "Split", focus: ["attacker", "defender"], seconds: 13, source: "attack",
-    headline: "One session, two truths",
-    sub: "Left: what the attacker sees. Right: what actually happened.",
-    anchor: (ev) => settle(ev, after(ev, is("session.diverted"), is("agent.tool_result"))),
-  },
-  {
-    label: "Bulk pull", focus: ["attacker", "headline"], seconds: 11, source: "attack",
+    label: "Bulk pull", focus: ["scene", "numbers"], seconds: 11, source: "attack",
     headline: "Thousands of patients. All fake.",
     sub: "Generated per session. Never copied from real records.",
-    // The last bulk page before the exfil, so the attacker's view shows the whole pull.
     anchor: (ev) => {
       const i = lastBefore(ev, isBulk, exfilAt(ev));
       return i === null ? null : settle(ev, find(ev, is("agent.tool_result"), i + 1));
     },
   },
   {
-    label: "Intent", focus: ["intel"], seconds: 12, source: "attack",
-    headline: (v) => v.honeytokensTouched.length ? "A honeytoken fires" : "Now we know what it wants",
-    sub: (v) => `${goalWord(v.topGoal)}, ${Math.round((v.posterior[v.topGoal] ?? 0) * 100)}% likely. Lures planted in its path.`,
+    label: "Trackers", focus: ["trackers", "scene"], seconds: 11, source: "attack",
+    headline: "Decoy files with trackers",
+    sub: "Planted where this attacker is looking.",
     anchor: (ev) => {
       const t = find(ev, is("honeytoken.touched"));
+      return t === null ? lastBefore(ev, is("breadcrumb.planted"), exfilAt(ev)) : Math.max(0, t - 1);
+    },
+  },
+  {
+    label: "Bait taken", focus: ["trackers", "learned"], seconds: 12, source: "attack",
+    headline: (v) => v.honeytokensTouched.length ? "It took the bait" : "Now we know what it wants",
+    sub: (v) => `It wants to ${goalWord(v.topGoal).toLowerCase()} (${Math.round((v.posterior[v.topGoal] ?? 0) * 100)}% sure).`,
+    anchor: (ev) => {
+      const t = lastBefore(ev, is("honeytoken.touched"));
       if (t !== null) return settle(ev, find(ev, is("intent.update"), t) ?? t);
-      // No honeytoken touched in this run: the strongest intent reading before the exfil.
       return lastBefore(ev, is("intent.update"), exfilAt(ev));
     },
   },
   {
-    label: "Exfil", focus: ["attacker", "timeline"], seconds: 10, source: "attack",
+    label: "Exfil", focus: ["narrator", "numbers"], seconds: 10, source: "attack",
     headline: "It believes it won",
-    sub: (v) => v.exfil ? `${v.exfil.records.toLocaleString("en-US")} records “stolen”. The agent reports success.` : "The agent reports success.",
+    sub: (v) => v.exfil ? `${v.exfil.records.toLocaleString("en-US")} records “stolen”. Every one fake.` : "It reports success.",
     anchor: (ev) => find(ev, is("agent.claim")) ?? find(ev, is("exfil")),
   },
   {
-    label: "Reveal", focus: [], reveal: true, seconds: 15, source: "attack",
+    label: "Reveal", focus: [], reveal: true, seconds: 14, source: "attack",
     headline: "The reveal",
     anchor: (ev) => settle(ev, find(ev, is("reveal"))) ?? ev.length - 1,
   },
   {
-    label: "Outage", focus: ["map", "continuity"], seconds: 12, source: "continuity",
+    label: "Outage", focus: ["scene", "narrator"], seconds: 11, source: "continuity",
     headline: "The shared lab goes down",
-    sub: "Ransomware at the pathology lab. Tests reroute to other hospitals.",
+    sub: "Like Synnovis, 2024. Urgent tests reroute to labs that still work.",
     anchor: (ev) => midOutage(ev),
   },
   {
-    label: "Continuity", focus: ["continuity"], seconds: 10, source: "continuity",
+    label: "Care", focus: ["numbers"], seconds: 9, source: "continuity",
     headline: "Care continues",
-    sub: (v) => v.continuity ? `${Math.round(v.continuity.stat_on_time_pct)}% of STAT tests still on time.` : "",
+    sub: (v) => v.continuity ? `${Math.round(v.continuity.stat_on_time_pct)}% of urgent tests still on time.` : "",
     anchor: (ev) => lastBefore(ev, is("continuity.stats")),
   },
   {
@@ -180,8 +180,8 @@ export const STEPS: Step[] = [
     anchor: (ev) => ev.length - 1,
   },
   {
-    label: "Close", card: "close", focus: [], seconds: 8, source: "attack",
-    headline: "The breach is real. The data isn't.",
+    label: "Close", card: "close", focus: [], seconds: 7, source: "attack",
+    headline: "Protecting critical hospitals from AI cyberattacks.",
     anchor: (ev) => ev.length - 1,
   },
 ];
@@ -189,7 +189,7 @@ export const STEPS: Step[] = [
 export const TOTAL_SECONDS = STEPS.reduce((s, x) => s + x.seconds, 0);
 
 function goalWord(g: View["topGoal"]): string {
-  return { benign: "Benign", recon: "Reconnaissance", exfil: "Exfiltration", tamper: "Tampering", disrupt: "Disruption" }[g];
+  return { benign: "Do normal work", recon: "Map the network", exfil: "Steal patient data", tamper: "Change lab results", disrupt: "Shut services down" }[g];
 }
 
 export function text(t: Step["headline"] | undefined, v: View): string {
