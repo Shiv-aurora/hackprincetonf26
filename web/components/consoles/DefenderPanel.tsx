@@ -15,7 +15,7 @@ export function DefenderPanel({ className }: DefenderPanelProps) {
   return (
     <Card className={cn("overflow-hidden", className)} bodyClassName="flex min-h-0 flex-col p-0">
       <Headline />
-      <div className="grid shrink-0 grid-cols-1 border-b border-border md:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] md:divide-x md:divide-border">
+      <div data-demo="intel" className="grid shrink-0 grid-cols-1 border-b border-border md:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] md:divide-x md:divide-border">
         <Intent />
         <Lures />
       </div>
@@ -37,7 +37,7 @@ function Headline() {
   const leaked = canary.leaked > 0;
 
   return (
-    <div className="grid shrink-0 grid-cols-2 border-b border-border lg:grid-cols-[repeat(4,auto)] [&>*]:px-4 [&>*]:py-3.5 [&>*+*]:border-l [&>*+*]:border-border">
+    <div data-demo="headline" className="grid shrink-0 grid-cols-2 border-b border-border lg:grid-cols-[repeat(4,auto)] [&>*]:px-4 [&>*]:py-3.5 [&>*+*]:border-l [&>*+*]:border-border">
       <Stat
         label={<span className="whitespace-nowrap">Protected records leaked</span>}
         tone={leaked ? "danger" : "neutral"}
@@ -206,7 +206,7 @@ function Decisions() {
   const rows = f.decisions.slice(-30).reverse();
 
   return (
-    <div className="flex min-h-[132px] flex-1 flex-col">
+    <div data-demo="decisions" className="flex min-h-[132px] flex-1 flex-col">
       <div className="flex h-10 shrink-0 items-center justify-between gap-3 px-4">
         <h3 className="text-[13px] font-medium text-fg">Policy decisions</h3>
         <span className="truncate text-xs text-fg-subtle">
