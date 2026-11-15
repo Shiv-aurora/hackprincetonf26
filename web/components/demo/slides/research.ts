@@ -125,6 +125,108 @@ export const FS_EVAL = {
   ],
 };
 
+// ------------------------------------------------------------------ the real incident (Synnovis slide)
+
+/**
+ * Synnovis, June 2024. Every line is from Infosecurity Magazine, Jun 26 2025 (NHS England figures and King's College
+ * Hospital's statement), the same source facts.ts uses for its Synnovis line. Opened and checked Nov 15 2026:
+ * https://www.infosecurity-magazine.com/news/patient-death-linked-nhs-cyber/
+ * (The paper cites NHS England's statements on the incident, Jun 2024.)
+ */
+export const SYNNOVIS = {
+  date: "June 3, 2024",
+  // "pathology services provider for several NHS hospitals in London"; trusts named: King's College Hospital, Guy's and St Thomas'
+  who: "Synnovis, the pathology lab for several London hospitals, including King's College Hospital and Guy's and St Thomas'",
+  // "Pathology and blood testing were halted"
+  halted: "Pathology and blood testing stopped.",
+  stats: [
+    { value: "10,152", label: "outpatient appointments postponed" },
+    { value: "1,710", label: "planned procedures postponed" }, // "elective procedures"
+  ],
+  // King's College Hospital: a patient died; its investigation found several contributing factors, one of them a long wait
+  // for a blood test result caused by the attack.
+  death: "A patient died; a long wait for a blood test result was one of the contributing factors.",
+  source: "Infosecurity Magazine, Jun 26 2025 (NHS England figures; King's College Hospital)",
+};
+
+// ------------------------------------------------------------------ related research (Related slide)
+
+/** yes = the paper claims it · partly = in part (see the comment on the row) · no = not claimed in the paper. */
+export type Mark = "yes" | "partly" | "no";
+
+export const RELATED_COLS = [
+  "Decoy per attacker",
+  "Contains the attacker",
+  "Infers intent, adapts",
+  "Never grants real access",
+  "No real data in the decoy",
+] as const;
+
+export interface RelatedRow {
+  id: string;
+  name: string;
+  /** One line per paper. */
+  cite: readonly string[];
+  /** One mark per RELATED_COLS entry. */
+  marks: readonly [Mark, Mark, Mark, Mark, Mark];
+  evidence: string;
+  ours?: boolean;
+}
+
+/**
+ * The prior work paper/mirage.tex cites (intro and bibliography). Each cell comes from the paper's published abstract
+ * or summary, read on Nov 15 2026; anything a paper does not claim is "no", never a guess.
+ */
+export const RELATED: RelatedRow[] = [
+  // F. Cohen, "A note on the role of deception in information protection", Computers & Security 17(6), 1998.
+  // http://all.net/journal/deception/deception.html  Reviews deception as a defence (history, ethics, techniques and their
+  // difficulties); its Deception ToolKit simulates vulnerable services to add attacker work and aid detection (partly
+  // contains); results are logs from one DTK host.
+  { id: "cohen", name: "Deception as defence", cite: ["Cohen 1998"], marks: ["no", "partly", "no", "no", "no"],
+    evidence: "Review, one host's logs" },
+  // T. Holz, F. Raynal, "Detecting honeypots and other suspicious environments", IEEE IAW 2005 (ieeexplore 1495930): attackers
+  // detect and circumvent honeypots (VMs, debuggers). A. Vetterl, R. Clayton, "Bitter harvest", USENIX WOOT 2018:
+  // https://www.usenix.org/conference/woot18/presentation/vetterl  one-packet fingerprints found 7,605 low/medium-interaction
+  // honeypots in Internet-wide scans; a "class break". A fixed decoy engages an attacker only until it is spotted (partly).
+  { id: "static", name: "Static honeypots", cite: ["Holz & Raynal 2005", "Vetterl & Clayton 2018"], marks: ["no", "partly", "no", "no", "no"],
+    evidence: "7,605 spotted online" },
+  // B. M. Bowen et al., "Baiting inside attackers using decoy documents", SecureComm 2009:
+  // https://www.cs.columbia.edu/~angelos/Papers/2009/DecoyDocumentsSECCOM09.pdf  Automatically generated decoys with bogus
+  // credentials that alert when used, and beacons that report when a decoy is opened (detection). Evaluated on honeypots
+  // penetrated by attackers.
+  { id: "bowen", name: "Decoy documents", cite: ["Bowen et al. 2009"], marks: ["no", "no", "no", "no", "yes"],
+    evidence: "Tested on honeypots" },
+  // A. Juels, R. L. Rivest, "Honeywords: making password-cracking detectable", ACM CCS 2013:
+  // https://dspace.mit.edu/handle/1721.1/90627  False passwords stored with each account; a honeychecker sets off an alarm
+  // when one is used (detection). The paper is a design with a security analysis (an adversarial game, "flatness").
+  { id: "juels", name: "Honeywords", cite: ["Juels & Rivest 2013"], marks: ["no", "no", "no", "no", "yes"],
+    evidence: "Design + analysis" },
+  // A. Shinde, P. Doshi, O. Setayeshfar, arXiv:2007.09512 (2020): https://arxiv.org/abs/2007.09512  Decoys on a single
+  // honeypot host engage the attacker over several phases to recognise its intent (factored I-POMDPs, modelling the
+  // attacker's beliefs). Evaluated in simulation and on a real host.
+  { id: "shinde", name: "Deception for intent", cite: ["Shinde et al. 2020"], marks: ["no", "yes", "yes", "no", "no"],
+    evidence: "Simulation + a real host" },
+  // P. Beltrán López, P. Nespoli, M. Gil Pérez, arXiv:2402.09191 (2024): https://arxiv.org/abs/2402.09191  TCP traffic is
+  // redirected stealthily to an on-demand honeypot that clones the victim asset (contains; on demand, but not stated as
+  // one per attacker, so partly). Whether the clone holds the asset's data is not stated. Experiments and latency.
+  { id: "beltran", name: "Stealth redirection", cite: ["Beltrán López et al. 2024"], marks: ["partly", "yes", "no", "no", "no"],
+    evidence: "Experiments, latency" },
+  // MIRAGE (paper/mirage.tex): a decoy hospital per session from an HMAC seed (§III-F); sticky diversion, never refused
+  // (§III-A); goal × stage filter and lure planner (§III-B, §III-E); lanes only get stricter (§III-C); the shadow tier
+  // never reads the real one. Evidence: in-model simulation plus scripted runs on the running system (§IV).
+  { id: "mirage", name: "MIRAGE", cite: ["ours · this draft"], marks: ["yes", "yes", "yes", "yes", "yes"],
+    evidence: "Simulation + scripted runs", ours: true },
+];
+
+/** paper/data/real_numbers.tex (generated by paper/real_results.py from public/runs/): one scripted attack per configuration. */
+export const MEASURED = {
+  overlap: { static: "100%", mayajaal: "0%" }, // \ERStaticOverlap, \ERMjOverlap: decoy patients shared by two fresh sessions
+  realRecords: { none: "1,199", static: "0", mayajaal: "0" }, // \ERBaseReal, \ERStaticReal, \ERMjReal
+};
+
+/** paper/mirage.tex §V "The evaluation is circular by design" and the abstract's "We report no human red-team data." */
+export const LIMITS = "Our evidence is an in-model simulation plus scripted runs. The attacker model is ours, not fitted to data, and no human red team has tested MIRAGE yet.";
+
 // Re-make the images when public/mirage.pdf changes (page 1 is zoomed into, so it gets 300 dpi):
 //   pdftoppm -r 300 -png -f 1 -l 1 public/mirage.pdf a && pdftoppm -r 200 -png -f 2 -l 2 public/mirage.pdf b
 //   then save a-1.png / b-2.png as 8-bit grey: public/paper/page-1.png, public/paper/page-2.png

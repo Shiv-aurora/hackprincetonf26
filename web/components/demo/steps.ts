@@ -7,7 +7,8 @@ import type { View } from "@/lib/events";
 
 export type Focus = "acts" | "narrator" | "scene" | "trackers" | "learned" | "numbers" | "fingerprint" | "logs";
 export type Source = "attack" | "continuity";
-export type SlideId = "question" | "news" | "downtime" | "data" | "firstsight" | "paper" | "math" | "belief" | "planner";
+export type SlideId = "question" | "news" | "downtime" | "data" | "firstsight" | "paper" | "math" | "belief" | "planner"
+  | "synnovis" | "related" | "arena";
 export type FilmShot = "network" | "hospital" | "request" | "firstsight" | "transfer" | "swap" | "tracker" | "fingerprint" | "disperse";
 
 export interface Step {
@@ -57,6 +58,7 @@ function lastBefore(events: MJEvent[], pred: Pred, end = events.length): number 
 
 const isOutage: Pred = (e) => e.type === "node.status" && e.data.status !== "healthy";
 const beforeFirstAttacker = (ev: MJEvent[]) => { const i = find(ev, attacker); return i === null ? null : Math.max(0, i - 1); };
+const beforeOutage = (ev: MJEvent[]) => { const i = find(ev, isOutage); return i === null ? null : Math.max(0, i - 1); };
 
 /** Mid-outage: the first continuity.stats with at least half the run's peak reroute routes on the map
  *  (lab down, rerouting well under way, on-time numbers still recovering). */
@@ -176,9 +178,15 @@ export const STEPS: Step[] = [
     anchor: (ev) => ev.length - 1,
   },
   {
-    label: "Outage", scenario: "Scenario 2 · Shared lab goes down, modelled on Synnovis, London (2024)", focus: ["scene", "logs"], seconds: 8, source: "continuity",
-    headline: "The shared lab goes down",
-    sub: "Like Synnovis, 2024. Urgent tests reroute to labs that still work.",
+    // The real incident, then the replay. Folds the replay up to just before the lab goes down (anchors are monotonic).
+    label: "Real world", card: "slide", slide: "synnovis", focus: [], seconds: 10, source: "continuity",
+    headline: "A real incident: Synnovis, June 2024",
+    anchor: beforeOutage,
+  },
+  {
+    label: "Outage", scenario: "Real-world replay · Synnovis, London (2024)", focus: ["scene", "logs"], seconds: 8, source: "continuity",
+    headline: "Replaying Synnovis on our network",
+    sub: "The shared lab goes down. Urgent tests reroute to labs that still work.",
     anchor: (ev) => midOutage(ev),
   },
   {
@@ -211,13 +219,14 @@ export const STEPS: Step[] = [
   },
 
   {
-    label: "Compare", card: "compare", focus: [], seconds: 10, source: "attack",
-    headline: "Same attack, three defenses",
+    label: "Related work", card: "slide", slide: "related", focus: [], seconds: 12, source: "attack",
+    headline: "Where MIRAGE moves the field",
     anchor: (ev) => ev.length - 1,
   },
   {
-    label: "Close", card: "close", focus: [], seconds: 5, source: "attack",
-    headline: "Protecting critical hospitals from AI cyberattacks.",
+    // Last step: the Controls show "Restart" here.
+    label: "Your turn", card: "slide", slide: "arena", focus: [], seconds: 8, source: "attack",
+    headline: "Your turn: try to steal one record",
     anchor: (ev) => ev.length - 1,
   },
 ];

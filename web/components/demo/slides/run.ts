@@ -1,5 +1,5 @@
-// The recorded MayaJaal run (public/runs/mayajaal.jsonl), fetched once and shared by the research slides.
-// undefined while loading, null if it could not be read.
+// Recorded runs under public/runs/ (the attack run by default), fetched once per file and shared by the
+// research slides. undefined while loading, null if it could not be read.
 
 import { useEffect, useState } from "react";
 
@@ -8,13 +8,14 @@ export interface RunEvent {
   actor?: string;
   tier?: string;
   run_id?: string;
+  hospital_id?: string | null;
   data?: Record<string, unknown>;
 }
 
-let cache: Promise<RunEvent[] | null> | null = null;
+const cache = new Map<string, Promise<RunEvent[] | null>>();
 
-function load(): Promise<RunEvent[] | null> {
-  return fetch("/runs/mayajaal.jsonl")
+function load(path: string): Promise<RunEvent[] | null> {
+  return fetch(path)
     .then((r) => (r.ok ? r.text() : null))
     .then((text) => {
       if (text === null) return null;
@@ -28,13 +29,14 @@ function load(): Promise<RunEvent[] | null> {
     .catch(() => null);
 }
 
-export function useRunEvents(): RunEvent[] | null | undefined {
+export function useRunEvents(path = "/runs/mayajaal.jsonl"): RunEvent[] | null | undefined {
   const [events, setEvents] = useState<RunEvent[] | null | undefined>(undefined);
   useEffect(() => {
     let alive = true;
-    cache ??= load();
-    void cache.then((e) => { if (alive) setEvents(e); });
+    let p = cache.get(path);
+    if (!p) { p = load(path); cache.set(path, p); }
+    void p.then((e) => { if (alive) setEvents(e); });
     return () => { alive = false; };
-  }, []);
+  }, [path]);
   return events;
 }

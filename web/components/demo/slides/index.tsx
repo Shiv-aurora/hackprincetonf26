@@ -1,5 +1,6 @@
 "use client";
-// The big explainer slides: the problem before the dashboard tour, and the research behind it after.
+// The big explainer slides: the problem before the tour, the real incident behind scenario 2, the research behind
+// it all, related work, and the Arena to close.
 
 import type { SlideId } from "../steps";
 import { QuestionSlide } from "./Question";
@@ -11,6 +12,9 @@ import { PaperSlide } from "./Paper";
 import { EquationsSlide } from "./Equations";
 import { BeliefSlide } from "./Belief";
 import { PlannerSlide } from "./Planner";
+import { SynnovisSlide } from "./Synnovis";
+import { RelatedSlide } from "./Related";
+import { ArenaSlide } from "./Arena";
 
 export function Slide({ id, title }: { id: SlideId; title: string }) {
   if (id === "question") return <QuestionSlide title={title} />;
@@ -21,5 +25,8 @@ export function Slide({ id, title }: { id: SlideId; title: string }) {
   if (id === "math") return <EquationsSlide title={title} />;
   if (id === "belief") return <BeliefSlide title={title} />;
   if (id === "planner") return <PlannerSlide title={title} />;
+  if (id === "synnovis") return <SynnovisSlide title={title} />;
+  if (id === "related") return <RelatedSlide title={title} />;
+  if (id === "arena") return <ArenaSlide title={title} />;
   return <DowntimeSlide title={title} />;
 }
