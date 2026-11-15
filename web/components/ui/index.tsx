@@ -9,25 +9,14 @@ export function cn(...a: Parameters<typeof clsx>) {
   return twMerge(clsx(...a));
 }
 
-/** The mark: a small 3×3 net (Jaal) in a rounded square. Inherits currentColor. */
-export function Logo({ className, label = true }: { className?: string; label?: boolean }) {
-  return (
-    <span className={cn("inline-flex items-center gap-2 text-fg", className)}>
-      <svg viewBox="0 0 20 20" className="size-5" aria-hidden>
-        <rect x="0.75" y="0.75" width="18.5" height="18.5" rx="4.5" fill="none" stroke="currentColor" strokeWidth="1.5" />
-        <path d="M7 4v12M13 4v12M4 7h12M4 13h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-      </svg>
-      {label && <span className="text-[15px] font-semibold tracking-[-0.02em]">MayaJaal</span>}
-    </span>
-  );
+/** The name, set in Geist. No mark. */
+export function Logo({ className }: { className?: string; label?: boolean }) {
+  return <span className={cn("text-[15px] font-semibold tracking-[-0.02em] text-fg", className)}>MayaJaal</span>;
 }
 
 const NAV = [
-  { href: "/war-room", label: "War Room" },
-  { href: "/arena", label: "Arena" },
-  { href: "/replay", label: "Replay" },
-  { href: "/results", label: "Results" },
-  { href: "/continuity", label: "Continuity" },
+  { href: "/demo", label: "Demo" },
+  { href: "/war-room", label: "Live" },
 ];
 
 /** Top bar used on every page. `right` is for page-specific controls (status dot, sound toggle). */
