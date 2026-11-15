@@ -1,0 +1,5 @@
+goal idx mirage mirageci random randomci none noneci
+recon 0 10.732 0.318 12.364 0.315 14.933 0.324
+exfil 1 20.578 0.455 22.517 0.417 26.895 0.289
+tamper 2 14.424 0.327 16.154 0.329 18.816 0.327
+disrupt 3 23.674 0.351 23.832 0.348 24.578 0.326
