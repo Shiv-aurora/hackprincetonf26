@@ -74,13 +74,14 @@ export function storyBeats(events: MJEvent[]): Beat[] {
   let diverted = false;
   let saidBulk = false;
   let lastGoal = "";
+  let pendingStepUp = false;
   const add = (id: string, text: string, tone: Tone = "neutral") => {
     if (beats.at(-1)?.text !== text) beats.push({ id, text, tone });
   };
   for (const e of events) {
     switch (e.type) {
       case "run.started":
-        diverted = false; saidBulk = false; lastGoal = "";
+        diverted = false; saidBulk = false; lastGoal = ""; pendingStepUp = false;
         add(e.id, e.data.mission === "disrupt" && e.data.attacker_label?.includes("synnovis")
           ? "A ransomware outage hits the shared lab that five hospitals depend on."
           : "A normal shift. Doctors and nurses are using the hospital's systems as usual.");
@@ -88,8 +89,11 @@ export function storyBeats(events: MJEvent[]): Beat[] {
       case "request": {
         if (e.actor !== "attacker") break;
         const room = roomFor(e.data.path);
-        const denied = e.data.status === 401 || e.data.status === 403;
+        const stepUp = e.data.status === 401 && (pendingStepUp || e.tier === "none");
+        const denied = e.data.status === 403;
+        pendingStepUp = false;
         if (room === "entrance") add(e.id, "Someone logs in as a nurse, with a password stolen by phishing.");
+        else if (stepUp) add(e.id, "Before any real chart, we ask for her badge and MFA. A phished password can't pass it. Nothing real is shown.", "shadow");
         else if (denied) add(e.id, `They try the ${room === "admin" ? "admin office" : "restricted area"}. Without MayaJaal it's a plain refusal, and they know they've been seen.`, "alert");
         else if (e.tier === "shadow" && room === "records" && !saidBulk) {
           saidBulk = true;
@@ -101,6 +105,11 @@ export function storyBeats(events: MJEvent[]): Beat[] {
           add(e.id, "They open the ward's patient list. Normal for a nurse, so it stays in the real hospital.");
         break;
       }
+      case "policy.decision":
+        if (e.data.action === "step_up") pendingStepUp = true;
+        else if (e.data.reason.startsWith("Early warning at login"))
+          add(e.id, "Caught at login: the nurse's password, but a script instead of the hospital's EHR app, on a device the hospital doesn't own. We let them in and watch.", "alert");
+        break;
       case "session.diverted":
         diverted = true;
         add(e.id, "That's not what a nurse does. We don't block them: a block tips them off. From now on every request quietly goes to a decoy hospital.", "shadow");

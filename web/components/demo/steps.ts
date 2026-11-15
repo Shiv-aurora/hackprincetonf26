@@ -25,7 +25,7 @@ export interface Step {
   /** Index of the last event to fold in; null = not found (falls back to the previous step's index). */
   anchor: (events: MJEvent[]) => number | null;
   /** Full-screen content instead of the plain caption. */
-  card?: "title" | "compare" | "close" | "why" | "slide";
+  card?: "title" | "compare" | "close" | "why" | "slide" | "brief";
   /** Which explainer slide, when card = "slide". */
   slide?: SlideId;
   /** Open the Reveal sheet. */
@@ -68,6 +68,9 @@ const isRealRead: Pred = (e) =>
 const isBulk: Pred = (e) =>
   e.type === "request" && e.actor === "attacker" && e.tier === "shadow" &&
   (/_count=\d{3,}/.test(e.data.path) || e.data.bytes > 500_000);
+const isEarlyWarning: Pred = (e) => e.type === "policy.decision" && e.data.reason.startsWith("Early warning at login");
+const isStepUp: Pred = (e) =>
+  e.type === "request" && e.actor === "attacker" && e.data.status === 401 && e.tier === "none";
 const isOutage: Pred = (e) => e.type === "node.status" && e.data.status !== "healthy";
 const exfilAt = (ev: MJEvent[]) => find(ev, is("exfil")) ?? ev.length;
 const beforeFirstAttacker = (ev: MJEvent[]) => { const i = find(ev, attacker); return i === null ? null : Math.max(0, i - 1); };
@@ -118,36 +121,40 @@ export const STEPS: Step[] = [
     anchor: beforeFirstAttacker,
   },
   {
-    label: "Normal shift", focus: ["acts", "scene"], seconds: 7, source: "attack",
+    label: "Normal shift", focus: ["acts", "scene"], seconds: 6, source: "attack",
     headline: "A normal shift",
     sub: "Staff at work. Sensitive records encrypted on disk.",
     anchor: beforeFirstAttacker,
   },
   {
     label: "Login", focus: ["narrator", "scene"], seconds: 9, source: "attack",
-    headline: "A stolen nurse login",
-    sub: "How Change Healthcare was breached in 2024.",
-    anchor: (ev) => settle(ev, after(ev, isRealRead, is("agent.tool_result")) ?? find(ev, is("agent.tool_result"))),
+    headline: "A stolen nurse login, flagged at once",
+    sub: "A script, not the EHR app, on a device we don't own.",
+    anchor: (ev) => settle(ev, find(ev, isEarlyWarning) ?? after(ev, isRealRead, is("agent.tool_result")) ?? find(ev, is("agent.tool_result"))),
   },
   {
-    label: "No block", focus: ["narrator", "scene"], seconds: 8, source: "attack",
-    headline: "Reaches for admin. We don't block it.",
-    sub: "A block tells an attacker they were seen.",
-    anchor: (ev) => { const i = find(ev, (e) => e.type === "session.diverted"); return i === null ? null : Math.max(0, i - 1); },
+    label: "Step-up", focus: ["narrator", "scene"], seconds: 8, source: "attack",
+    headline: "Real charts need badge and MFA",
+    sub: "A phished password can't pass. Nothing real is shown.",
+    anchor: (ev) => {
+      const s = find(ev, isStepUp);
+      if (s !== null) return settle(ev, find(ev, is("agent.tool_result"), s) ?? s);
+      const i = find(ev, (e) => e.type === "session.diverted"); return i === null ? null : Math.max(0, i - 1);
+    },
   },
   {
-    label: "Detected", focus: ["acts", "scene"], seconds: 11, source: "attack",
-    headline: "Moved into a decoy instead",
-    sub: "Every request still works. None of it is real.",
+    label: "Decoy", focus: ["acts", "scene"], seconds: 11, source: "attack",
+    headline: "It reaches for admin. We don't block it.",
+    sub: "It's moved into a decoy. Every request works. None of it is real.",
     anchor: (ev) => settle(ev, after(ev, is("session.diverted"), is("agent.tool_result"))),
   },
   {
-    label: "Why", card: "why", focus: [], seconds: 10, source: "attack",
+    label: "Why", card: "why", focus: [], seconds: 9, source: "attack",
     headline: "Why we don't stop the attack",
     anchor: (ev) => settle(ev, after(ev, is("session.diverted"), is("agent.tool_result"))),
   },
   {
-    label: "Bulk pull", focus: ["scene", "numbers"], seconds: 9, source: "attack",
+    label: "Bulk pull", focus: ["scene", "numbers"], seconds: 8, source: "attack",
     headline: "Thousands of patients. All fake.",
     sub: "Generated per session. Never copied from real records.",
     anchor: (ev) => {
@@ -156,7 +163,7 @@ export const STEPS: Step[] = [
     },
   },
   {
-    label: "Trackers", focus: ["trackers", "scene"], seconds: 9, source: "attack",
+    label: "Trackers", focus: ["trackers", "scene"], seconds: 8, source: "attack",
     headline: "Decoy files with trackers",
     sub: "Planted where this attacker is looking.",
     anchor: (ev) => {
@@ -165,7 +172,7 @@ export const STEPS: Step[] = [
     },
   },
   {
-    label: "Bait taken", focus: ["trackers", "learned"], seconds: 10, source: "attack",
+    label: "Bait taken", focus: ["trackers", "learned"], seconds: 9, source: "attack",
     headline: (v) => v.honeytokensTouched.length ? "It took the bait" : "Now we know what it wants",
     sub: (v) => `It wants to ${goalWord(v.topGoal).toLowerCase()} (${Math.round((v.posterior[v.topGoal] ?? 0) * 100)}% sure).`,
     anchor: (ev) => {
@@ -184,18 +191,23 @@ export const STEPS: Step[] = [
     },
   },
   {
-    label: "Exfil", focus: ["narrator", "numbers"], seconds: 9, source: "attack",
+    label: "Exfil", focus: ["narrator", "numbers"], seconds: 8, source: "attack",
     headline: "It believes it won",
     sub: (v) => v.exfil ? `${v.exfil.records.toLocaleString("en-US")} records “stolen”. Every one fake.` : "It reports success.",
     anchor: (ev) => find(ev, is("agent.claim")) ?? find(ev, is("exfil")),
   },
   {
-    label: "Reveal", focus: [], reveal: true, seconds: 12, source: "attack",
+    label: "Reveal", focus: [], reveal: true, seconds: 11, source: "attack",
     headline: "The reveal",
     anchor: (ev) => settle(ev, find(ev, is("reveal"))) ?? ev.length - 1,
   },
   {
-    label: "Outage", focus: ["scene", "narrator"], seconds: 10, source: "continuity",
+    label: "Brief", card: "brief", focus: [], seconds: 10, source: "attack",
+    headline: "The brief for the security team",
+    anchor: (ev) => ev.length - 1,
+  },
+  {
+    label: "Outage", focus: ["scene", "narrator"], seconds: 9, source: "continuity",
     headline: "The shared lab goes down",
     sub: "Like Synnovis, 2024. Urgent tests reroute to labs that still work.",
     anchor: (ev) => midOutage(ev),
@@ -207,12 +219,12 @@ export const STEPS: Step[] = [
     anchor: (ev) => lastBefore(ev, is("continuity.stats")),
   },
   {
-    label: "Compare", card: "compare", focus: [], seconds: 13, source: "attack",
+    label: "Compare", card: "compare", focus: [], seconds: 12, source: "attack",
     headline: "Same attack, three defenses",
     anchor: (ev) => ev.length - 1,
   },
   {
-    label: "Close", card: "close", focus: [], seconds: 6, source: "attack",
+    label: "Close", card: "close", focus: [], seconds: 5, source: "attack",
     headline: "Protecting critical hospitals from AI cyberattacks.",
     anchor: (ev) => ev.length - 1,
   },

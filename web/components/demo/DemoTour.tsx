@@ -12,6 +12,7 @@ import { Caption, Controls } from "./Pills";
 import { CloseCard, CompareCard, TitleCard, WhyCard } from "./Cards";
 import { STEPS, resolveAnchors, text } from "./steps";
 import { Slide } from "./slides";
+import { BriefCard } from "./BriefCard";
 import { runLabel, useDemoData } from "./data";
 
 const N = STEPS.length;
@@ -114,7 +115,8 @@ export function DemoTour() {
       {cur.card === "close" && <CloseCard title={headline} />}
       {cur.card === "why" && <WhyCard title={headline} />}
       {cur.card === "slide" && cur.slide && <Slide key={cur.slide} id={cur.slide} title={headline} />}
-      {cur.card !== "title" && cur.card !== "close" && cur.card !== "why" && cur.card !== "slide" && (
+      {cur.card === "brief" && <BriefCard title={headline} />}
+      {cur.card !== "title" && cur.card !== "close" && cur.card !== "why" && cur.card !== "slide" && cur.card !== "brief" && (
         <Caption stepKey={step} kicker={kicker} headline={cur.card === "compare" ? "" : headline} sub={cur.card ? undefined : sub} />
       )}
 

@@ -17,6 +17,8 @@ export interface ResultRow {
   diverted: boolean | null;
   time_to_divert_s: number | null;
   real_records_taken?: number | null;
+  /** Real patients the attacker was shown (any real clinical read). */
+  real_records_exposed?: number | null;
   decoy_overlap_between_sessions?: number | null;
 }
 export interface ResultsFile { generated_at: string; note: string; runs: ResultRow[] }
