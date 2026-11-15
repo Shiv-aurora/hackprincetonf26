@@ -569,6 +569,10 @@ export function FlowScene({ className }: { className?: string }) {
         </motion.g>
       </motion.svg>
 
+      <style>{`@keyframes mj-chip { 0% { transform: scale(.94) } 45% { transform: scale(1.12) } 100% { transform: scale(1) } }
+@keyframes mj-ring { 0% { box-shadow: 0 0 0 0 currentColor } 100% { box-shadow: 0 0 0 12px transparent } }
+.mj-chip-on { animation: mj-chip 600ms ease-out, mj-ring 1100ms ease-out 3 }
+@media (prefers-reduced-motion: reduce) { .mj-chip-on { animation: none } }`}</style>
       {/* step indicator */}
       <ol className="pointer-events-none absolute top-3 left-4 right-4 flex flex-wrap items-center gap-1.5" aria-label="Steps">
         {f.steps.map((s, i) => {
@@ -576,8 +580,8 @@ export function FlowScene({ className }: { className?: string }) {
           const tone = !cur ? "" : f.mode === "outage" ? (i < 2 ? "border-alert bg-alert-bg text-alert" : "border-fg bg-fg text-background")
             : i === 1 || i === 3 ? "border-alert bg-alert-bg text-alert" : i === 4 || i === 5 ? "border-shadow bg-shadow-bg text-shadow" : "border-fg bg-fg text-background";
           return (
-            <li key={s} className={cn("flex items-center gap-2 rounded-md border px-2.5 py-1 text-[16px] font-medium transition-colors duration-200",
-              cur ? tone : done ? "border-border-strong bg-background text-fg" : "border-border bg-background text-fg-subtle")}>
+            <li key={`${s}-${cur ? "on" : "off"}`} className={cn("flex items-center gap-2 rounded-md border px-2.5 py-1 text-[16px] font-medium transition-colors duration-200",
+              cur ? cn(tone, "mj-chip-on") : done ? "border-border-strong bg-background text-fg" : "border-border bg-background text-fg-subtle")}>
               <span className="font-mono text-[14px] tabular-nums opacity-70">{i + 1}</span>{s}
             </li>
           );
