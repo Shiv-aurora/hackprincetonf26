@@ -9,6 +9,7 @@ from dataclasses import replace
 import pytest
 
 from mayajaal.real.seed import PHISHED_USER, seed
+from mayajaal.real.vault import canary_row_key
 from mayajaal.real.world import RealStore, RealWorld
 
 
@@ -25,11 +26,14 @@ def test_seed_creates_exactly_12_canaries(store: RealStore) -> None:
     conn = sqlite3.connect(store.db_path)
     rows = conn.execute("SELECT canary, location, ref FROM canaries").fetchall()
     assert sorted(r[1] for r in rows).count("patients.notes") == 10
-    for canary, location, ref in rows:
+    for stored_canary, location, ref in rows:
+        # both the canary list and the field holding it are encrypted at rest (real/vault.py)
+        canary = store.vault.decrypt(stored_canary, "canaries", "canary", canary_row_key(location, ref))
         table, col = location.split(".")
         key = "mrn" if table == "patients" else "username"
-        (value,) = conn.execute(f"SELECT {col} FROM {table} WHERE {key} = ?", (ref,)).fetchone()
-        assert canary in value
+        (stored,) = conn.execute(f"SELECT {col} FROM {table} WHERE {key} = ?", (ref,)).fetchone()
+        assert canary not in stored
+        assert canary in store.vault.decrypt(stored, table, col, ref)
         if location == "patients.notes":   # never in the phished nurse's own hospital
             assert store.patient_hospital(ref) != "eas"
 

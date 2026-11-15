@@ -6,6 +6,9 @@
     ev = custody.capture("lum", run_id=run_id)   # keyshare.status event (captured)
     custody.can_reconstruct(["lum"])             # False
     custody.attacker_key()                       # None until 3 shares are captured
+
+The module-level helpers split_key() / reconstruct_key() are the stateless core; the real tier's
+vault (mayajaal.real.vault) uses them for its key-encryption key.
 """
 
 from __future__ import annotations
@@ -20,6 +23,19 @@ from . import shamir
 KEY_BYTES = 32
 
 
+def split_key(key: bytes, holders: list[str], threshold: int) -> dict[str, shamir.Share]:
+    """Shamir-split `key` across `holders`; share index i+1 belongs to holders[i]."""
+    shares = shamir.split(key, threshold, len(holders))
+    return dict(zip(holders, shares))
+
+
+def reconstruct_key(shares: list[shamir.Share], threshold: int) -> bytes:
+    """Recover a key from shares. Refuses below the threshold (fewer shares give garbage, not the key)."""
+    if len({x for x, _ in shares}) < threshold:
+        raise ValueError(f"need {threshold} distinct shares, got {len(shares)}")
+    return shamir.combine(shares)
+
+
 class KeyCustody:
     def __init__(self, master_key: bytes | None = None, world: dict | None = None) -> None:
         cfg = (world or load_world())["key_shares"]
@@ -30,9 +46,8 @@ class KeyCustody:
         self._master = master_key if master_key is not None else secrets.token_bytes(KEY_BYTES)
         if len(self._master) != KEY_BYTES:
             raise ValueError(f"master key must be {KEY_BYTES} bytes")
-        shares = shamir.split(self._master, self.threshold, len(self.holders))
         # share index i+1 belongs to holders[i] (matches the fixture: aur=1 ... lum=6)
-        self._shares: dict[str, shamir.Share] = dict(zip(self.holders, shares))
+        self._shares: dict[str, shamir.Share] = split_key(self._master, self.holders, self.threshold)
         self.captured: set[str] = set()
 
     # ------------------------------------------------------------ queries
@@ -71,9 +86,7 @@ class KeyCustody:
 
     def reconstruct(self, shares: list[shamir.Share]) -> bytes:
         """Recover the master key from shares. Refuses below the threshold."""
-        if len({x for x, _ in shares}) < self.threshold:
-            raise ValueError(f"need {self.threshold} distinct shares, got {len(shares)}")
-        return shamir.combine(shares)
+        return reconstruct_key(shares, self.threshold)
 
     def attacker_key(self) -> bytes | None:
         """What an attacker holding the captured shares can recover (None if too few)."""

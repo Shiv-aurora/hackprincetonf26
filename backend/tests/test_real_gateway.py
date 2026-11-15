@@ -68,9 +68,12 @@ def baseline(store) -> Rig:
 def canary_patient(store: RealStore) -> tuple[str, str]:
     import sqlite3
 
+    from mayajaal.real.vault import canary_row_key
+
     row = sqlite3.connect(store.db_path).execute(
-        "SELECT canary, ref FROM canaries WHERE location = 'patients.notes' LIMIT 1").fetchone()
-    return row[0], row[1]
+        "SELECT canary, location, ref FROM canaries WHERE location = 'patients.notes' LIMIT 1").fetchone()
+    # canaries are encrypted at rest (real/vault.py); the store's in-memory DEK decrypts them
+    return store.vault.decrypt(row[0], "canaries", "canary", canary_row_key(row[1], row[2])), row[2]
 
 
 # --------------------------------------------------------------------------- login

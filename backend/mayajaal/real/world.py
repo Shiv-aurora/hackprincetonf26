@@ -1,6 +1,8 @@
 """RealWorld: the real tier's WorldProvider, backed by backend/data/real/real.db.
 
 RealStore owns the SQLite connection and every query (auth, canaries, files, dumps).
+Sensitive columns are AES-256-GCM ciphertext on disk (see real/vault.py); RealStore decrypts them
+in-process only inside the methods the real tier serves from, so the wire format is unchanged.
 RealWorld is the thin per-session WorldProvider the surfaces router sees.
 
 Observations carry `signature` = HMAC-SHA256(server key, canonical fields), so a lab value changed
@@ -15,6 +17,7 @@ import hmac
 import json
 import os
 import posixpath
+import re
 import secrets
 import sqlite3
 import threading
@@ -22,6 +25,7 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
+from mayajaal.real.vault import ENCRYPTED, canary_row_key, encrypt_plaintext_rows, open_vault
 from mayajaal.world_api import FsNode, Observation, Patient, PortalUser
 
 DEFAULT_HOME = "/home/n.okafor"
@@ -59,17 +63,90 @@ def sign_observation(key: bytes, row: dict[str, Any]) -> str:
 class RealStore:
     """All access to real.db. One per process; thread-safe enough for uvicorn + TestClient."""
 
-    def __init__(self, db_path: Path | str | None = None) -> None:
+    def __init__(self, db_path: Path | str | None = None, *, keys_dir: Path | str | None = None) -> None:
         from mayajaal.real.seed import DB_PATH, seed
 
         self.db_path = Path(db_path or os.environ.get("MJ_REAL_DB") or DB_PATH)
         if not self.db_path.exists():
-            seed(self.db_path)
+            seed(self.db_path, keys_dir=keys_dir)
         self._conn = sqlite3.connect(self.db_path, check_same_thread=False)
         self._conn.row_factory = sqlite3.Row
+        self._conn.execute("PRAGMA secure_delete = ON")    # freed pages are zeroed, not left readable
         self._lock = threading.Lock()
         self.key = signing_key(self.db_path.parent)
         self._dump_cache: dict[str, str] = {}
+        # Unlock the DEK (KEK rebuilt in memory from 3 of 6 share files), then migrate any legacy
+        # plaintext rows. VACUUM rewrites the file so no old plaintext survives in free pages.
+        self.vault = open_vault(self._conn, self.db_path, keys_dir=Path(keys_dir) if keys_dir else None)
+        self.migrated = encrypt_plaintext_rows(self._conn, self.vault)
+        self._conn.commit()
+        if self.migrated:
+            self._conn.execute("VACUUM")
+
+    # -- proof for GET /_mj/vault (admin only)
+    def vault_report(self, sample_chars: int = 28) -> dict[str, Any]:
+        """What is encrypted, how the key is held, one row as stored, and a raw-bytes self-check."""
+        from mayajaal.real.ledger import CanaryLedger
+        from mayajaal.real.vault import ALGORITHM, PLAINTEXT, PREFIX, present_holders
+
+        fields = []
+        for table, (_key, cols) in ENCRYPTED.items():
+            for col in cols:
+                row = self._one(f"SELECT COUNT(*) total, COALESCE(SUM(substr({col}, 1, ?) = ?), 0) enc, "
+                                f"COUNT({col}) nonnull FROM {table}", (len(PREFIX), PREFIX))
+                fields.append({"table": table, "column": col, "rows": row["total"],
+                               "encrypted_rows": row["enc"], "null_rows": row["total"] - row["nonnull"]})
+        enc_cols = ENCRYPTED["patients"][1]
+        sample_row = self._one("SELECT * FROM patients ORDER BY mrn LIMIT 1")
+        sample = []
+        for k in sample_row.keys():
+            v = sample_row[k]
+            if k in enc_cols:
+                sample.append({"field": k, "encrypted": True,
+                               "stored": v[:sample_chars] + "…", "stored_length": len(v)})
+            else:
+                sample.append({"field": k, "encrypted": False, "stored": v})
+
+        # self-check: the bytes on disk (db file + any journal) vs. every canary and SSN-shaped string
+        blobs = [self.db_path] + [Path(str(self.db_path) + s) for s in ("-journal", "-wal")]
+        raw = b"".join(p.read_bytes() for p in blobs if p.exists())
+        canaries = self.canaries()
+        found = CanaryLedger(canaries).scan(raw)
+        ssn_like = len(re.findall(rb"(?<!\d)\d{3}-\d{2}-\d{4}(?!\d)", raw))
+        v = self.vault
+        present = present_holders(v.keys_dir, v.holders)
+        return {
+            "algorithm": ALGORITHM,
+            "format": PREFIX + "<base64url(nonce[12] || ciphertext || tag[16])>",
+            "associated_data": "mj-real|v1|<table>|<column>|<row key>",
+            "envelope": {
+                "dek": "random 256-bit data key; stored only wrapped (AES-256-GCM) by the KEK in meta",
+                "kek": f"random 256-bit key; rebuilt in memory from {v.threshold} of {len(v.holders)} "
+                       "Shamir shares at gateway start, never written to disk",
+            },
+            "encrypted_fields": fields,
+            "plaintext_fields": {t: list(c) for t, c in PLAINTEXT.items()},
+            "shares": {"scheme": "shamir-gf256", "threshold": v.threshold, "total": len(v.holders),
+                       "holders": v.holders, "used_at_start": v.holders_used, "files_present": present,
+                       "demo_note": "all share files are on this one machine in the demo; in a deployment "
+                                    "each hospital holds only its own"},
+            "sample": {"table": "patients", "row_key": sample_row["mrn"], "fields": sample},
+            "self_check": {"db_file": self.db_path.name, "bytes_scanned": len(raw),
+                           "canaries_checked": len(canaries), "canary_plaintexts_found": len(found),
+                           "ssn_like_strings_found": ssn_like, "ok": not found and ssn_like == 0},
+        }
+
+    # -- decryption: only RealStore methods the real tier serves through call these
+    def _dec(self, r: sqlite3.Row, table: str, col: str, row_key: str) -> str | None:
+        return self.vault.decrypt(r[col], table, col, row_key)
+
+    def _patient(self, r: sqlite3.Row) -> Patient:
+        mrn = r["mrn"]
+        return Patient(mrn=mrn, name=r["name"], dob=r["dob"], sex=r["sex"], hospital_id=r["hospital_id"],
+                       address=self._dec(r, "patients", "address", mrn), phone=self._dec(r, "patients", "phone", mrn),
+                       conditions=json.loads(r["conditions"]), medications=json.loads(r["medications"]),
+                       allergies=json.loads(r["allergies"]), attending=r["attending"],
+                       notes=self._dec(r, "patients", "notes", mrn) or "")
 
     # -- low level
     def _all(self, sql: str, args: tuple = ()) -> list[sqlite3.Row]:
@@ -102,7 +179,9 @@ class RealStore:
         return [_user(r) for r in self._all("SELECT * FROM users ORDER BY role, username")]
 
     def canaries(self) -> list[str]:
-        return [r["canary"] for r in self._all("SELECT canary FROM canaries ORDER BY canary")]
+        rows = self._all("SELECT canary, location, ref FROM canaries")
+        return sorted(self.vault.decrypt(r["canary"], "canaries", "canary", canary_row_key(r["location"], r["ref"]))
+                      for r in rows)
 
     def meta(self, key: str, default: str = "") -> str:
         row = self._one("SELECT value FROM meta WHERE key = ?", (key,))
@@ -120,11 +199,11 @@ class RealStore:
                              (hospital_id, max(0, limit), max(0, offset)))
         else:
             rows = self._all("SELECT * FROM patients ORDER BY mrn LIMIT ? OFFSET ?", (max(0, limit), max(0, offset)))
-        return [_patient(r) for r in rows]
+        return [self._patient(r) for r in rows]
 
     def get_patient(self, mrn: str) -> Patient | None:
         row = self._one("SELECT * FROM patients WHERE mrn = ?", (mrn,))
-        return _patient(row) if row else None
+        return self._patient(row) if row else None
 
     def patient_hospital(self, mrn: str) -> str | None:
         row = self._one("SELECT hospital_id FROM patients WHERE mrn = ?", (mrn,))
@@ -182,7 +261,7 @@ class RealStore:
             raise IsADirectoryError(path)
         gen = row["generator"]
         if not gen:
-            return row["content"] or ""
+            return self._dec(row, "files", "content", path) or ""
         if path not in self._dump_cache:
             self._dump_cache[path] = self._render(gen, row["mtime"])
         return self._dump_cache[path]
@@ -198,7 +277,7 @@ class RealStore:
             raise IsADirectoryError(path)
         self._write("INSERT OR REPLACE INTO files VALUES (?,?,?,?,?,?,?,?,?)",
                     (path, "file", len(content.encode()), "-rw-r--r--", "n.okafor", "nurses",
-                     "2026-11-14T00:00:00", content, None))
+                     "2026-11-14T00:00:00", self.vault.encrypt(content, "files", "content", path), None))
 
     def is_dump(self, path: str) -> bool:
         row = self._file(normalize_path(path))
@@ -235,8 +314,9 @@ class RealStore:
             "COPY public.patients (mrn, name, dob, sex, hospital_id, address, phone, ssn, conditions, "
             "medications, allergies, attending, notes) FROM stdin;",
         ]
+        enc_patients = ENCRYPTED["patients"][1]
         for r in self._all("SELECT * FROM patients ORDER BY mrn"):
-            out.append("\t".join(_copy_field(r[k]) for k in (
+            out.append("\t".join(_copy_field(self._dec(r, "patients", k, r["mrn"]) if k in enc_patients else r[k]) for k in (
                 "mrn", "name", "dob", "sex", "hospital_id", "address", "phone", "ssn", "conditions",
                 "medications", "allergies", "attending", "notes")))
         out += ["\\.", "",
@@ -255,7 +335,7 @@ class RealStore:
         for r in self._all("SELECT * FROM users ORDER BY username"):
             out.append("\t".join(_copy_field(v) for v in (
                 r["username"], r["display_name"], r["role"], r["hospital_id"],
-                f"pbkdf2_sha256$100000${r['salt']}${r['password_hash']}", r["secret"] or "\\N")))
+                f"pbkdf2_sha256$100000${r['salt']}${r['password_hash']}", self._dec(r, "users", "secret", r["username"]) or "\\N")))
         out += ["\\.", "", "-- PostgreSQL database dump complete", ""]
         return "\n".join(out)
 
@@ -264,13 +344,6 @@ def _copy_field(v: Any) -> str:
     if v is None:
         return "\\N"
     return str(v).replace("\t", " ").replace("\n", " ")
-
-
-def _patient(r: sqlite3.Row) -> Patient:
-    return Patient(mrn=r["mrn"], name=r["name"], dob=r["dob"], sex=r["sex"], hospital_id=r["hospital_id"],
-                   address=r["address"], phone=r["phone"], conditions=json.loads(r["conditions"]),
-                   medications=json.loads(r["medications"]), allergies=json.loads(r["allergies"]),
-                   attending=r["attending"], notes=r["notes"] or "")
 
 
 def _user(r: sqlite3.Row) -> PortalUser:

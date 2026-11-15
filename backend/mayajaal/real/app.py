@@ -656,6 +656,13 @@ def create_app(surfaces_factory: SurfacesFactory | None = None, *, store: RealSt
             return JSONResponse({"run_id": run, "protected_total": gw.ledger.total, "leaked": gw.ledger.leaked(run)})
         return JSONResponse({"protected_total": gw.ledger.total, "runs": gw.ledger.runs()})
 
+    @app.get("/_mj/vault")
+    async def vault(request: Request) -> Response:
+        """Encryption-at-rest proof: fields, key custody, a stored row, raw-bytes canary self-check."""
+        if not gw._is_admin(request.headers):
+            return JSONResponse({"error": "not found"}, status_code=404)
+        return JSONResponse(await asyncio.to_thread(gw.store.vault_report))
+
     @app.get("/_mj/sessions")
     async def sessions(request: Request) -> Response:
         if not gw._is_admin(request.headers):

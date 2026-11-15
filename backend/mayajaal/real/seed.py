@@ -15,6 +15,10 @@ What goes in:
   and the /mnt/backups dumps. Dumps are rendered from REAL rows on read (see world.RealWorld), so in
   the baseline config the canaries really are stealable. That's the point of the comparison.
 
+Sensitive fields are written encrypted (AES-256-GCM envelope encryption, see real/vault.py):
+patients.notes/ssn/address/phone, users.secret, canaries.canary and files.content. The KEK's 3-of-6
+Shamir share files go in data/real/keys/. Name, DOB, hospital, conditions etc. stay plaintext.
+
 Uses its own Faker seed, independent of the shadow generator. Canary values come from `secrets`
 unless a canary_seed is given (tests), so they can't be recomputed from the public repo.
 """
@@ -147,8 +151,9 @@ def _canaries(canary_seed: int | None) -> list[str]:
 
 
 def seed(db_path: Path | str = DB_PATH, *, force: bool = False, canary_seed: int | None = None,
-         n_patients: int = TARGET_PATIENTS) -> Path:
-    """Create the real-tier database. Returns its path."""
+         n_patients: int = TARGET_PATIENTS, keys_dir: Path | str | None = None) -> Path:
+    """Create the real-tier database (sensitive fields encrypted before they touch the file).
+    Returns its path. keys_dir defaults to <db dir>/keys (env MJ_REAL_KEYS_DIR overrides)."""
     db_path = Path(db_path)
     if db_path.exists():
         if not force:
@@ -156,6 +161,7 @@ def seed(db_path: Path | str = DB_PATH, *, force: bool = False, canary_seed: int
         db_path.unlink()
     db_path.parent.mkdir(parents=True, exist_ok=True)
 
+    from mayajaal.real.vault import canary_row_key, open_vault
     from mayajaal.real.world import sign_observation, signing_key   # local import: avoids a cycle
 
     fake = Faker("en_US")
@@ -164,6 +170,7 @@ def seed(db_path: Path | str = DB_PATH, *, force: bool = False, canary_seed: int
     key = signing_key(db_path.parent)
     conn = sqlite3.connect(db_path)
     conn.executescript(SCHEMA)
+    vault = open_vault(conn, db_path, keys_dir=keys_dir)
 
     # ---- users
     user_rows = []
@@ -235,12 +242,21 @@ def seed(db_path: Path | str = DB_PATH, *, force: bool = False, canary_seed: int
         elif row[2] == "service":
             row[8] = "sk_" + secrets.token_hex(12)
 
+    # ---- encrypt sensitive fields in memory, before anything is written to the file
+    for row in user_rows:
+        row[8] = vault.encrypt(row[8], "users", "secret", row[0])
+    patient_rows = []
+    for p in patients:
+        enc = {col: vault.encrypt(p[col], "patients", col, p["mrn"]) for col in ("address", "phone", "ssn", "notes")}
+        patient_rows.append({**p, **enc, "conditions": json.dumps(p["conditions"]),
+                             "medications": json.dumps(p["medications"]), "allergies": json.dumps(p["allergies"])})
+    canary_rows = [(vault.encrypt(c, "canaries", "canary", canary_row_key(loc, ref)), loc, fld, ref)
+                   for c, loc, fld, ref in canary_rows]
+
     conn.executemany("INSERT INTO users VALUES (?,?,?,?,?,?,?,?,?)", user_rows)
     conn.executemany(
         "INSERT INTO patients VALUES (:mrn,:name,:dob,:sex,:hospital_id,:address,:phone,:ssn,"
-        ":conditions,:medications,:allergies,:attending,:notes)",
-        [{**p, "conditions": json.dumps(p["conditions"]), "medications": json.dumps(p["medications"]),
-          "allergies": json.dumps(p["allergies"])} for p in patients])
+        ":conditions,:medications,:allergies,:attending,:notes)", patient_rows)
     conn.executemany("INSERT INTO canaries VALUES (?,?,?,?)", canary_rows)
 
     # ---- observations
@@ -263,7 +279,7 @@ def seed(db_path: Path | str = DB_PATH, *, force: bool = False, canary_seed: int
 
     # ---- jump box filesystem (real). Dumps are generated from real rows at read time.
     svc_secret = canaries[11]
-    files = _jump_box_files(svc_secret)
+    files = [(*f[:7], vault.encrypt(f[7], "files", "content", f[0]), f[8]) for f in _jump_box_files(svc_secret)]
     conn.executemany("INSERT INTO files VALUES (?,?,?,?,?,?,?,?,?)", files)
     conn.executemany("INSERT INTO meta VALUES (?,?)", [
         ("hostname", JUMP_HOST), ("faker_seed", str(FAKER_SEED)), ("patients", str(len(patients))),
