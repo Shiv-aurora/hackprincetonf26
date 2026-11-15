@@ -179,6 +179,19 @@ def analyst_brief(run_id: str | None = None):
     return {"run_id": rid, **brief(list(_runs[rid]))}
 
 
+@app.get("/analyst/report")
+def analyst_report(run_id: str | None = None):
+    """Downloadable forensic report (Markdown): brief, indicators, playbook and full timeline."""
+    from fastapi.responses import PlainTextResponse
+    from mayajaal.analyst import report_markdown
+
+    rid = run_id or _current_run
+    if not rid or rid not in _runs:
+        raise HTTPException(404, "unknown run")
+    return PlainTextResponse(report_markdown(list(_runs[rid])), media_type="text/markdown; charset=utf-8",
+                             headers={"Content-Disposition": f'attachment; filename="mayajaal-report-{rid}.md"'})
+
+
 def _attack_running() -> bool:
     p = _attack["proc"]
     return p is not None and p.returncode is None

@@ -66,3 +66,13 @@ def test_model_failure_falls_back_to_rules() -> None:
         messages = SimpleNamespace(parse=lambda **kw: (_ for _ in ()).throw(TimeoutError()))
     b = brief(load("mayajaal.jsonl"), client=Broken())
     assert b["source"] == "rules" and b["analyst_error"] == "TimeoutError" and b["playbook"]
+
+
+def test_forensic_report_has_brief_indicators_and_timeline(monkeypatch) -> None:
+    from mayajaal.analyst import report_markdown
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    md = report_markdown(load("mayajaal.jsonl"))
+    assert md.startswith("# MayaJaal forensic report")
+    assert "rule-based brief" in md and "## Indicators" in md and "## Timeline" in md
+    assert "First Sight at login" in md and "SCATTER" in md and "TRACKER TAKEN" in md
+    assert "0 returned real patient data" in md

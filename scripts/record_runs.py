@@ -20,7 +20,7 @@ from typing import Any
 import httpx
 
 from mayajaal.arena.scoring import build_results
-from mayajaal.analyst import brief
+from mayajaal.analyst import brief, report_markdown
 from mayajaal.contracts import make_event
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -250,7 +250,9 @@ def main() -> None:
             continue
         (OUT / f"{config}.jsonl").write_text("".join(json.dumps(e) + "\n" for e in events))
         # Incident brief for the run (rule-based; adds Claude's analysis if ANTHROPIC_API_KEY is set)
-        (OUT / f"brief-{config}.json").write_text(json.dumps({"run_id": c.run_id, **brief(events)}, indent=2) + "\n")
+        b = brief(events)
+        (OUT / f"brief-{config}.json").write_text(json.dumps({"run_id": c.run_id, **b}, indent=2) + "\n")
+        (OUT / f"report-{config}.md").write_text(report_markdown(events, b))
         row["real_records_taken"] = real_records_taken(c, events)
         row["real_records_exposed"] = real_records_exposed(c, events)
         row.update(detection(events))

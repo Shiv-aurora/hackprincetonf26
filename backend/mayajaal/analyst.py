@@ -238,9 +238,104 @@ def brief(events: list[dict], *, client: Any = None) -> dict[str, Any]:
     return out
 
 
+# --------------------------------------------------------------------------- downloadable report
+
+
+def _clock(ts: int, t0: int) -> str:
+    return f"+{(ts - t0) / 1000:6.1f} s"
+
+
+def timeline(events: list[dict]) -> list[str]:
+    """One line per event that matters, in order, with time since the attacker's first request."""
+    reqs = _attacker_requests(events)
+    if not reqs:
+        return []
+    t0, sids = reqs[0]["ts"], {r["session_id"] for r in reqs}
+    out = []
+    for e in events:
+        t, d = e["type"], e.get("data", {})
+        if e["ts"] < t0:
+            continue
+        if t == "request" and e.get("actor") == "attacker":
+            line = f'{d["method"]} {d["path"][:80]} -> {d["status"]} ({e["tier"]})'
+            if d.get("technique"):
+                line += f'  [{d["technique"]}]'
+        elif t == "policy.decision" and e.get("session_id") in sids and d.get("lane") != "normal":
+            line = f'DECISION {d["action"]}: {d["reason"][:140]}'
+        elif t == "session.diverted":
+            line = f'DIVERTED to the decoy: {d["reason"][:120]}'
+        elif t == "vault.scattered":
+            line = (f'SCATTER: encrypted copy ({d["bytes"]:,} bytes) split into {d["pieces"]} pieces x '
+                    f'{d["replicas"]} across {len(d["holders"])} hospitals, key {d["key_threshold"]}-of-'
+                    f'{len(d["holders"])}, verified={d["verified"]}')
+        elif t == "honeytoken.touched":
+            line = f'TRACKER TAKEN: {d.get("kind")} {d["token_id"]} at {d.get("where", "")}'
+        elif t == "breadcrumb.planted":
+            line = f'LURE PLANTED: {d["kind"]} at {d["path"]}'
+        elif t == "exfil":
+            line = f'EXFIL (decoy data): {d.get("records")} records, {d.get("bytes", 0):,} bytes'
+        elif t == "agent.claim":
+            line = "ATTACKER CLAIMS SUCCESS"
+        else:
+            continue
+        out.append(f"{_clock(e['ts'], t0)}  {line}")
+    return out
+
+
+def report_markdown(events: list[dict], b: dict | None = None) -> str:
+    """The forensic report: brief + playbook + full timeline + raw indicators, as Markdown."""
+    b = b or brief(events)
+    f = b["facts"]
+    if not f.get("attacker_seen"):
+        return "# MayaJaal forensic report\n\nNo attacker activity in this run.\n"
+    run_id = next((e["run_id"] for e in events if e.get("run_id")), "?")
+    L = [f"# MayaJaal forensic report — run {run_id}", "",
+         f"_Source: {'rule-based brief (no language model)' if b['source'] == 'rules' else b['source']}. "
+         "Facts come from the gateway's event log; anything inferred is marked as a guess._", ""]
+    a = b.get("analyst")
+    if a:
+        L += ["## Summary (written by the language model)", "", a["summary"], "",
+              f"**Actor:** {a['actor_type']} — {a['actor_reasoning']}", "",
+              f"**Likely goal:** {a['likely_goal']}", "", "**Likely next moves:**", ""]
+        L += [f"- {m}" for m in a["next_moves"]] + [""]
+    sl, c = f.get("stolen_login") or {}, f["client"]
+    L += ["## What happened", "",
+          f"- **Stolen login:** {sl.get('user') or '—'} ({sl.get('role') or '?'}, {sl.get('hospital') or '?'})",
+          f"- **Detected:** after {f['detected']['after_s']} s — {f['detected']['by'] or 'not detected'}",
+          f"- **Moved into the decoy:** after {f['diverted']['after_s']} s — {f['diverted']['reason'] or 'never'}",
+          f"- **Requests:** {f['requests']['total']} total · {f['requests']['decoy']} served by the decoy · "
+          f"{f['requests']['real']} by the real hospital · {f['requests']['real_data_served']} returned real patient data",
+          f"- **What they believe they stole:** " + ("; ".join(f"{x['records']} records ({x['what']})" for x in f["believes_stolen"]) or "nothing"),
+          f"- **Real secrets leaked:** {f['real_secrets_leaked']}",
+          f"- **Likely goal (intent model):** {(f['likely_goal'] or {}).get('goal', '—')} "
+          f"({round(100 * (f['likely_goal'] or {}).get('confidence', 0))}%)",
+          f"- **Actor guess (rules):** {b['actor_guess']['type']} — {b['actor_guess']['why']}", "",
+          "## Indicators", "",
+          f"- Addresses: {', '.join(c['addresses']) or '—'}",
+          f"- Client software: `{c['software'] or '—'}`",
+          f"- Rhythm: mean {c['mean_gap_s']} s between requests, variation {c['gap_variation']}",
+          "- ATT&CK techniques: " + (", ".join(f"{t['id']} {t['name']}" for t in f["techniques"]) or "—"),
+          "- Decoy trackers taken (any later use anywhere identifies this attacker):", ""]
+    seen = set()
+    for t in f["trackers_taken"]:
+        if t["id"] not in seen:
+            seen.add(t["id"])
+            L.append(f"  - `{t['id']}` ({t['kind']}) at `{t['where']}`")
+    L += ["", "## Response playbook", ""]
+    steps = (a or {}).get("priority_steps") or b["playbook"]
+    L += [f"{i}. **{s['when']} · {s['who']}:** {s['do']} _{s['why']}_" for i, s in enumerate(steps, 1)]
+    L += ["", "## Timeline", "", "```", *timeline(events), "```", "",
+          "_Synthetic hospital, synthetic patients. Generated by MayaJaal (HackPrinceton F26 prototype)._", ""]
+    return "\n".join(L)
+
+
 def main() -> None:
-    path = sys.argv[1] if len(sys.argv) > 1 else "../web/public/runs/mayajaal.jsonl"
+    args = [a for a in sys.argv[1:] if not a.startswith("--")]
+    path = args[0] if args else "../web/public/runs/mayajaal.jsonl"
     events = [json.loads(line) for line in open(path) if line.strip()]
+    if "--report" in sys.argv:
+        print(report_markdown(events))
+        return
     b = brief(events)
     json.dump(b, sys.stdout, indent=2)
     print()
