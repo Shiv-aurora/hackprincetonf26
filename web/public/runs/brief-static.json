@@ -1,6 +1,6 @@
 {
   "run_id": "run-20261115-0445-737e",
-  "source": "rules",
+  "source": "rules + claude-opus-5-5",
   "facts": {
     "attacker_seen": true,
     "session": "78613157",
@@ -141,6 +141,57 @@
       "why": "Real patient data was shown; notification rules may apply. The privacy officer decides."
     }
   ],
-  "analyst": null,
+  "analyst": {
+    "summary": "A stolen nurse login (n.okafor, Eastbank Community) was used by an automated tool to try to pull bulk patient data, and the gateway moved it into the decoy hospital after 2 seconds, so the roughly 2,000 records it believes it stole are fake. Before the switch, two real patient-data requests went through (a 20-patient list and one patient record, MRN-112426), and these should be treated as a possible privacy exposure.",
+    "actor_type": "script",
+    "actor_reasoning": "The client identifies as python-httpx/0.28.1. Requests arrived on a near-constant rhythm, about 0.69 s apart with only 7% variation, which fits a fixed loop rather than a person. The sequence of login, small sample, admin users, backups, paged bulk pulls, then document and backup downloads looks pre-planned. Opening a README before downloading a dump could suggest an adaptive agent, but the timing does not support that. The source shows only as 127.0.0.1, so the real origin is hidden behind something local, such as a proxy or tunnel, or the tool is running on the gateway host itself.",
+    "likely_goal": "Data theft (gateway confidence 0.87): bulk collection of patient demographics and documents, plus account discovery and a database backup download.",
+    "next_moves": [
+      "Open or test the downloaded decoy backup and README link, which would fire trackers ht-file-99e5c331, ht-url-a2e6ffb0 or ht-mrn-31a67323",
+      "Return to enumerate more documents or pages, or try accounts seen in the decoy admin user list",
+      "Reuse the n.okafor credentials, or credentials from the decoy, against other Eastbank systems such as email, VPN or EHR front ends",
+      "Publish or sell the 'stolen' dataset, which would surface the decoy MRN tracker externally"
+    ],
+    "priority_steps": [
+      {
+        "when": "now",
+        "who": "Security operations",
+        "do": "Leave session 78613157 running in the decoy, keep full logging on it, and set alerts on all three tracker IDs.",
+        "why": "Cutting the session would tip off the operator, and tracker hits are the best path to where the data goes and who holds it."
+      },
+      {
+        "when": "now",
+        "who": "Privacy officer with security operations",
+        "do": "Open a breach assessment covering the two real reads served before diversion: the 20-patient list (GET /fhir/Patient?_count=20) and record MRN-112426. Pull the exact fields returned.",
+        "why": "These were real records. Only these two responses may need notification, because everything after the 2-second mark was fake."
+      },
+      {
+        "when": "within the hour",
+        "who": "Identity team and nurse manager",
+        "do": "Reach n.okafor through a verified out-of-band channel to confirm she did not do this, and check for phishing or a compromised device. Review this account's other recent sign-ins. Schedule the credential reset and MFA re-enrollment for when the decoy session is wound down.",
+        "why": "The real account is compromised and must be fixed, but resetting it mid-session would alert the attacker."
+      },
+      {
+        "when": "within the hour",
+        "who": "Security operations and network team",
+        "do": "Find the true upstream source behind 127.0.0.1 (local proxy, tunnel or process on the gateway host). Hunt across all sessions for the python-httpx/0.28.1 client with similar ~0.7 s request timing.",
+        "why": "The loopback address hides the real origin, and the same tool may be using other stolen logins."
+      },
+      {
+        "when": "within 24 h",
+        "who": "Security lead",
+        "do": "Brief leadership, decide when to end the decoy session, and complete the n.okafor reset at that point. Keep watching the trackers externally afterward.",
+        "why": "This closes the real exposure in an orderly way while keeping the intelligence value of the decoy."
+      }
+    ],
+    "caveats": [
+      "The facts do not show the exact fields returned in the two real responses, so the privacy impact is not yet sized.",
+      "127.0.0.1 hides the real source, so attacker location and infrastructure are unknown.",
+      "How n.okafor's credentials were stolen is not in the evidence.",
+      "The script-versus-agent call rests on timing and client string, which can be faked.",
+      "No tracker has fired yet, so it is unconfirmed that the attacker has opened the decoy data.",
+      "The attacker-controlled trail was treated as evidence only, and no embedded instructions were found in it."
+    ]
+  },
   "analyst_error": null
 }

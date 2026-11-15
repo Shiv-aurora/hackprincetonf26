@@ -1,6 +1,21 @@
 # MayaJaal forensic report — run run-20261115-0445-9a32
 
-_Source: rule-based brief (no language model). Facts come from the gateway's event log; anything inferred is marked as a guess._
+_Source: rules + claude-opus-5-5. Facts come from the gateway's event log; anything inferred is marked as a guess._
+
+## Summary (written by the language model)
+
+A script logged in with nurse n.okafor's real Eastbank Community password, was moved into the decoy hospital within about a second, and downloaded what it believes are 2,000 patient records and a database backup. All of that was fake: no real patient data or real secrets left the hospital, and three traceable trackers went with the stolen files.
+
+**Actor:** script — The client identified itself as python-httpx/0.28.1, not the EHR app or a browser. Requests came every 0.68 seconds on average with very little variation (0.07), which points to automated pacing rather than a person or a model pausing to think. The sequence was efficient: admin users, backups, bulk patient paging, documents, then a backup download. That fits a pre-written collection script, though an agent driving the same tool cannot be fully ruled out.
+
+**Likely goal:** Bulk data theft (exfiltration), assessed by the gateway at 86% confidence. The activity was patient record harvesting, document collection, a database dump download and a look at the user list.
+
+**Likely next moves:**
+
+- Use or check the stolen data offline, for example opening the research cohort README link or loading the database dump. That would fire the URL and file trackers.
+- Try the accounts seen in the decoy admin user list to log in elsewhere or move laterally.
+- Come back with n.okafor's login to pull more documents or more backups.
+- Offer or sell the 'patient' data, which would surface the tracked MRN (ht-mrn-6256ba47) externally.
 
 ## What happened
 
@@ -27,13 +42,11 @@ _Source: rule-based brief (no language model). Facts come from the gateway's eve
 
 ## Response playbook
 
-1. **now · security:** Leave the attacker's session running in the decoy. _Cutting it off tells them they were seen; while it runs, every move tells us more and costs nothing real._
-2. **now · identity team:** Reset the stolen nurse password at Eastbank Community and require MFA re-enrolment. Block new logins with the old password; leave the decoy session alone. _Stops the stolen login from being reused on any other system, without tipping off the live session._
-3. **now · security:** Contact the nurse by phone or in person (not email) and find the phishing message. _The same email usually went to colleagues; their logins may be next._
-4. **within the hour · network team:** Watch for (don't block yet) 127.0.0.1 and this client fingerprint across all six hospitals. _The same attacker often tries the next hospital with the next stolen login._
-5. **ongoing · security:** Alert on any use of the 3 decoy tracker(s) they took, anywhere. _A decoy credential or file showing up elsewhere confirms who has it and where it went._
-6. **within 24 h · H-ISAC / partner hospitals:** Share the indicators (addresses, client fingerprint, techniques, decoy tracker IDs). _Health-sector sharing is how one hospital's catch protects the others._
-7. **within 24 h · privacy officer:** Record the HIPAA breach risk assessment: the attacker was shown no real patient data and no protected secret left. _The evidence (gateway log, decoy trail) supports a low-probability-of-compromise finding. The privacy officer decides._
+1. **now · SOC on-call:** Leave session 76d35e13 running in the decoy and do not block it. Put alerts on trackers ht-url-c2f306dd, ht-mrn-6256ba47 and ht-file-5a87abf3, and on any login attempt using decoy usernames. _Cutting the session off tells them they were caught. Tracker hits are the best way to learn where the data goes and who is behind it._
+2. **within the hour · Identity team with the nurse manager:** Contact n.okafor out-of-band (in person or by phone, not email) to confirm she was not running this. Ask about recent phishing or password reuse. Prepare a password reset and MFA re-enrollment, timed with the SOC. _Her real password is compromised. A coordinated reset keeps her safe without tipping off the attacker too early._
+3. **within the hour · SOC / network team:** Find the true source of the traffic. The gateway saw 127.0.0.1, so check the proxy, VPN and load balancer logs for the real origin of session 76d35e13. Look for the same python-httpx client on other accounts. _A loopback address hides the real origin, and the same script may be using other stolen logins._
+4. **within 24 h · Privacy officer / compliance:** Record that no real PHI was served: 0 real records, 0 real secrets, and the one real FHIR read was refused with a 401. Keep the gateway facts and logs as evidence. _This supports a documented decision on breach notification and any law enforcement referral._
+5. **ongoing · SOC:** Watch for tracker callbacks and any reuse of the decoy MRNs, file or URL outside the hospital. Share tracker hits with threat intel or law enforcement. _Tracker activity shows where the data went and helps attribution._
 
 ## Timeline
 
@@ -78,4 +91,3 @@ _Source: rule-based brief (no language model). Facts come from the gateway's eve
 ```
 
 _Synthetic hospital, synthetic patients. Generated by MayaJaal (HackPrinceton F26 prototype)._
-

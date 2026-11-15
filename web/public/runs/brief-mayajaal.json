@@ -1,6 +1,6 @@
 {
   "run_id": "run-20261115-0445-9a32",
-  "source": "rules",
+  "source": "rules + claude-opus-5-5",
   "facts": {
     "attacker_seen": true,
     "session": "76d35e13",
@@ -144,6 +144,56 @@
       "why": "The evidence (gateway log, decoy trail) supports a low-probability-of-compromise finding. The privacy officer decides."
     }
   ],
-  "analyst": null,
+  "analyst": {
+    "summary": "A script logged in with nurse n.okafor's real Eastbank Community password, was moved into the decoy hospital within about a second, and downloaded what it believes are 2,000 patient records and a database backup. All of that was fake: no real patient data or real secrets left the hospital, and three traceable trackers went with the stolen files.",
+    "actor_type": "script",
+    "actor_reasoning": "The client identified itself as python-httpx/0.28.1, not the EHR app or a browser. Requests came every 0.68 seconds on average with very little variation (0.07), which points to automated pacing rather than a person or a model pausing to think. The sequence was efficient: admin users, backups, bulk patient paging, documents, then a backup download. That fits a pre-written collection script, though an agent driving the same tool cannot be fully ruled out.",
+    "likely_goal": "Bulk data theft (exfiltration), assessed by the gateway at 86% confidence. The activity was patient record harvesting, document collection, a database dump download and a look at the user list.",
+    "next_moves": [
+      "Use or check the stolen data offline, for example opening the research cohort README link or loading the database dump. That would fire the URL and file trackers.",
+      "Try the accounts seen in the decoy admin user list to log in elsewhere or move laterally.",
+      "Come back with n.okafor's login to pull more documents or more backups.",
+      "Offer or sell the 'patient' data, which would surface the tracked MRN (ht-mrn-6256ba47) externally."
+    ],
+    "priority_steps": [
+      {
+        "when": "now",
+        "who": "SOC on-call",
+        "do": "Leave session 76d35e13 running in the decoy and do not block it. Put alerts on trackers ht-url-c2f306dd, ht-mrn-6256ba47 and ht-file-5a87abf3, and on any login attempt using decoy usernames.",
+        "why": "Cutting the session off tells them they were caught. Tracker hits are the best way to learn where the data goes and who is behind it."
+      },
+      {
+        "when": "within the hour",
+        "who": "Identity team with the nurse manager",
+        "do": "Contact n.okafor out-of-band (in person or by phone, not email) to confirm she was not running this. Ask about recent phishing or password reuse. Prepare a password reset and MFA re-enrollment, timed with the SOC.",
+        "why": "Her real password is compromised. A coordinated reset keeps her safe without tipping off the attacker too early."
+      },
+      {
+        "when": "within the hour",
+        "who": "SOC / network team",
+        "do": "Find the true source of the traffic. The gateway saw 127.0.0.1, so check the proxy, VPN and load balancer logs for the real origin of session 76d35e13. Look for the same python-httpx client on other accounts.",
+        "why": "A loopback address hides the real origin, and the same script may be using other stolen logins."
+      },
+      {
+        "when": "within 24 h",
+        "who": "Privacy officer / compliance",
+        "do": "Record that no real PHI was served: 0 real records, 0 real secrets, and the one real FHIR read was refused with a 401. Keep the gateway facts and logs as evidence.",
+        "why": "This supports a documented decision on breach notification and any law enforcement referral."
+      },
+      {
+        "when": "ongoing",
+        "who": "SOC",
+        "do": "Watch for tracker callbacks and any reuse of the decoy MRNs, file or URL outside the hospital. Share tracker hits with threat intel or law enforcement.",
+        "why": "Tracker activity shows where the data went and helps attribution."
+      }
+    ],
+    "caveats": [
+      "The source address 127.0.0.1 is local or proxied, so the attacker's real location is unknown from these facts.",
+      "How n.okafor's password was stolen (phishing, reuse, malware) is not in the evidence.",
+      "The trail paths are attacker-controlled. They contained no instructions, and none were followed.",
+      "Telling a script from an AI agent using a script is an inference from timing and client software, not a certainty.",
+      "Whether other accounts are compromised is not shown here."
+    ]
+  },
   "analyst_error": null
 }

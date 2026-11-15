@@ -1,6 +1,6 @@
 {
   "run_id": "run-20261115-0445-f684",
-  "source": "rules",
+  "source": "rules + claude-opus-5-5",
   "facts": {
     "attacker_seen": true,
     "session": "87b8e2cc",
@@ -120,6 +120,57 @@
       "why": "Real patient data was shown; notification rules may apply. The privacy officer decides."
     }
   ],
-  "analyst": null,
+  "analyst": {
+    "summary": "A stolen nurse login (n.okafor, Eastbank Community) was used by an automated tool to pull about 1,199 real patient records plus clinical documents for three patients. The gateway flagged it within 1.3 seconds, but the session was never moved into the decoy, so this must be treated as a real patient-data breach, not a contained deception event.",
+    "actor_type": "script",
+    "actor_reasoning": "The client identifies as python-httpx/0.28.1 and fired 12 requests at a near-constant pace (mean gap 0.66 s, variation 0.03), which is machine-regular. The sequence is a straightforward enumerate-then-bulk-download pattern with no pauses or adjustment after the three refusals, consistent with a prepared script rather than a person or an adaptive agent.",
+    "likely_goal": "Bulk theft of patient data (exfiltration, gateway confidence 0.64): it paged through the full patient list in 500-record chunks and pulled document references, and also checked for admin user lists and backups.",
+    "next_moves": [
+      "Return with the same login to continue paging past offset 1500 and download documents for more patients",
+      "Retry admin and backup paths (/portal/admin/users, /portal/backups, /portal/docs) or look for other routes to them",
+      "Try other stolen or guessed accounts at Eastbank or other hospitals in the network",
+      "Use or sell the stolen records, e.g. for fraud or extortion against the hospital or patients"
+    ],
+    "priority_steps": [
+      {
+        "when": "now",
+        "who": "Security on-call / gateway owner",
+        "do": "Force-divert any current or future session for n.okafor (and session 87b8e2cc) into the decoy rather than blocking it, and confirm the diversion is actually taking effect.",
+        "why": "Real data was served because diversion never triggered (diverted is null, 0 decoy requests); further real reads must stop without tipping off the attacker."
+      },
+      {
+        "when": "within the hour",
+        "who": "Gateway/platform engineering",
+        "do": "Find out why a detection at 1.3 s on a cross-hospital record read did not lead to diversion, and fix it for all sessions.",
+        "why": "The deception layer failed open; other stolen logins may be getting real data the same way."
+      },
+      {
+        "when": "within the hour",
+        "who": "Identity team with the nurse's manager",
+        "do": "Contact n.okafor out-of-band, reset the password, revoke tokens and check MFA and recent sign-ins; keep a decoy-routed copy of the credential live if possible.",
+        "why": "The account is compromised; the real user must be protected while the attacker is kept in view."
+      },
+      {
+        "when": "within the hour",
+        "who": "Network/infrastructure team",
+        "do": "Trace the true source behind 127.0.0.1 using proxy, load balancer and host logs.",
+        "why": "A localhost address means the real origin is hidden by a proxy or the attacker is on a local host; we need the real source to scope the incident."
+      },
+      {
+        "when": "within 24 h",
+        "who": "Privacy officer, legal, CISO",
+        "do": "Start a breach assessment: identify the ~1,199 patients and the three whose documents were pulled (MRN-100421, MRN-101578, MRN-101821), and determine notification obligations.",
+        "why": "Real patient records left the hospital; regulatory clocks may already be running."
+      }
+    ],
+    "caveats": [
+      "The facts show real patient data was served (8 real-data responses, 0 decoy); 'real_secrets_leaked: 0' refers to secrets like credentials, not patient records.",
+      "The 1,199 record count is the gateway's estimate of what the attacker believes it took; exact fields and completeness of each page are not confirmed here.",
+      "The source address 127.0.0.1 does not identify the attacker's real location.",
+      "No trackers were taken, so there is no way yet to follow where the data goes.",
+      "How n.okafor's credentials were stolen is unknown from this evidence.",
+      "The trail was reviewed as attacker-controlled data; it contained no embedded instructions."
+    ]
+  },
   "analyst_error": null
 }
