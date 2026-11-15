@@ -350,6 +350,53 @@ class ShadowWorld:
             add("svc_wardvpn", "Ward support VPN (shared)", "service", "lum", ago(200, 48), False)
         return users
 
+    # ---- files reachable through the portal over HTTP (the attacker has no shell). Lures planted by
+    # the planner show up here: backup-share lures on the backups page, the rest on the documents page.
+    _BASE_DOCS = (
+        ("lis-client-config", "Lumen LIS client configuration", "Laboratory", "/opt/lis/config.yaml"),
+        ("research-cohort-q4-readme", "Research cohort Q4: data request notes", "Research",
+         f"{_fs.BACKUPS}/research_cohort_q4/README.md"),
+    )
+    _LURE_DOCS = {
+        "admin_credential": ("downtime_procedure", "EHR downtime procedure (Eastbank)", "Procedures"),
+        "lab_service_account": ("svc_lisresults", "LIS results reconciliation: service account", "Laboratory"),
+        "vpn_config": ("meridian-lumen-vpn", "Meridian-Lumen site VPN profile", "Network"),
+    }
+
+    def portal_documents(self) -> list[dict[str, Any]]:
+        """IT documents listed on the portal's documents page: [{id, title, category, file, ...}]."""
+        docs = list(self._BASE_DOCS)
+        for kind, (doc_id, title, category) in self._LURE_DOCS.items():
+            if kind in self.breadcrumbs:
+                docs.append((doc_id, title, category, self.breadcrumbs[kind]))
+        out = []
+        for doc_id, title, category, path in docs:
+            st = self.stat(path)
+            if st is None or st.kind != "file":
+                continue
+            out.append({"id": doc_id, "title": title, "category": category, "file": posixpath.basename(path),
+                        "owner": st.owner, "updated": st.mtime, "size_bytes": st.size})
+        out.sort(key=lambda doc: doc["updated"], reverse=True)
+        return out
+
+    def portal_file(self, ref: str) -> tuple[str, str] | None:
+        """(file name, text) of a file published through the portal: a document id from
+        portal_documents(), or a file on the backups share. Reading it touches its honeytokens,
+        exactly like read_file. None if `ref` is not published."""
+        path = next((p for doc_id, _, _, p in self._BASE_DOCS if doc_id == ref), None)
+        if path is None:
+            path = next((self.breadcrumbs[k] for k, (doc_id, _, _) in self._LURE_DOCS.items()
+                         if doc_id == ref and k in self.breadcrumbs), None)
+        if path is None:
+            p = self._norm(ref if ref.startswith("/") else f"{_fs.BACKUPS}/{ref}")
+            if not p.startswith(_fs.BACKUPS + "/"):
+                return None
+            path = p
+        try:
+            return posixpath.basename(path), self.read_file(path)
+        except OSError:
+            return None
+
     # ================================================================ filesystem
 
     def hostname(self) -> str:

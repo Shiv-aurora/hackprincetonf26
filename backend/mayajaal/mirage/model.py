@@ -25,6 +25,25 @@ STAGES: tuple[str, ...] = ("recon", "access", "collect", "act")
 KINDS: tuple[str, ...] = ("backup_share", "admin_credential", "research_dataset", "lab_service_account",
                           "vpn_config")
 
+# Where each lure is shown over HTTP (the attacker has no shell). A lure is only "seen" when the
+# session fetches its host page, and it is "taken" when the session fetches the lure itself:
+#   backups page  GET /portal/backups     take: GET /portal/backups/download?file=<archive>
+#   docs page     GET /portal/docs        take: GET /portal/docs/view?id=<doc id>
+PAGES: tuple[str, ...] = ("backups", "docs")
+HOST: dict[str, str] = {"backup_share": "backups", "research_dataset": "backups",
+                        "admin_credential": "docs", "lab_service_account": "docs", "vpn_config": "docs"}
+# A substring of the take URL (path or query, lower case) that identifies the lure kind. The shadow
+# tier's file names (shadow/breadcrumbs.py) contain these; a test pins the two together.
+LURE_MARKERS: dict[str, str] = {"backup_share": "pmi_full_", "research_dataset": "linkage_key",
+                                "admin_credential": "downtime_procedure",
+                                "lab_service_account": "svc_lisresults", "vpn_config": "lumen-vpn"}
+
+
+def lure_of(text: str) -> str | None:
+    """The lure kind a take URL refers to, or None."""
+    low = (text or "").lower()
+    return next((k for k, m in LURE_MARKERS.items() if m in low), None)
+
 
 def parse_table(doc: str, first_col: str) -> dict[str, list[float]]:
     """Parse a whitespace table out of a docstring: the block starting at the header line whose first
@@ -57,6 +76,23 @@ def normalize(p: Mapping[str, float], keys: Iterable[str] = GOALS) -> dict[str, 
 def entropy(probs: Iterable[float]) -> float:
     """Shannon entropy in bits."""
     return -sum(p * math.log2(p) for p in probs if p > 0)
+
+
+def robust_engage(engage: Mapping[str, float], trust: float = 1.0, flat: float = 0.5) -> dict[str, float]:
+    """Epsilon-contaminated engagement row: trust * table + (1 - trust) * flat. With trust < 1 a lure
+    outcome is weaker evidence, which is the honest position when the table may be wrong."""
+    return {g: trust * p + (1.0 - trust) * flat for g, p in engage.items()}
+
+
+def posterior_after(posterior: Mapping[str, float], engage: Mapping[str, float], engaged: bool) -> dict[str, float]:
+    """Bayes update of a goal posterior on one lure outcome."""
+    post = {g: posterior[g] * (engage.get(g, 0.0) if engaged else 1.0 - engage.get(g, 0.0)) for g in posterior}
+    z = sum(post.values())
+    return {g: v / z for g, v in post.items()} if z > 0 else dict(posterior)
+
+
+def p_engage(posterior: Mapping[str, float], engage: Mapping[str, float]) -> float:
+    return sum(posterior[g] * engage.get(g, 0.0) for g in posterior)
 
 
 def info_gain(posterior: Mapping[str, float], engage: Mapping[str, float]) -> float:
