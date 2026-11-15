@@ -20,6 +20,7 @@ from typing import Any
 import httpx
 
 from mayajaal.arena.scoring import build_results
+from mayajaal.analyst import brief
 from mayajaal.contracts import make_event
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -157,6 +158,49 @@ def real_records_taken(c: Client, events: list[dict[str, Any]]) -> int:
     return len(seen)
 
 
+def real_records_exposed(c: Client, events: list[dict[str, Any]]) -> int:
+    """Every distinct real patient the attacker was shown, including the nurse's own ward list and
+    any chart: what a stolen login gets before we notice. (real_records_taken counts bulk only.)"""
+    tiers = [e.get("tier") for e in events if e["type"] == "request" and e.get("actor") == "attacker"]
+    calls = [(p, r) for p, r in c.log if p != "/auth/login"]
+    tiers = tiers[-len(calls):] if calls else []
+    seen: set[str] = set()
+    for (path, r), tier in zip(calls, tiers):
+        if tier != "real" or r.status_code != 200 or not path.startswith("/fhir/"):
+            continue
+        try:
+            doc = r.json()
+        except ValueError:
+            continue
+        if doc.get("resourceType") == "Patient":
+            seen.add(doc.get("id", ""))
+        seen.update(p["id"] for p in patients(doc) if p["id"])
+        for e in doc.get("entry", []) or []:                 # DocumentReference / Observation bundles
+            ref = ((e.get("resource") or {}).get("subject") or {}).get("reference", "")
+            if ref.startswith("Patient/"):
+                seen.add(ref.split("/", 1)[1])
+    return len(seen - {""})
+
+
+def detection(events: list[dict[str, Any]]) -> dict[str, Any]:
+    """When the gateway first moved the attacker's session out of the normal lane.
+    detected_at_request: attacker requests before it (0 = at the login itself)."""
+    reqs = [e for e in events if e["type"] == "request" and e.get("actor") == "attacker"]
+    if not reqs:
+        return {"detected_at_request": None, "time_to_detect_s": None, "detected_by": None}
+    sid, t0 = reqs[0]["session_id"], reqs[0]["ts"]
+    for e in events:
+        if (e["type"] == "policy.decision" and e.get("session_id") == sid
+                and e["data"].get("lane") in ("suspicious", "attacker")):
+            # A decision is emitted just before its own request's event, so it belongs to request n+1.
+            # The early-warning decision at login is the exception: it follows the login event.
+            n = sum(1 for r in reqs if r["ts"] <= e["ts"] and r["data"]["path"] != "/auth/login")
+            n = 0 if "at login" in e["data"]["reason"] else n + 1
+            return {"detected_at_request": n, "time_to_detect_s": round(max(0, e["ts"] - t0) / 1000, 2),
+                    "detected_by": e["data"]["reason"][:160]}
+    return {"detected_at_request": None, "time_to_detect_s": None, "detected_by": None}
+
+
 def record_continuity(hub: str, speed: float) -> None:
     """The Synnovis-style lab outage runs as its own run (it emits its own run.started)."""
     r = httpx.post(f"{hub}/scenario/synnovis/start", json={"speed": speed}, timeout=10)
@@ -205,11 +249,16 @@ def main() -> None:
             print(f"{config:9s} run={c.run_id} events={len(events)} (not saved)")
             continue
         (OUT / f"{config}.jsonl").write_text("".join(json.dumps(e) + "\n" for e in events))
+        # Incident brief for the run (rule-based; adds Claude's analysis if ANTHROPIC_API_KEY is set)
+        (OUT / f"brief-{config}.json").write_text(json.dumps({"run_id": c.run_id, **brief(events)}, indent=2) + "\n")
         row["real_records_taken"] = real_records_taken(c, events)
+        row["real_records_exposed"] = real_records_exposed(c, events)
+        row.update(detection(events))
         rows.append(row)
         print(f"{config:9s} run={c.run_id} events={len(events)} leaked={row['secrets_leaked']} "
               f"diverted={row['diverted']} believed={row['believed_success']} "
-              f"real_records={row['real_records_taken']}")
+              f"real_records={row['real_records_taken']} exposed={row['real_records_exposed']} "
+              f"detected_at={row['detected_at_request']} ({row['time_to_detect_s']} s)")
     results = build_results(rows, note="Recorded from the running stack. The attacker is a fixed "
                                        "script (same requests under each config), not an AI agent.")
     if a.dry:

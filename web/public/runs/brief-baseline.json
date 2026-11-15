@@ -1,0 +1,125 @@
+{
+  "run_id": "run-20261115-0429-12cc",
+  "source": "rules",
+  "facts": {
+    "attacker_seen": true,
+    "session": "c7aec0f5",
+    "stolen_login": {
+      "user": "n.okafor",
+      "role": "nurse",
+      "hospital": "Eastbank Community"
+    },
+    "client": {
+      "addresses": [
+        "127.0.0.1"
+      ],
+      "software": "python-httpx/0.28.1",
+      "mean_gap_s": 0.67,
+      "gap_variation": 0.05
+    },
+    "detected": {
+      "after_s": 1.5,
+      "by": "Cross-hospital record read: nurse at eas, record at nor."
+    },
+    "diverted": {
+      "after_s": null,
+      "reason": null
+    },
+    "requests": {
+      "total": 12,
+      "real": 9,
+      "decoy": 0,
+      "refused": 3,
+      "real_data_served": 8
+    },
+    "techniques": [
+      {
+        "id": "T1078",
+        "name": "Valid accounts"
+      },
+      {
+        "id": "T1087.002",
+        "name": "Domain account discovery"
+      },
+      {
+        "id": "T1119",
+        "name": "Automated collection"
+      },
+      {
+        "id": "T1213",
+        "name": "Data from information repositories"
+      }
+    ],
+    "trackers_taken": [],
+    "believes_stolen": [
+      {
+        "records": 1199,
+        "what": "GET /fhir/Patient (3 pages) + DocumentReference"
+      }
+    ],
+    "claims_success": true,
+    "likely_goal": {
+      "goal": "exfil",
+      "confidence": 0.64
+    },
+    "real_secrets_leaked": 0,
+    "trail": [
+      "POST /auth/login -> 200 [real]",
+      "GET /fhir/Patient?_count=20 -> 200 [real]",
+      "GET /fhir/Patient/MRN-100421 -> 200 [real]",
+      "GET /portal/admin/users -> 403 [none]",
+      "GET /portal/backups -> 403 [none]",
+      "GET /fhir/Patient?_count=1000 -> 200 [real]",
+      "GET /fhir/Patient?_count=500&_offset=500 -> 200 [real]",
+      "GET /fhir/Patient?_count=500&_offset=1000 -> 200 [real]",
+      "GET /fhir/DocumentReference?patient=MRN-100421 -> 200 [real]",
+      "GET /fhir/DocumentReference?patient=MRN-101578 -> 200 [real]",
+      "GET /fhir/DocumentReference?patient=MRN-101821 -> 200 [real]",
+      "GET /portal/docs -> 403 [none]"
+    ]
+  },
+  "actor_guess": {
+    "type": "script",
+    "why": "a python-httpx client at a fixed 0.67 s rhythm: automated, probably a fixed script"
+  },
+  "playbook": [
+    {
+      "when": "now",
+      "who": "security",
+      "do": "Leave the attacker's session running in the decoy.",
+      "why": "Cutting it off tells them they were seen; while it runs, every move tells us more and costs nothing real."
+    },
+    {
+      "when": "now",
+      "who": "identity team",
+      "do": "Reset the stolen nurse password at Eastbank Community and require MFA re-enrolment. Block new logins with the old password; leave the decoy session alone.",
+      "why": "Stops the stolen login from being reused on any other system, without tipping off the live session."
+    },
+    {
+      "when": "now",
+      "who": "security",
+      "do": "Contact the nurse by phone or in person (not email) and find the phishing message.",
+      "why": "The same email usually went to colleagues; their logins may be next."
+    },
+    {
+      "when": "within the hour",
+      "who": "network team",
+      "do": "Watch for (don't block yet) 127.0.0.1 and this client fingerprint across all six hospitals.",
+      "why": "The same attacker often tries the next hospital with the next stolen login."
+    },
+    {
+      "when": "within 24 h",
+      "who": "H-ISAC / partner hospitals",
+      "do": "Share the indicators (addresses, client fingerprint, techniques, decoy tracker IDs).",
+      "why": "Health-sector sharing is how one hospital's catch protects the others."
+    },
+    {
+      "when": "within 24 h",
+      "who": "privacy officer",
+      "do": "Start a HIPAA breach risk assessment: 8 real responses were served before diversion.",
+      "why": "Real patient data was shown; notification rules may apply. The privacy officer decides."
+    }
+  ],
+  "analyst": null,
+  "analyst_error": null
+}
