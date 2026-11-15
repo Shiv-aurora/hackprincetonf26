@@ -137,12 +137,13 @@ def test_diversion_is_sticky_and_clinical_never_faked(rig: Rig) -> None:
     assert shell_req.tier == "shadow" and shell_req.data["technique"] == "T1552.003"
 
 
-def test_admin_first_contact_deny_then_shadow(rig: Rig) -> None:
+def test_admin_first_contact_is_diverted_not_denied(rig: Rig) -> None:
+    """MayaJaal never tips the intruder off with a refusal on non-clinical surfaces."""
     h = rig.login()
     r1 = rig.client.get("/portal/admin/users", headers=h)
-    assert r1.status_code == 403 and r1.headers["x-mj-lane"] == "suspicious"
-    r2 = rig.client.get("/portal/admin/users", headers=h)
-    assert r2.json()["tier"] == "shadow"
+    assert r1.status_code == 200 and r1.json()["tier"] == "shadow"
+    assert r1.headers["x-mj-lane"] == "suspicious"
+    assert rig.types("session.diverted")
 
 
 def test_honeytoken_touch_moves_session_to_attacker_lane(rig: Rig) -> None:

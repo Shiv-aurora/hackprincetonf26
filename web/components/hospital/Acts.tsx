@@ -8,8 +8,8 @@ import { cn } from "@/components/ui";
 
 const ACTS = [
   { title: "A normal shift", line: "Staff read charts, the lab runs tests. Notes, SSNs and passwords are encrypted on disk; the key needs 3 of 6 hospitals." },
-  { title: "Detected", line: "A stolen nurse login starts acting like an attacker. Change Healthcare (2024) began the same way: one stolen login, no MFA." },
-  { title: "Contained", line: "Moved into a decoy built just for them, while care carries on. In the Synnovis attack (2024), London hospitals lost their pathology service." },
+  { title: "Detected, not blocked", line: "A stolen nurse login starts acting like an attacker. We don't block it: a block tells them they were seen. Change Healthcare (2024) began with one stolen login." },
+  { title: "Contained in a decoy", line: "Every request still succeeds, inside a decoy built just for them. The attack carries on; only the data is fake. Care carries on too." },
 ];
 
 export function actOf(events: MJEvent[]): number {

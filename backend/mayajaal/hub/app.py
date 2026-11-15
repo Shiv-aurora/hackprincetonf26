@@ -159,6 +159,41 @@ def _mount_plugins() -> None:
 _mount_plugins()
 
 
+# ------------------------------------------------------------------ demo: start a scripted attack
+# The live page's "Start attack" button. Runs scripts/record_runs.py --dry: one fixed request sequence
+# through the real gateway as the phished nurse. Nothing is saved; events stream to /ws as usual.
+
+_attack: dict[str, Any] = {"proc": None, "config": None}
+_SCRIPT = Path(__file__).resolve().parents[3] / "scripts" / "record_runs.py"
+
+
+def _attack_running() -> bool:
+    p = _attack["proc"]
+    return p is not None and p.returncode is None
+
+
+@app.get("/demo/attack")
+async def attack_status():
+    return {"running": _attack_running(), "config": _attack["config"]}
+
+
+@app.post("/demo/attack")
+async def attack_start(body: dict[str, Any] | None = None):
+    import sys
+    config = str((body or {}).get("config") or "mayajaal")
+    if config not in ("baseline", "static", "mayajaal"):
+        raise HTTPException(422, "config must be baseline, static or mayajaal")
+    pace = float((body or {}).get("pace") or 1.6)
+    if _attack_running():
+        raise HTTPException(409, "an attack is already running")
+    _attack["proc"] = await asyncio.create_subprocess_exec(
+        sys.executable, str(_SCRIPT), "--dry", "--configs", config, "--pace", str(max(0.2, min(pace, 5.0))),
+        cwd=str(_SCRIPT.parents[1] / "backend"),
+        stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.DEVNULL)
+    _attack["config"] = config
+    return {"started": True, "config": config}
+
+
 def main() -> None:
     import uvicorn
 

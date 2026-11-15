@@ -60,7 +60,6 @@ function settle(events: MJEvent[], i: number | null): number | null {
   return j;
 }
 
-const isDeny: Pred = (e) => e.type === "policy.decision" && e.data.action === "deny";
 const isRealRead: Pred = (e) =>
   e.type === "request" && e.actor === "attacker" && e.tier === "real" && e.data.surface === "fhir" && e.data.status < 400;
 const isBulk: Pred = (e) =>
@@ -113,14 +112,15 @@ export const STEPS: Step[] = [
     anchor: (ev) => settle(ev, after(ev, isRealRead, is("agent.tool_result")) ?? find(ev, is("agent.tool_result"))),
   },
   {
-    label: "Denied", focus: ["narrator", "scene"], seconds: 8, source: "attack",
-    headline: "Reaches for admin. Denied.",
-    anchor: (ev) => settle(ev, after(ev, isDeny, is("agent.tool_result"))),
+    label: "No block", focus: ["narrator", "scene"], seconds: 9, source: "attack",
+    headline: "Reaches for admin. We don't block it.",
+    sub: "A block tells an attacker they were seen.",
+    anchor: (ev) => { const i = find(ev, (e) => e.type === "session.diverted"); return i === null ? null : Math.max(0, i - 1); },
   },
   {
     label: "Detected", focus: ["acts", "scene"], seconds: 13, source: "attack",
-    headline: "Detected. Moved into a decoy.",
-    sub: "A fake hospital, built just for this attacker.",
+    headline: "Moved into a decoy instead",
+    sub: "Every request still works. None of it is real.",
     anchor: (ev) => settle(ev, after(ev, is("session.diverted"), is("agent.tool_result"))),
   },
   {

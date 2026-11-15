@@ -264,13 +264,11 @@ def decide(inp: PolicyInput, adjust: LaneAdjuster | None = None) -> Decision:
     rule = f"{mode}/{bucket}/{lane}"
 
     if mode == "deceive":
-        # RBAC first contact: a non-admin opening the admin portal from a clean session is simply
-        # denied (and becomes suspicious). If they keep pushing, they get the shadow portal.
-        if (inp.req.kind == "admin" and inp.role not in ADMIN_ROLES and inp.authenticated
-                and inp.lane == "normal" and not inp.diverted and lane == "suspicious"):
-            action, rule = X, "deceive/admin/first-contact"
+        # No "first contact" denial: a refusal tells an intruder they were noticed. A non-admin
+        # opening the admin portal is moved into the shadow portal on the first try (the table's
+        # suspicious-lane action), so the attack carries on, inside the decoy.
         # Sticky diversion for every non-clinical surface.
-        elif inp.diverted and bucket in ("sensitive", "other") and action == A:
+        if inp.diverted and bucket in ("sensitive", "other") and action == A:
             action, rule = D, f"deceive/{bucket}/sticky"
         # A diverted session asking for a record that only exists in the shadow (a honeytoken MRN).
         elif bucket == "clinical_ghost" and inp.diverted and lane != "unauth":

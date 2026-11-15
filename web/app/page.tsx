@@ -29,7 +29,7 @@ const STEPS: { title: string; body: string; visual: ReactNode }[] = [
   },
   {
     title: "Move them into a copy",
-    body: "The session is moved, silently, into a fake hospital built fresh for that attacker. Same pages, thousands of patients, none of them real. It never moves back.",
+    body: "We don't block them, because a block tells them they were seen. The session is moved, silently, into a fake hospital built fresh for that attacker. Every request still works. None of it is real.",
     visual: <MoveVisual />,
   },
   {
@@ -62,8 +62,9 @@ export default function Home() {
           </h1>
           <p className="mt-6 max-w-[680px] text-[17px] leading-[1.65] text-pretty text-fg-muted">
             Hospitals can&rsquo;t switch off when they&rsquo;re attacked. When someone inside the network starts
-            acting like an attacker, MayaJaal quietly moves them into a fake copy of the hospital, built fresh
-            for them. They keep &ldquo;stealing&rdquo;, but none of it is real. Doctors and nurses keep working
+            acting like an attacker, MayaJaal doesn&rsquo;t block them. It quietly moves them into a fake copy of
+            the hospital, built fresh for them, so the attack carries on. They keep &ldquo;stealing&rdquo;, but none
+            of it is real. Doctors and nurses keep working
             in the real one, and nobody has to pull the plug.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">

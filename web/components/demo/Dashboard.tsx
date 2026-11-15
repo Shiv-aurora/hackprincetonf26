@@ -10,12 +10,13 @@ import { useCallback, useState, type ReactNode } from "react";
 import type { MJEvent } from "@/lib/contracts";
 import { WORLD } from "@/lib/contracts";
 import { useMJ } from "@/lib/events";
-import { Button, Card, SiteHeader, cn } from "@/components/ui";
+import { Button, ButtonLink, Card, FloatingNav, cn } from "@/components/ui";
 import { NetworkMap } from "@/components/map";
 import { HospitalNumbers, Narrator, TwoHospitals } from "@/components/hospital/HospitalView";
 import { LearnedPanel, SwitchView, TrackersPanel } from "@/components/hospital/Live";
 import { HospitalScene } from "@/components/hospital/Scene";
 import { ActsBar } from "@/components/hospital/Acts";
+import { AttackControls } from "@/components/hospital/AttackControls";
 import {
   AttackerTerminal, ColumnHeading, ContinuityHUD, DefenderPanel, EventTimeline, RunBadge, SoundButton,
   StreamStatus, TheReveal, WarRoomSound, hospitalName, playRevealCue, useHasContinuity,
@@ -45,19 +46,23 @@ export function Dashboard({ mode = "live", revealOpen = false }: DashboardProps)
   return (
     <div className={cn("flex min-h-dvh flex-col bg-background text-fg", demo && "h-dvh overflow-hidden")}>
       {!demo && <WarRoomSound />}
+      {!demo && <FloatingNav cta={<ButtonLink href="/demo" size="sm" className="rounded-full">Guided demo</ButtonLink>} />}
       {!demo && (
-        <SiteHeader
-          active="/war-room"
-          right={<>
+        <div className="mx-auto mt-20 flex w-full max-w-[1400px] flex-wrap items-center justify-between gap-3 px-4 sm:px-6">
+          <div className="flex items-center gap-3">
+            <h1 className="text-[15px] font-semibold tracking-[-0.01em]">Live</h1>
             <RunBadge />
             <StreamStatus />
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <AttackControls />
             <span className="hidden h-5 w-px bg-border sm:block" />
             <Button size="sm" disabled={!canReveal} onClick={() => { playRevealCue(); setReplay((n) => n + 1); }}>
               Reveal
             </Button>
             <SoundButton />
-          </>}
-        />
+          </div>
+        </div>
       )}
 
       <DemoFrame demo={demo}>

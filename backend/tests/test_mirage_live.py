@@ -98,8 +98,7 @@ def take_url(client: TestClient, h: dict[str, str], kind: str) -> str | None:
 
 
 def divert(client: TestClient, h: dict[str, str]) -> None:
-    """A nurse opening the admin portal: denied once (RBAC), then served by the shadow tier."""
-    assert client.get("/portal/admin/users", headers=h).status_code == 403
+    """A nurse opening the admin portal is served by the shadow tier on the first try (no refusal)."""
     r = client.get("/portal/admin/users", headers=h)
     assert r.status_code == 200 and r.headers["x-mj-decision"] == "divert_shadow"
 

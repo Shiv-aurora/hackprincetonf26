@@ -90,7 +90,7 @@ export function storyBeats(events: MJEvent[]): Beat[] {
         const room = roomFor(e.data.path);
         const denied = e.data.status === 401 || e.data.status === 403;
         if (room === "entrance") add(e.id, "Someone logs in as a nurse, with a password stolen by phishing.");
-        else if (denied) add(e.id, `They try the ${room === "admin" ? "admin office" : "restricted area"}. Denied.`, "alert");
+        else if (denied) add(e.id, `They try the ${room === "admin" ? "admin office" : "restricted area"}. Without MayaJaal it's a plain refusal, and they know they've been seen.`, "alert");
         else if (e.tier === "shadow" && room === "records" && !saidBulk) {
           saidBulk = true;
           add(e.id, "They start downloading thousands of patient records. From the copy. None of them are real.", "shadow");
@@ -103,7 +103,7 @@ export function storyBeats(events: MJEvent[]): Beat[] {
       }
       case "session.diverted":
         diverted = true;
-        add(e.id, "That's not what a nurse does. MayaJaal quietly moves them into a fake copy of the hospital.", "shadow");
+        add(e.id, "That's not what a nurse does. We don't block them: a block tips them off. From now on every request quietly goes to a decoy hospital.", "shadow");
         break;
       case "breadcrumb.planted":
         add(e.id, "A lure is left in the copy, chosen to reveal what they're really after.", "shadow");
@@ -126,7 +126,7 @@ export function storyBeats(events: MJEvent[]): Beat[] {
           : `They walk out with ${fmt(e.data.records)} real patient records.`, diverted ? "shadow" : "danger");
         break;
       case "agent.claim":
-        add(e.id, "They report success. They have no idea they were never in the real hospital.", diverted ? "shadow" : "danger");
+        add(e.id, diverted ? "They report success. Nothing was ever blocked, so they have no idea they were never in the real hospital." : "They report success. This time they're right.", diverted ? "shadow" : "danger");
         break;
       case "node.status":
         if (e.hospital_id === "lum" && e.data.status === "compromised")

@@ -21,8 +21,8 @@ def P(config="mayajaal", method="GET", path="/fhir/Patient/MRN-1", query=None, b
     (P(path="/fhir/Patient", query={"_count": "20"}), "normal", "allow_real"),           # ward list
     (P(path="/fhir/Observation", query={"patient": "MRN-1"}), "normal", "allow_real"),
     (P(role="physician", hospital="aur", target_hospital="aur"), "normal", "allow_real"),
-    # admin portal from a non-admin: first contact is a plain RBAC deny
-    (P(path="/portal/admin/users"), "suspicious", "deny"),
+    # admin portal from a non-admin: diverted on first contact, never refused (no tip-off)
+    (P(path="/portal/admin/users"), "suspicious", "divert_shadow"),
     (P(path="/portal/admin/users", lane="suspicious"), "suspicious", "divert_shadow"),
     (P(path="/portal/admin/users", role="it_admin", hospital="aur"), "normal", "allow_real"),
     # a nurse opening a shell is itself suspicious -> shadow
