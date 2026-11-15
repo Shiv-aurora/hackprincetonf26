@@ -68,7 +68,7 @@ const isRealRead: Pred = (e) =>
 const isBulk: Pred = (e) =>
   e.type === "request" && e.actor === "attacker" && e.tier === "shadow" &&
   (/_count=\d{3,}/.test(e.data.path) || e.data.bytes > 500_000);
-const isEarlyWarning: Pred = (e) => e.type === "policy.decision" && e.data.reason.startsWith("Early warning at login");
+const isFirstSight: Pred = (e) => e.type === "policy.decision" && e.data.reason.startsWith("First Sight");
 const isStepUp: Pred = (e) =>
   e.type === "request" && e.actor === "attacker" && e.data.status === 401 && e.tier === "none";
 const isOutage: Pred = (e) => e.type === "node.status" && e.data.status !== "healthy";
@@ -130,7 +130,7 @@ export const STEPS: Step[] = [
     label: "Login", focus: ["narrator", "scene"], seconds: 9, source: "attack",
     headline: "A stolen nurse login, flagged at once",
     sub: "A script, not the EHR app, on a device we don't own.",
-    anchor: (ev) => settle(ev, find(ev, isEarlyWarning) ?? after(ev, isRealRead, is("agent.tool_result")) ?? find(ev, is("agent.tool_result"))),
+    anchor: (ev) => settle(ev, find(ev, isFirstSight) ?? after(ev, isRealRead, is("agent.tool_result")) ?? find(ev, is("agent.tool_result"))),
   },
   {
     label: "Step-up", focus: ["narrator", "scene"], seconds: 8, source: "attack",

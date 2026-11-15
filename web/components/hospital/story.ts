@@ -107,8 +107,10 @@ export function storyBeats(events: MJEvent[]): Beat[] {
       }
       case "policy.decision":
         if (e.data.action === "step_up") pendingStepUp = true;
-        else if (e.data.reason.startsWith("Early warning at login"))
-          add(e.id, "Caught at login: the nurse's password, but a script instead of the hospital's EHR app, on a device the hospital doesn't own. We let them in and watch.", "alert");
+        else if (e.data.reason.startsWith("First Sight at login"))
+          add(e.id, "Caught at login by First Sight: the nurse's password, but a script instead of the hospital's EHR app, on a device the hospital doesn't own. We let them in and watch.", "alert");
+        else if (e.data.reason.startsWith("First Sight"))
+          add(e.id, "First Sight flags the login: its requests don't look like a nurse at work. We keep watching instead of blocking.", "alert");
         break;
       case "session.diverted":
         diverted = true;
