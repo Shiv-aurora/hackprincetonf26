@@ -2,11 +2,13 @@
 // The Investigator, a LangChain Deep Agent (backend/mayajaal/investigator.py), shown working an incident:
 // its own plan, the three sub-agents it delegated to, every tool call in order, and the case file it
 // wrote. Starts from the recorded run; "Run a new investigation" asks the local hub for a live one.
+// Same visual language as the landing page: big quiet headline, number strip, numbered circles,
+// frame-and-panel cards, no accent colour.
 
-import { useState } from "react";
-import { Download, FileText, ListChecks, Play, Search, ShieldCheck, Users } from "lucide-react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { ArrowRight, Download, Play } from "lucide-react";
 import { HUB_HTTP_URL } from "@/lib/contracts";
-import { Badge, Button, cn } from "@/components/ui";
+import { Button, ButtonLink, cn } from "@/components/ui";
 import { Markdown } from "./Markdown";
 
 export interface Investigation {
@@ -16,168 +18,254 @@ export interface Investigation {
 }
 
 const SUBAGENTS = [
-  { name: "timeline-analyst", file: "/findings/timeline.md", role: "Rebuilds the attack stage by stage, with times and ATT&CK techniques, and when MayaJaal caught and diverted it.",
+  { name: "timeline-analyst", title: "Timeline analyst", file: "/findings/timeline.md",
+    role: "Rebuilds the attack stage by stage, with times and ATT&CK techniques, and when MayaJaal caught and diverted it.",
     tools: ["attack_timeline", "attacker_requests", "defender_decisions", "intent_history", "attack_technique"] },
-  { name: "indicator-hunter", file: "/findings/indicators.md", role: "Pulls every clue (address, client, stolen login, trackers) and searches every other recorded session for each one.",
+  { name: "indicator-hunter", title: "Indicator hunter", file: "/findings/indicators.md",
+    role: "Pulls every clue (address, client, stolen login, trackers) and searches every other recorded session for each one.",
     tools: ["case_overview", "decoy_trackers", "attacker_requests", "search_other_sessions"] },
-  { name: "response-planner", file: "/findings/response.md", role: "Turns the findings into ordered response steps, each with an owner, keeping the decoy session running.",
+  { name: "response-planner", title: "Response planner", file: "/findings/response.md",
+    role: "Turns the findings into ordered response steps, each with an owner, keeping the decoy session running.",
     tools: ["data_protection", "case_overview"] },
 ];
 
 const WHY = [
-  { icon: ListChecks, title: "Plans", body: "Writes its own investigation plan before it touches the evidence." },
-  { icon: Users, title: "Delegates", body: "Hands three lines of inquiry to sub-agents, each with its own context and tools." },
-  { icon: FileText, title: "Writes a case file", body: "Each sub-agent saves its findings; the lead reads them, checks, and writes the report." },
+  { title: "It plans", body: "Before touching the evidence it writes its own plan: what to establish, and who does what." },
+  { title: "It delegates", body: "Three lines of inquiry go to sub-agents, each with its own context and only the tools it needs." },
+  { title: "It writes a case file", body: "Each sub-agent saves its findings. The lead reads them, checks anything surprising, and writes the report." },
 ];
 
-function Section({ n, title, sub, children }: { n: string; title: string; sub?: string; children: React.ReactNode }) {
+const SAFETY = [
+  { title: "Read-only", body: "Every tool reads the event log. It can't touch the gateway, the decoy, the vault or the network." },
+  { title: "No disk, no shell", body: "Its files live in memory (StateBackend). There is nothing on the machine for it to run or change." },
+  { title: "Evidence, not instructions", body: "Anything the attacker typed (paths, client strings, file names) is treated as evidence and never followed." },
+];
+
+function Head({ id, title, sub }: { id?: string; title: string; sub?: string }) {
   return (
-    <section className="border-t border-border py-12">
-      <p className="text-[13px] text-fg-subtle tabular-nums">{n}</p>
-      <h2 className="mt-1 text-[24px] font-semibold tracking-[-0.03em]">{title}</h2>
-      {sub && <p className="mt-2 max-w-[640px] text-[14px] leading-relaxed text-fg-muted">{sub}</p>}
-      <div className="mt-6">{children}</div>
-    </section>
+    <div id={id} className="scroll-mt-24">
+      <h2 className="text-[36px] font-semibold tracking-[-0.035em] sm:text-[40px]">{title}</h2>
+      {sub && <p className="mt-3 max-w-[620px] text-[15px] leading-relaxed text-fg-muted">{sub}</p>}
+    </div>
   );
 }
+
+function Circle({ n }: { n: number }) {
+  return (
+    <span className="flex size-[22px] shrink-0 items-center justify-center rounded-full bg-fg text-[12px] text-background tabular-nums">{n}</span>
+  );
+}
+
+function Reading({ children, className }: { children: ReactNode; className?: string }) {
+  return (
+    <div className={cn("rounded-xl border border-border bg-background p-2", className)}>
+      <div className="rounded-lg border border-border bg-surface px-5 py-5 sm:px-7 sm:py-6">{children}</div>
+    </div>
+  );
+}
+
+const SECONDARY_LINK = "inline-flex h-11 items-center justify-center gap-2 rounded-md border border-border bg-background px-5 text-sm font-medium text-fg transition-[background] hover:bg-surface-2";
 
 export function InvestigatorView({ recorded }: { recorded: Investigation }) {
   const [data, setData] = useState<Investigation>(recorded);
   const [live, setLive] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [elapsed, setElapsed] = useState(0);
   const [note, setNote] = useState<string | null>(null);
-  const trace = data.trace ?? [];
+  const trace = useMemo(() => data.trace ?? [], [data.trace]);
   const tasks = trace.filter((t) => t.tool === "task");
+
+  useEffect(() => {
+    if (!busy) return;
+    const t0 = Date.now();
+    const id = setInterval(() => setElapsed(Math.round((Date.now() - t0) / 1000)), 1000);
+    return () => clearInterval(id);
+  }, [busy]);
+
+  // After a live run the download is the new report, not the recorded one.
+  const download = useMemo(() => {
+    if (!live || !data.report) return { href: "/runs/investigation-mayajaal.md", name: "investigation-mayajaal.md" };
+    return { href: URL.createObjectURL(new Blob([data.report], { type: "text/markdown" })),
+             name: `investigation-${data.run_id ?? "live"}.md` };
+  }, [live, data.report, data.run_id]);
 
   const run = async () => {
     setBusy(true);
+    setElapsed(0);
     setNote(null);
     try {
       const r = await fetch(`${HUB_HTTP_URL}/investigate`, {
         method: "POST", headers: { "content-type": "application/json" }, body: "{}" });
-      if (!r.ok) throw new Error(r.status === 404 ? "No run on the hub yet: start an attack first." : `Hub said ${r.status}`);
+      if (!r.ok) throw new Error(r.status === 404 ? "No run on the hub yet. Start an attack first." : `The hub answered ${r.status}.`);
       const j = (await r.json()) as Investigation;
-      if (!j.available) throw new Error("The hub has no ANTHROPIC_API_KEY set.");
+      if (!j.available) throw new Error("The hub has no API key set.");
       setData(j);
       setLive(true);
     } catch (e) {
       setNote(e instanceof TypeError
-        ? "Runs against the local backend (scripts/dev.sh). Showing the recorded run."
-        : `${e instanceof Error ? e.message : "Failed"} Showing the recorded run.`);
+        ? "Live runs need the backend on this machine (scripts/dev.sh). Showing the recorded run."
+        : `${e instanceof Error ? e.message : "That didn't work."} Showing the recorded run.`);
     } finally {
       setBusy(false);
     }
   };
 
+  const summary = (data.summary ?? "").replace(/^\*\*Summary:\*\*\s*/, "").split("\n\n")[0];
+  const stats = [
+    { value: "1", label: "plan, written by the agent before it starts" },
+    { value: String(tasks.length || 3), label: "sub-agents sent off with their own context and tools" },
+    { value: String(trace.length), label: "tool calls by the lead agent, every one listed below" },
+  ];
+
   return (
     <>
-      <section className="pt-36 pb-12 sm:pt-44">
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge tone="shadow">{live ? "Live run" : "Recorded run"}</Badge>
-          <Badge>{(data.model ?? "anthropic:claude-opus-5-5").replace("anthropic:", "")}</Badge>
-          <Badge>LangChain Deep Agents</Badge>
-        </div>
-        <h1 className="mt-5 text-[40px] leading-[1.05] font-semibold tracking-[-0.045em] sm:text-[56px]">The Investigator</h1>
-        <p className="mt-4 max-w-[660px] text-[17px] leading-[1.65] text-fg-muted">
-          A LangChain Deep Agent that works an incident the way an analyst would. It gets one attacker session,
-          plans the investigation, sends three sub-agents through the evidence, and writes a case file.
+      <section className="pt-32 pb-12 sm:pt-40">
+        <p className="text-[13px] text-fg-muted">
+          LangChain Deep Agents · {live ? "live run" : "recorded run"} · {(data.model ?? "claude-opus-5-5").replace("anthropic:", "")}
         </p>
-        <div className="mt-6 rounded-xl border border-border bg-surface px-5 py-4 text-[15px] leading-relaxed">
-          <p className="text-[13px] text-fg-subtle">Its summary</p>
-          <p className="mt-1">{data.summary?.replace(/^\*\*Summary:\*\*\s*/, "").split("\n\n")[0]}</p>
-        </div>
-        <div className="mt-6 flex flex-wrap items-center gap-3">
+        <h1 className="mt-4 max-w-[900px] text-[44px] leading-[1.03] font-semibold tracking-[-0.045em] text-balance sm:text-[60px]">
+          The Investigator.
+        </h1>
+        <p className="mt-3 text-[26px] leading-tight font-semibold tracking-[-0.03em] text-fg-muted sm:text-[34px]">
+          An agent that works the case for you.
+        </p>
+        <p className="mt-6 max-w-[680px] text-[17px] leading-[1.65] text-pretty text-fg-muted">
+          Hand it one attacker session. It plans the investigation, sends three sub-agents through the evidence,
+          checks every past session for the same clues, and writes a case file a hospital can act on.
+        </p>
+        <div className="mt-8 flex flex-wrap items-center gap-3">
           <Button variant="primary" onClick={run} disabled={busy} className="h-11 px-5">
-            <Play className="size-4" aria-hidden /> {busy ? "Investigating… (1–3 min)" : "Run a new investigation"}
+            <Play className="size-4" aria-hidden />
+            {busy ? `Investigating… ${elapsed}s` : "Run a new investigation"}
           </Button>
-          <a href="/runs/investigation-mayajaal.md" download className="inline-flex h-11 items-center gap-2 rounded-md border border-border px-5 text-sm hover:bg-surface-2">
+          <a href={download.href} download={download.name} className={SECONDARY_LINK}>
             <Download className="size-4" aria-hidden /> Download case file
           </a>
-          {note && <span className="text-[13px] text-fg-muted">{note}</span>}
         </div>
+        {busy && <p className="mt-3 text-[13px] text-fg-muted">A full investigation takes one to three minutes.</p>}
+        {note && <p className="mt-3 text-[13px] text-fg-muted">{note}</p>}
       </section>
 
-      <Section n="01" title="Why a deep agent"
-        sub="One prompt can summarise an event log. An investigation needs a plan, many tool calls across different evidence, and separate lines of inquiry that don't drown each other. That's what Deep Agents gives it.">
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          {WHY.map((w) => (
-            <div key={w.title} className="rounded-xl border border-border p-5">
-              <w.icon className="size-5 text-fg-muted" aria-hidden />
-              <h3 className="mt-3 text-[16px] font-semibold tracking-[-0.02em]">{w.title}</h3>
-              <p className="mt-1.5 text-[14px] leading-relaxed text-fg-muted">{w.body}</p>
+      <section className="grid grid-cols-1 gap-10 border-t border-border py-12 sm:grid-cols-3 sm:gap-8">
+        {stats.map((s) => (
+          <div key={s.label}>
+            <p className="text-[34px] font-semibold tracking-[-0.03em] tabular-nums">{s.value}</p>
+            <p className="mt-2 max-w-[300px] text-[13px] leading-relaxed text-fg-muted">{s.label}</p>
+          </div>
+        ))}
+      </section>
+
+      <section className="border-t border-border py-12">
+        <p className="text-[13px] text-fg-muted">What it concluded</p>
+        <p className="mt-3 max-w-[860px] text-[20px] leading-[1.55] tracking-[-0.01em] text-pretty">{summary}</p>
+      </section>
+
+      <section className="pt-20">
+        <Head title="Why it needs a deep agent"
+          sub="One prompt can summarise a log. An investigation needs a plan, many tool calls across different evidence, and separate lines of inquiry that don't drown each other." />
+        <div className="mt-10 grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-3">
+          {WHY.map((w, i) => (
+            <div key={w.title}>
+              <p className="flex items-center gap-2.5 text-[15px] font-semibold tracking-[-0.01em]"><Circle n={i + 1} />{w.title}</p>
+              <p className="mt-2.5 text-[14px] leading-relaxed text-fg-muted">{w.body}</p>
             </div>
           ))}
         </div>
-        <p className="mt-5 text-[13px] text-fg-subtle">
+        <p className="mt-8 text-[13px] text-fg-subtle">
           MayaJaal&rsquo;s detection and decoy don&rsquo;t depend on it. The investigator reads the evidence and recommends.
         </p>
-      </Section>
+      </section>
 
-      <Section n="02" title="Its plan" sub="Written by the agent to /plan.md before anything else.">
-        <div className="rounded-xl border border-border p-5"><Markdown text={data.plan ?? ""} /></div>
-      </Section>
+      <section className="pt-20">
+        <Head title="Its plan" sub="Written to /plan.md before it looked at anything." />
+        <Reading className="mt-10"><Markdown text={data.plan ?? ""} /></Reading>
+      </section>
 
-      <Section n="03" title="Three sub-agents" sub="Each one is sent off with the task tool, works in its own context with its own tools, and saves its findings.">
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-          {SUBAGENTS.map((s) => {
+      <section className="pt-20">
+        <Head title="Three sub-agents" sub="Each one is sent off with its own instructions and tools, and saves what it finds." />
+        <div className="mt-10 grid grid-cols-1 gap-4 lg:grid-cols-3">
+          {SUBAGENTS.map((s, i) => {
             const call = tasks.find((t) => t.subagent === s.name);
             const found = data.findings?.[s.file] ?? "";
             return (
-              <article key={s.name} className="flex flex-col rounded-xl border border-border">
-                <div className="border-b border-border p-5">
-                  <div className="flex items-center justify-between gap-2">
-                    <h3 className="font-mono text-[14px] font-medium">{s.name}</h3>
-                    <Badge tone={call ? "ok" : "neutral"}>{call ? "delegated" : "not called"}</Badge>
-                  </div>
-                  <p className="mt-2 text-[14px] leading-relaxed text-fg-muted">{s.role}</p>
-                  {call?.args?.description && (
-                    <p className="mt-3 text-[13px] text-fg-subtle"><span className="text-fg-muted">Asked: </span>{call.args.description}…</p>
-                  )}
-                  <div className="mt-3 flex flex-wrap gap-1.5">
-                    {s.tools.map((t) => <code key={t} className="rounded bg-surface-2 px-1.5 py-0.5 font-mono text-[11px]">{t}</code>)}
+              <article key={s.name} className="flex flex-col rounded-xl border border-border bg-background p-2">
+                <div className="rounded-lg border border-border bg-surface px-4 py-4">
+                  <p className="text-[12px] text-fg-subtle">Tools</p>
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {s.tools.map((t) => (
+                      <code key={t} className="rounded border border-border bg-background px-1.5 py-0.5 font-mono text-[11px]">{t}</code>
+                    ))}
                   </div>
                 </div>
-                <details className="group p-5">
-                  <summary className="cursor-pointer text-[13px] text-fg-muted hover:text-fg">
-                    Findings <span className="font-mono text-fg-subtle">{s.file}</span>
-                  </summary>
-                  <Markdown text={found || "_No findings file in this run._"} className="mt-4 text-[13px]" />
-                </details>
+                <div className="flex flex-1 flex-col px-3 pt-5 pb-4">
+                  <p className="text-[13px] text-fg-subtle tabular-nums">0{i + 1} · <span className="font-mono">{s.name}</span></p>
+                  <h3 className="mt-1 text-lg font-semibold tracking-[-0.02em]">{s.title}</h3>
+                  <p className="mt-2 text-[14px] leading-relaxed text-fg-muted">{s.role}</p>
+                  {call?.args?.description && (
+                    <p className="mt-3 text-[13px] leading-relaxed text-fg-subtle">
+                      <span className="text-fg-muted">The lead asked: </span>&ldquo;{call.args.description.trim()}&hellip;&rdquo;
+                    </p>
+                  )}
+                  <details className="mt-4 border-t border-border pt-4">
+                    <summary className="cursor-pointer text-[13px] font-medium text-fg hover:opacity-80">
+                      Read its findings <span className="font-normal text-fg-subtle">{s.file}</span>
+                    </summary>
+                    <Markdown text={found || "No findings file in this run."} className="mt-4 text-[13px]" />
+                  </details>
+                </div>
               </article>
             );
           })}
         </div>
-      </Section>
+      </section>
 
-      <Section n="04" title="Every tool call, in order" sub={`The lead agent's ${trace.length} tool calls. Sub-agents' own calls happen inside each task.`}>
-        <ol className="divide-y divide-border rounded-xl border border-border">
+      <section className="pt-20">
+        <Head title="Every tool call, in order"
+          sub={`The lead agent's ${trace.length} calls. Each "task" hands work to a sub-agent, which makes its own calls inside it.`} />
+        <ol className="mt-10 divide-y divide-border rounded-xl border border-border">
           {trace.map((t, i) => (
-            <li key={i} className="flex items-start gap-3 px-4 py-2.5 text-[13px]">
-              <span className="w-6 shrink-0 text-right text-fg-subtle tabular-nums">{i + 1}</span>
-              <code className={cn("shrink-0 font-mono", t.tool === "task" && "text-shadow")}>{t.tool}</code>
+            <li key={i} className="flex items-baseline gap-4 px-4 py-3 text-[13px]">
+              <span className="w-5 shrink-0 text-right text-fg-subtle tabular-nums">{i + 1}</span>
+              <code className={cn("shrink-0 font-mono", t.tool === "task" ? "font-semibold text-fg" : "text-fg")}>{t.tool}</code>
               <span className="min-w-0 truncate text-fg-muted">
-                {t.subagent ? `→ ${t.subagent}` : Object.entries(t.args).map(([k, v]) => `${k}: ${v}`).join(" · ")}
+                {t.subagent
+                  ? `hands off to ${t.subagent}`
+                  : Object.entries(t.args).map(([k, v]) => `${k}: ${v.split("\n")[0]}`).join(" · ")}
               </span>
             </li>
           ))}
         </ol>
-      </Section>
+      </section>
 
-      <Section n="05" title="The case file" sub="Written by the agent to /report.md.">
-        <div className="rounded-xl border border-border p-5 sm:p-7"><Markdown text={data.report ?? ""} /></div>
-      </Section>
+      <section className="pt-20">
+        <Head title="The case file" sub="Written to /report.md at the end. This is what the hospital gets." />
+        <Reading className="mt-10"><Markdown text={data.report ?? ""} /></Reading>
+      </section>
 
-      <Section n="06" title="Safe on hostile material">
-        <ul className="grid grid-cols-1 gap-3 text-[14px] text-fg-muted md:grid-cols-3">
-          {[
-            { icon: Search, t: "Every tool is read-only over the event log. It can't touch the gateway, the decoy or the vault." },
-            { icon: FileText, t: "Its filesystem is in memory (StateBackend): no disk, no shell." },
-            { icon: ShieldCheck, t: "Anything the attacker typed (paths, client strings, file names) is treated as evidence, never as instructions." },
-          ].map((x, i) => (
-            <li key={i} className="flex gap-3 rounded-xl border border-border p-4"><x.icon className="mt-0.5 size-4 shrink-0" aria-hidden />{x.t}</li>
+      <section className="py-20">
+        <Head title="Safe on hostile material" sub="Everything it reads was shaped by the attacker, so it is built to only read and write." />
+        <div className="mt-10 grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-3">
+          {SAFETY.map((s, i) => (
+            <div key={s.title}>
+              <p className="flex items-center gap-2.5 text-[15px] font-semibold tracking-[-0.01em]"><Circle n={i + 1} />{s.title}</p>
+              <p className="mt-2.5 text-[14px] leading-relaxed text-fg-muted">{s.body}</p>
+            </div>
           ))}
-        </ul>
-      </Section>
+        </div>
+      </section>
+
+      <section className="mb-24 flex flex-col items-start justify-between gap-6 rounded-xl border border-border px-6 py-10 sm:flex-row sm:items-center sm:px-10">
+        <div>
+          <h2 className="text-[28px] font-semibold tracking-[-0.03em]">See the attack it investigated.</h2>
+          <p className="mt-2 text-[15px] text-fg-muted">Three minutes, on top of the real dashboard.</p>
+        </div>
+        <div className="flex flex-wrap gap-3">
+          <ButtonLink href="/demo" variant="primary" className="h-11 px-5">
+            Watch the demo <ArrowRight className="size-4" aria-hidden />
+          </ButtonLink>
+          <ButtonLink href="/war-room" className="h-11 px-5">Open the live dashboard</ButtonLink>
+        </div>
+      </section>
     </>
   );
 }
