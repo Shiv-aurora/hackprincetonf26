@@ -22,6 +22,7 @@ never notice. Built solo at HackPrinceton Fall 2026.
 | 5 | **Scatter** | The moment First Sight fires, an encrypted copy of the real database (fresh AES-256-GCM key) is cut into 3 pieces, each stored at 2 hospitals. The key is Shamir-split 3-of-6, and the copy is proven rebuildable from other hospitals. | `real/scatter.py` |
 | 6 | **Vault** | Sensitive fields (notes, SSNs, addresses, passwords, canaries) are encrypted at rest. The data key is wrapped by a key that is itself split 3-of-6 across the hospitals. | `real/vault.py` |
 | 7 | **Incident brief and forensic report** | Who it probably is (script, AI agent or person, and why), how we noticed, ATT&CK techniques, indicators, trackers taken, what they believe they stole, and a response playbook, plus a downloadable Markdown report with the full timeline. Rule-based facts always. With `ANTHROPIC_API_KEY`, Claude writes the judgement calls with schema-checked output, and the attacker's own strings are treated as untrusted data. | `mayajaal/analyst.py` |
+| 7b | **Investigator** | A LangChain Deep Agent that plans its own investigation, delegates to timeline, indicator-hunting and response sub-agents (read-only tools, including a search of every other recorded session for repeat indicators), and writes a case file. In-memory filesystem, no shell. Needs `ANTHROPIC_API_KEY`. | `mayajaal/investigator.py` |
 | 8 | **VitalSwitch** | If the attack takes a shared lab down (like Synnovis, London 2024), urgent tests are rerouted to hospital labs that still work. | `continuity/` |
 
 MayaJaal is a gateway in front of a standard **FHIR** API and an IT portal, so a hospital can put it in
@@ -57,7 +58,7 @@ The same scripted attack ran against each configuration through the real gateway
 ## Run it
 
 ```bash
-cd backend && uv sync && uv run pytest -q          # 267 tests
+cd backend && uv sync && uv run pytest -q          # 270 tests
 scripts/dev.sh                                      # gateway :8000, shadow :8001, hub :8002, web :3000
 scripts/dev.sh --mock                               # UI + hub replaying a recorded attack
 ```
@@ -65,6 +66,7 @@ scripts/dev.sh --mock                               # UI + hub replaying a recor
 - **Live dashboard:** http://localhost:3000/war-room. Pick a defense and press **Start attack** (needs the backend running).
 - **Incident brief:** `GET http://localhost:8002/analyst/brief`.
 - **Forensic report:** `GET http://localhost:8002/analyst/report`.
+- **Investigator (Deep Agent):** `POST http://localhost:8002/investigate`, or `cd backend && uv run python -m mayajaal.investigator`. Put `ANTHROPIC_API_KEY=...` in `backend/.env` (gitignored).
 - **Re-record the runs:** `cd backend && uv run python ../scripts/record_runs.py`.
 - **First Sight simulation:** `uv run python -m mayajaal.real.firstsight_eval`.
 

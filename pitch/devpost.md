@@ -56,6 +56,7 @@ like an attacker:
   - Shamir secret sharing over GF(256) with AES-256-GCM;
   - an event hub that streams every request, decision and tracker to the UI over WebSocket.
 - **Analyst:** the Anthropic Python SDK (`claude-opus-5-5`) with structured outputs, plus a rule-based layer that always runs.
+- **Investigator:** a LangChain Deep Agent with three sub-agents and read-only tools over the event log.
 - **Frontend:** Next.js 16 + React 19 + Tailwind on Vercel. A guided 3-minute demo plays on top of the real dashboard, replaying recorded runs.
 - **Tests:** 267 tests, covering policy rules, gateway behaviour, First Sight, device tokens, vault encryption, Scatter rebuilds, MIRAGE and the analyst.
 - **Paper:** a 3-page LaTeX paper on MIRAGE-S, with its numbers generated from the recorded runs.
@@ -87,7 +88,7 @@ on every request, what to show next without tipping the attacker off.
 
 ## Built with
 
-python, fastapi, uv, pydantic, cryptography, anthropic, claude, next.js, react, typescript, tailwind, bun,
+python, fastapi, uv, pydantic, cryptography, anthropic, claude, langchain, deep-agents, langgraph, next.js, react, typescript, tailwind, bun,
 vercel, fhir, latex
 
 ---
@@ -117,6 +118,26 @@ Every attacker session produces an **incident brief** and a **downloadable foren
 - **Deployable by design:** MayaJaal sits as a gateway in front of a standard FHIR API and IT portal. A hospital puts it in front of its existing EHR; nothing in the EHR changes. Clinicians keep using their client; the gateway reads device certificates and request patterns.
 - **The full stack** (gateway, decoy, hub) runs with one script (`scripts/dev.sh`) and is shown live from a laptop.
 - **Honesty:** the FHIR server, hospitals and patients in the demo are synthetic.
+
+### LangChain — best use of Deep Agents
+
+The **MayaJaal Investigator** (`backend/mayajaal/investigator.py`, hub `POST /investigate`) is a Deep Agent
+that works an incident the way an analyst would:
+
+1. **Plans:** it writes its own investigation plan to `/plan.md`.
+2. **Delegates** with the `task` tool to three sub-agents:
+   - **timeline-analyst** reconstructs the attack as an ATT&CK kill chain, with times;
+   - **indicator-hunter** extracts addresses, client software, the stolen login and tracker ids, and searches every *other* recorded session for each one ("has this attacker been here before?");
+   - **response-planner** turns the findings into ordered steps with owners.
+3. **Writes the case file** on its virtual filesystem: `/findings/*.md` from each sub-agent and `/report.md` at the end.
+
+Why it's a deep agent and not one prompt: the investigation needs many tool calls across the timeline,
+decisions, trackers, intent history and other sessions, and the sub-agents keep each line of inquiry in its
+own context.
+
+It's safe on hostile material. Every tool is read-only over the event log, and the filesystem is the
+in-memory `StateBackend` (no disk, no shell). Prompts mark every attacker-supplied string as evidence, never
+instructions. MayaJaal's detection and decoy don't depend on it: the investigator only reads and recommends.
 
 ### Amazon — best practical AI innovation
 
