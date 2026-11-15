@@ -9,9 +9,31 @@ export function cn(...a: Parameters<typeof clsx>) {
   return twMerge(clsx(...a));
 }
 
-/** The name, set in Geist. No mark. */
+/** The illusion eye: an almond eye whose iris is a woven swirl (four spiral threads crossing a ring),
+ *  i.e. a hypnotic spiral that is also a net. Monochrome, follows the theme via currentColor. */
+export function LogoMark({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round"
+      strokeLinejoin="round" aria-hidden="true" focusable="false" className={cn("size-5 shrink-0", className)}>
+      <path d="M1.5 12C5.5 3.5 18.5 3.5 22.5 12C18.5 20.5 5.5 20.5 1.5 12Z" />
+      <circle cx="12" cy="12" r="4.75" strokeWidth={1.25} />
+      <g strokeWidth={1}>
+        <circle cx="12" cy="12" r="2.9" />
+        <path d="M12 10.8A3.16 3.16 0 0 1 16.68 12.82M13.2 12A3.16 3.16 0 0 1 11.18 16.68M12 13.2A3.16 3.16 0 0 1 7.32 11.18M10.8 12A3.16 3.16 0 0 1 12.82 7.32" />
+      </g>
+      <circle cx="12" cy="12" r="1.25" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+/** The mark plus the name, set in Geist. */
 export function Logo({ className }: { className?: string; label?: boolean }) {
-  return <span className={cn("text-[15px] font-semibold tracking-[-0.02em] text-fg", className)}>MayaJaal</span>;
+  return (
+    <span className={cn("inline-flex items-center gap-2 text-[15px] font-semibold tracking-[-0.02em] text-fg", className)}>
+      <LogoMark />
+      MayaJaal
+    </span>
+  );
 }
 
 const NAV = [
@@ -26,7 +48,11 @@ export function FloatingNav({ cta }: { cta?: ReactNode }) {
   return (
     <div className="pointer-events-none fixed inset-x-0 top-4 z-40 flex justify-center px-4">
       <nav className="pointer-events-auto flex h-12 w-full max-w-[680px] items-center gap-1 rounded-full border border-border bg-background/95 pr-1.5 pl-5">
-        <Link href="/" className="mr-3 text-[15px] font-semibold tracking-[-0.02em] text-fg">MayaJaal</Link>
+        <Link href="/" aria-label="MayaJaal home"
+          className="mr-3 inline-flex items-center gap-2 text-[15px] font-semibold tracking-[-0.02em] text-fg">
+          <LogoMark />
+          MayaJaal
+        </Link>
         <div className="hidden items-center sm:flex">
           {NAV.map((n) => (
             <Link key={n.href} href={n.href}
