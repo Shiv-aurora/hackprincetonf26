@@ -67,6 +67,11 @@ export default function Home() {
       <main className="mx-auto w-full max-w-[1200px] flex-1 px-4 sm:px-6">
         <section className="grid grid-cols-1 items-center gap-10 pt-32 pb-12 sm:pt-40 lg:grid-cols-2 lg:gap-4 lg:pt-28 xl:grid-cols-[560px_minmax(0,1fr)]">
           <div className="relative z-10">
+            <a href="#research"
+              className="mb-6 inline-flex h-8 items-center gap-2 rounded-full border border-border bg-background pr-3 pl-3.5 text-[13px] font-medium text-fg transition-colors hover:bg-surface-2">
+              Backed by research <span className="text-fg-subtle">Read the draft paper</span>
+              <ArrowRight className="size-3.5 text-fg-subtle" aria-hidden />
+            </a>
             <h1 className="text-[44px] leading-[1.03] font-semibold tracking-[-0.045em] text-balance sm:text-[60px] lg:text-[50px] xl:text-[62px]">
               Protecting critical hospitals from AI cyberattacks.
             </h1>
@@ -79,10 +84,6 @@ export default function Home() {
               </ButtonLink>
               <ButtonLink href="#how" className="h-11 px-5">How it works</ButtonLink>
             </div>
-            <p className="mt-5 text-[13px] text-fg-muted">
-              Backed by research.{" "}
-              <a href="#research" className="text-fg underline underline-offset-4 hover:opacity-80">See the algorithm and the draft paper</a>
-            </p>
           </div>
           <HeroScene className="pointer-events-none lg:-mr-10 lg:w-[calc(100%+2.5rem)] xl:-mr-28 xl:w-[calc(100%+7rem)]" />
         </section>
@@ -123,10 +124,9 @@ export default function Home() {
         </section>
 
         <section id="research" className="scroll-mt-24 pb-20">
-          <h2 className="text-[36px] font-semibold tracking-[-0.035em] sm:text-[40px]">The research behind it</h2>
+          <h2 className="text-[36px] font-semibold tracking-[-0.035em] sm:text-[40px]">Backed by research</h2>
           <p className="mt-3 max-w-[620px] text-[15px] leading-relaxed text-fg-muted">
-            Two pieces do the deciding: a detector that flags the login, and an adaptive layer that works out what the
-            attacker wants.
+            A textbook detection test, and a draft paper of our own.
           </p>
           <Research className="mt-10" />
         </section>
