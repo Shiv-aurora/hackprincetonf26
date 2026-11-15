@@ -1,9 +1,13 @@
-// "The research behind it": how First Sight decides, and the draft paper on the adaptive deception layer.
-// First Sight facts mirror backend/mayajaal/real/firstsight.py (threshold 2.0, drift 0.3, hand-set weights).
-// The score shown is parsed from the recorded run's brief. The paper covers Mirage, not First Sight.
+// "Backed by research": the two algorithms written for this project. Mirage has a paper; First Sight is the
+// login detector. First Sight facts mirror backend/mayajaal/real/firstsight.py (threshold 2.0, hand-set weights);
+// the score shown is parsed from the recorded run's brief.
+// The paper snapshot is the top of page 1 of public/mirage.pdf. Re-make it when the paper changes:
+//   pdftoppm -png -r 160 -f 1 -l 1 public/mirage.pdf p && sips -c 1040 1200 --cropOffset 70 80 p-1.png --out public/landing/mirage-paper.png
+import Image from "next/image";
 import { ArrowUpRight } from "lucide-react";
 import { cn } from "@/components/ui";
 import brief from "../../public/runs/brief-mayajaal.json";
+import paperPage from "../../public/landing/mirage-paper.png";
 
 // The two clues that fired at login in the recorded run, with their weights.
 const FIRED = [
@@ -56,48 +60,49 @@ function ScoreBar() {
 }
 
 const CARD = "flex flex-col rounded-xl border border-border bg-background p-2";
-const PANEL = "h-[230px] rounded-lg border border-border bg-surface";
-const TITLE = "mt-1.5 text-[24px] leading-[1.15] font-semibold tracking-[-0.03em] text-balance";
+const PANEL = "h-[280px] rounded-lg border border-border bg-surface";
+const KICKER = "text-[13px] font-medium text-fg-muted";
+const NAME = "mt-1.5 text-[30px] leading-none font-semibold tracking-[-0.035em]";
+const SUB = "mt-2.5 text-[16px] leading-snug font-medium tracking-[-0.01em] text-fg";
+const BODY = "mt-2 text-[15px] leading-relaxed text-fg-muted";
 
 export function Research({ className }: { className?: string }) {
   return (
     <div className={cn("grid grid-cols-1 gap-4 md:grid-cols-2", className)}>
       <article className={CARD}>
-        <div className={PANEL}><ScoreBar /></div>
+        <a href="/mirage.pdf" target="_blank" rel="noreferrer" aria-label="Open the Mirage paper"
+          className={cn(PANEL, "group relative block overflow-hidden")}>
+          <Image src={paperPage} alt="First page of the Mirage paper: title, abstract and architecture figure."
+            sizes="(min-width: 768px) 520px, 90vw"
+            className="absolute inset-x-5 top-5 h-auto w-[calc(100%-2.5rem)] rounded-t-[5px] border border-border-strong bg-white transition-transform duration-200 group-hover:-translate-y-1 sm:inset-x-8 sm:w-[calc(100%-4rem)]" />
+        </a>
         <div className="flex flex-1 flex-col px-3 pt-6 pb-4">
-          <p className="text-[13px] font-medium text-fg-muted">The algorithm</p>
-          <h3 className={TITLE}>First Sight flags a stolen login on the first request.</h3>
-          <p className="mt-3 text-[15px] leading-relaxed text-fg-muted">
-            Nine weak clues add up to one score. Weights are set by hand.
-          </p>
-          <p className="mt-auto pt-5">
-            <span className="inline-flex h-10 items-center rounded-md border border-border bg-surface px-3.5 font-mono text-[13px] text-fg">
-              S = max(0, S + x)
-            </span>
-            <span className="ml-3 text-[13px] text-fg-muted">CUSUM, Page 1954</span>
-          </p>
+          <p className={KICKER}>Our own algorithm, with a paper</p>
+          <h3 className={NAME}>Mirage</h3>
+          <p className={SUB}>Model-based Intent Reasoning for Adaptive Generated Environments</p>
+          <p className={BODY}>Works out what the attacker is after and adapts the decoy to them. Results are simulated.</p>
+          <div className="mt-auto pt-5">
+            <a href="/mirage.pdf" target="_blank" rel="noreferrer"
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-fg px-4 text-sm font-medium text-background transition-opacity hover:opacity-90">
+              Read the paper <ArrowUpRight className="size-4" aria-hidden />
+            </a>
+          </div>
         </div>
       </article>
 
       <article className={CARD}>
-        <div className={cn(PANEL, "flex flex-col justify-center px-6 sm:px-8")}>
-          <p className="text-[13px] text-fg-muted">Draft paper</p>
-          <p className="mt-3 text-[28px] leading-[1.12] font-semibold tracking-[-0.035em] text-balance sm:text-[32px]">
-            Mirage: Adaptive Session-Seeded Deception for Hospital APIs
-          </p>
-        </div>
+        <div className={PANEL}><ScoreBar /></div>
         <div className="flex flex-1 flex-col px-3 pt-6 pb-4">
-          <p className="text-[13px] font-medium text-fg-muted">The paper</p>
-          <h3 className={TITLE}>A decoy that adapts to each attacker.</h3>
-          <p className="mt-3 text-[15px] leading-relaxed text-fg-muted">
-            It works out what the attacker wants, then picks the lures that reveal the most. Results are simulated.
+          <p className={KICKER}>Our own algorithm, built for this project</p>
+          <h3 className={NAME}>First Sight</h3>
+          <p className={SUB}>Flags a stolen login on the first request</p>
+          <p className={BODY}>Nine weak clues add up to one score. Weights are set by hand.</p>
+          <p className="mt-auto pt-5">
+            <span className="inline-flex h-10 items-center rounded-md border border-border bg-surface px-3.5 font-mono text-[13px] text-fg">
+              S = max(0, S + x)
+            </span>
+            <span className="ml-3 text-[13px] text-fg-muted">Built on CUSUM (Page, 1954)</span>
           </p>
-          <div className="mt-auto pt-5">
-            <a href="/mirage.pdf" target="_blank" rel="noreferrer"
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-fg px-4 text-sm font-medium text-background transition-opacity hover:opacity-90">
-              Read the draft paper <ArrowUpRight className="size-4" aria-hidden />
-            </a>
-          </div>
         </div>
       </article>
     </div>
