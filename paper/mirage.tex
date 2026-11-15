@@ -28,15 +28,17 @@
 
 \begin{document}
 
-\title{\Mirage: Adaptive Session-Seeded Deception\\for Hospital APIs}
-\author{\IEEEauthorblockN{MayaJaal --- HackPrinceton Fall 2026}}
+\title{\Mirage: Model-based Intent Reasoning\\for Adaptive Generated Environments}
+\author{\IEEEauthorblockN{The MayaJaal Project}}
 \maketitle
 
 \begin{abstract}
-MayaJaal puts a gateway in front of a hospital's FHIR API and IT portal. When a signed-in session
-starts to act like an intruder, its non-clinical traffic is silently moved into a synthetic
+MayaJaal keeps a hospital network working through an intrusion. A gateway sits in front of the
+services staff sign in to; when a signed-in session starts to act like an intruder, it is never
+refused: its non-clinical traffic is silently moved into a synthetic
 ``shadow'' hospital generated from a per-session HMAC seed, while real records stay behind the
-policy. \Mirage is the adaptive layer: a Bayesian filter over the session's goal and kill-chain
+policy. \Mirage (Model-based Intent Reasoning for Adaptive Generated Environments) is the
+adaptive layer: a Bayesian filter over the session's goal and kill-chain
 stage, a lane adjuster that can only make treatment stricter, and a planner that adds lures to the
 shadow's portal pages. \Mirage-S weighs a lure's information gain against a model of the
 attacker's suspicion and looks two lures ahead. In an in-model simulation over four
@@ -70,7 +72,8 @@ runs and encryption at rest on the running system.
 
 \section{Threat Model}
 The adversary holds valid credentials for a clinical account (a phished nurse) and reaches the
-hospital only over HTTP, through the FHIR API and the IT portal. Its
+hospital only through the network services it exposes; the prototype exposes two, the clinical
+record interface (FHIR) and the IT portal. Its
 goal is \emph{recon}, \emph{exfil}, \emph{tamper} (lab results) or \emph{disrupt}. The defender
 wins if none of the 12 canary secrets seeded into the real tier leaves through the gateway. The
 gateway, policy engine and shadow key are assumed uncompromised; timing channels are out of scope.

@@ -51,7 +51,7 @@ like an attacker:
 2. **We swap reality instead of blocking.** Every non-clinical request (admin, backups, bulk export) is
    served by a decoy hospital generated fresh for that attacker. Real patient charts ask for badge + MFA.
    We never fake clinical data, so a nurse flagged by mistake still gets real care data.
-3. **MIRAGE learns what they want.** A Bayesian filter tracks the attacker's likely goal on every request, and
+3. **MIRAGE (Model-based Intent Reasoning for Adaptive Generated Environments) learns what they want.** A Bayesian filter tracks the attacker's likely goal on every request, and
    a planner plants the lure (a fake backup, a VPN file, a service password) that tells us most without
    raising their suspicion, two lures ahead. Every fake item is a tracker.
 4. **Scatter locks the real data down.** The moment they're caught, an encrypted copy of the real database is
