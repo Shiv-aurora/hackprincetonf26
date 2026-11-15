@@ -43,6 +43,7 @@ from mayajaal.contracts import Event, make_event
 from mayajaal.mirage.intent import IntentFilter, features_from_request, make_lane_adjuster
 from mayajaal.real.devices import HEADER as DEVICE_HEADER, verify as verify_device
 from mayajaal.real.firstsight import FirstSight
+from mayajaal.real.scatter import scatter as scatter_snapshot
 from mayajaal.real.ledger import CanaryLedger
 from mayajaal.real.policy import (
     LANE_ORDER,
@@ -93,6 +94,7 @@ class GatewaySession:
     honeytokens: set[str] = field(default_factory=set)
     created: float = field(default_factory=time.time)
     sighted: bool = False      # First Sight has flagged this session
+    scattered: bool = False            # Scatter has run for this session
     current_config: str = "mayajaal"   # config of the request being served (RealWorld scoping)
 
     def context(self, run_id: str, lane: str) -> SessionContext:
@@ -160,6 +162,9 @@ class Gateway:
         # First Sight (CUSUM over weak signals) runs under MayaJaal only; MJ_FIRST_SIGHT=0 turns it off.
         self.first_sight: FirstSight | None = None if os.environ.get("MJ_FIRST_SIGHT", "1") == "0" else FirstSight()
         self.admin_key = admin_key_value or admin_key()
+        # Scatter: on detection, an encrypted split copy of the real DB goes out to the hospitals.
+        self.scatter_on = os.environ.get("MJ_SCATTER", "1") != "0"
+        self.last_scatter = 0.0
         self.by_token: dict[str, GatewaySession] = {}
         self.by_id: dict[str, GatewaySession] = {}
         self.surfaces_factory = surfaces_factory
@@ -262,12 +267,35 @@ class Gateway:
             honeytoken_touched=bool(s.honeytokens))
         return decide(inp, self.adjuster)
 
+    def maybe_scatter(self, s: GatewaySession, run_id: str, trigger: str) -> None:
+        """Start a Scatter in the background, at most once per session and once a minute overall."""
+        if (not self.scatter_on or s.config != "mayajaal" or s.scattered
+                or s.actor == "clinician" or time.time() - self.last_scatter < 60):
+            return
+        s.scattered = True
+        self.last_scatter = time.time()
+
+        async def run() -> None:
+            from mayajaal.real.vault import _key_shares_cfg
+            try:
+                holders, k = _key_shares_cfg()
+                res = await asyncio.to_thread(scatter_snapshot, self.store.db_path, holders, k,
+                                              self.store.db_path.parent / "nodes")
+            except Exception as exc:  # noqa: BLE001
+                print(f"[gateway] scatter failed: {exc!r}")
+                return
+            await self._emit(self._ev("vault.scattered", res.as_event(trigger), s, run_id,
+                                      actor="defender", tier="real"))
+        asyncio.get_running_loop().create_task(run())
+
     async def apply(self, s: GatewaySession, d: Decision, run_id: str) -> None:
         """Update session state from a decision and emit policy.decision / session.diverted."""
         if d.lane != "unauth":
             s.lane = d.lane
         events = [self._ev("policy.decision", {"lane": d.lane, "action": d.action, "reason": d.reason},
                            s, run_id, actor="defender", tier=d.tier)]
+        if d.lane in ("suspicious", "attacker") and d.lane != "unauth":
+            self.maybe_scatter(s, run_id, d.reason[:120])
         if d.action == "divert_shadow" and not s.diverted:
             s.diverted = True
             events.append(self._ev("session.diverted", {"from_tier": "real", "to_tier": "shadow",
@@ -416,6 +444,7 @@ class Gateway:
                                          ua=meta["user_agent"], ip=meta["client_ip"], managed=device is not None)
                 why = self._first_sight_fire(s, st)
                 if why:
+                    self.maybe_scatter(s, run_id, why[:120])
                     await self._emit(self._ev("policy.decision", {
                         "lane": "suspicious", "action": "allow_real",
                         "reason": why + " Login allowed; clinical reads now need badge + MFA, everything else goes to the decoy."},

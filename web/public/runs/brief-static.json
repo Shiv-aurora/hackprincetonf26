@@ -1,9 +1,9 @@
 {
-  "run_id": "run-20261115-0437-5e12",
+  "run_id": "run-20261115-0445-737e",
   "source": "rules",
   "facts": {
     "attacker_seen": true,
-    "session": "8878d680",
+    "session": "78613157",
     "stolen_login": {
       "user": "n.okafor",
       "role": "nurse",
@@ -15,14 +15,14 @@
       ],
       "software": "python-httpx/0.28.1",
       "mean_gap_s": 0.69,
-      "gap_variation": 0.08
+      "gap_variation": 0.07
     },
     "detected": {
-      "after_s": 1.9,
+      "after_s": 2.0,
       "by": "Nurse role requesting the admin portal."
     },
     "diverted": {
-      "after_s": 1.9,
+      "after_s": 2.0,
       "reason": "Nurse role requesting the admin portal."
     },
     "requests": {
@@ -48,17 +48,17 @@
     ],
     "trackers_taken": [
       {
-        "id": "ht-url-52f8046d",
+        "id": "ht-url-a2e6ffb0",
         "kind": "url",
         "where": "/mnt/backups/research_cohort_q4/README.md"
       },
       {
-        "id": "ht-file-11400ae3",
+        "id": "ht-file-99e5c331",
         "kind": "file",
         "where": "/mnt/backups/db_dump_2026-11-14.sql.gz"
       },
       {
-        "id": "ht-mrn-b038ce56",
+        "id": "ht-mrn-31a67323",
         "kind": "mrn",
         "where": "/mnt/backups/db_dump_2026-11-14.sql.gz"
       }
@@ -85,9 +85,9 @@
       "GET /fhir/Patient?_count=500&_offset=500 -> 200 [shadow]",
       "GET /fhir/Patient?_count=500&_offset=1000 -> 200 [shadow]",
       "GET /fhir/Patient?_count=500&_offset=1500 -> 200 [shadow]",
-      "GET /fhir/DocumentReference?patient=MRN-122629 -> 200 [shadow]",
-      "GET /fhir/DocumentReference?patient=MRN-338932 -> 200 [shadow]",
-      "GET /fhir/DocumentReference?patient=MRN-256276 -> 200 [shadow]",
+      "GET /fhir/DocumentReference?patient=MRN-811870 -> 200 [shadow]",
+      "GET /fhir/DocumentReference?patient=MRN-585647 -> 200 [shadow]",
+      "GET /fhir/DocumentReference?patient=MRN-744762 -> 200 [shadow]",
       "GET /portal/docs -> 200 [shadow]",
       "GET /portal/docs/view?id=research-cohort-q4-readme -> 200 [shadow]",
       "GET /portal/backups/download?file=db_dump_2026-11-14.sql.gz -> 200 [shadow]"

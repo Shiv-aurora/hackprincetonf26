@@ -1,9 +1,9 @@
 {
-  "run_id": "run-20261115-0437-7071",
+  "run_id": "run-20261115-0445-f684",
   "source": "rules",
   "facts": {
     "attacker_seen": true,
-    "session": "a4db5773",
+    "session": "87b8e2cc",
     "stolen_login": {
       "user": "n.okafor",
       "role": "nurse",
@@ -14,11 +14,11 @@
         "127.0.0.1"
       ],
       "software": "python-httpx/0.28.1",
-      "mean_gap_s": 0.67,
-      "gap_variation": 0.02
+      "mean_gap_s": 0.66,
+      "gap_variation": 0.03
     },
     "detected": {
-      "after_s": 1.4,
+      "after_s": 1.3,
       "by": "Cross-hospital record read: nurse at eas, record at nor."
     },
     "diverted": {
@@ -80,7 +80,7 @@
   },
   "actor_guess": {
     "type": "script",
-    "why": "a python-httpx client at a fixed 0.67 s rhythm: automated, probably a fixed script"
+    "why": "a python-httpx client at a fixed 0.66 s rhythm: automated, probably a fixed script"
   },
   "playbook": [
     {

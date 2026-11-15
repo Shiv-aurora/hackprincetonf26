@@ -1,9 +1,9 @@
 {
-  "run_id": "run-20261115-0437-3f18",
+  "run_id": "run-20261115-0445-9a32",
   "source": "rules",
   "facts": {
     "attacker_seen": true,
-    "session": "74fe9c79",
+    "session": "76d35e13",
     "stolen_login": {
       "user": "n.okafor",
       "role": "nurse",
@@ -14,7 +14,7 @@
         "127.0.0.1"
       ],
       "software": "python-httpx/0.28.1",
-      "mean_gap_s": 0.69,
+      "mean_gap_s": 0.68,
       "gap_variation": 0.07
     },
     "detected": {
@@ -52,17 +52,17 @@
     ],
     "trackers_taken": [
       {
-        "id": "ht-url-50704687",
+        "id": "ht-url-c2f306dd",
         "kind": "url",
         "where": "/mnt/backups/research_cohort_q4/README.md"
       },
       {
-        "id": "ht-mrn-5c7a2256",
+        "id": "ht-mrn-6256ba47",
         "kind": "mrn",
         "where": "/mnt/backups/db_dump_2026-11-14.sql.gz"
       },
       {
-        "id": "ht-file-1d4860cc",
+        "id": "ht-file-5a87abf3",
         "kind": "file",
         "where": "/mnt/backups/db_dump_2026-11-14.sql.gz"
       }
@@ -88,9 +88,9 @@
       "GET /fhir/Patient?_count=500&_offset=500 -> 200 [shadow]",
       "GET /fhir/Patient?_count=500&_offset=1000 -> 200 [shadow]",
       "GET /fhir/Patient?_count=500&_offset=1500 -> 200 [shadow]",
-      "GET /fhir/DocumentReference?patient=MRN-875740 -> 200 [shadow]",
-      "GET /fhir/DocumentReference?patient=MRN-987952 -> 200 [shadow]",
-      "GET /fhir/DocumentReference?patient=MRN-296755 -> 200 [shadow]",
+      "GET /fhir/DocumentReference?patient=MRN-963524 -> 200 [shadow]",
+      "GET /fhir/DocumentReference?patient=MRN-960708 -> 200 [shadow]",
+      "GET /fhir/DocumentReference?patient=MRN-540247 -> 200 [shadow]",
       "GET /portal/docs -> 200 [shadow]",
       "GET /portal/docs/view?id=research-cohort-q4-readme -> 200 [shadow]",
       "GET /portal/backups/download?file=db_dump_2026-11-14.sql.gz -> 200 [shadow]"
@@ -98,7 +98,7 @@
   },
   "actor_guess": {
     "type": "script",
-    "why": "a python-httpx client at a fixed 0.69 s rhythm: automated, probably a fixed script"
+    "why": "a python-httpx client at a fixed 0.68 s rhythm: automated, probably a fixed script"
   },
   "playbook": [
     {

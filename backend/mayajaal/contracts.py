@@ -52,7 +52,7 @@ EventType = Literal[
     "honeytoken.minted", "honeytoken.touched", "breadcrumb.planted",
     "intent.update", "canary.check", "exfil", "tamper.attempt",
     "node.status", "keyshare.status", "lab.order", "continuity.stats",
-    "reveal",
+    "reveal", "vault.scattered",
 ]
 
 # ---------------------------------------------------------------- payloads
@@ -185,6 +185,19 @@ class KeyshareStatus(BaseModel):
     threshold: int = 3
 
 
+class VaultScattered(BaseModel):
+    """An encrypted copy of the real database was split across the hospitals (real/scatter.py)."""
+    snapshot_id: str
+    bytes: int
+    pieces: int
+    replicas: int
+    holders: list[str]
+    key_threshold: int
+    verified: bool
+    seconds: float
+    trigger: str = ""
+
+
 class LabOrder(BaseModel):
     order_id: str
     urgency: Urgency
@@ -231,6 +244,7 @@ DATA_MODELS: dict[str, type[BaseModel]] = {
     "lab.order": LabOrder,
     "continuity.stats": ContinuityStats,
     "reveal": Reveal,
+    "vault.scattered": VaultScattered,
 }
 
 # ---------------------------------------------------------------- envelope

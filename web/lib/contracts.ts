@@ -49,6 +49,7 @@ export interface EventDataMap {
   };
   "continuity.stats": { stat_on_time_pct: number; urgent_on_time_pct: number; routine_on_time_pct: number; unservable: number };
   "reveal": { shadow_session: string; real_bytes: number; records_faked: number; honeytokens_touched: number };
+  "vault.scattered": { snapshot_id: string; bytes: number; pieces: number; replicas: number; holders: string[]; key_threshold: number; verified: boolean; seconds: number; trigger: string };
 }
 
 export type EventType = keyof EventDataMap;
