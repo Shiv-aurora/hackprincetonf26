@@ -225,8 +225,8 @@ export const STEPS: Step[] = [
   },
   {
     // Last step: the Controls show "Restart" here.
-    label: "Your turn", card: "slide", slide: "arena", focus: [], seconds: 8, source: "attack",
-    headline: "Your turn: try to steal one record",
+    label: "The Challenge", card: "slide", slide: "arena", focus: [], seconds: 8, source: "attack",
+    headline: "The Challenge: try to steal one record",
     anchor: (ev) => ev.length - 1,
   },
 ];

@@ -1,5 +1,5 @@
 "use client";
-// "Your turn": the tour's last step, the call to action for the Arena (/arena, components/arena/ArenaView.tsx).
+// "The Challenge": the tour's last step, the call to action for the Arena (/arena, components/arena/ArenaView.tsx).
 // Missions and defences come from WORLD (lib/world.json); the copy follows the Arena page: pick a mission and a
 // defence, attack by hand or with your own AI agent over HTTP, get scored. Choreography ends by ~2 s.
 
@@ -29,7 +29,7 @@ export function ArenaSlide({ title }: { title: string }) {
   const defences = WORLD.configs;
 
   return (
-    <SlideFrame kicker="The Challenge · Attack a synthetic hospital. Climb the board." title={title}
+    <SlideFrame kicker="The Arena · Attack a synthetic hospital. Climb the board." title={title}
       source={<span className="text-[16px]">Synthetic hospitals and patients · missions and defences from lib/world.json · the board ranks secrets leaked, then missions won, then speed</span>}>
       {/* the missions */}
       <div className="grid grid-cols-4 gap-4">
