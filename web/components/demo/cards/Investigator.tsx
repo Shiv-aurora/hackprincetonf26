@@ -1,8 +1,9 @@
 "use client";
-// Demo step "Our LangChain agent writes the case file" (replaces the Brief step). The Investigator, a LangChain
-// deep agent (backend/mayajaal/investigator.py), shown left to right as one flow: the plan it wrote before
-// delegating → the three sub-agents it sent off, each with a one-line finding → every tool call the lead agent
-// made → the case file, with a download link.
+// Demo step "Our LangChain agent writes the case file" (replaces the Brief step; the tour passes the step
+// headline as `title`). The Investigator, a LangChain deep agent (backend/mayajaal/investigator.py), shown left
+// to right as one flow: the plan it wrote before delegating → the three sub-agents it sent off, each with a
+// one-line finding → every tool call the lead agent made → the case file, with a download link. Sized to be
+// read from the back of a room: big counts, 17–22px text, code font only for the tool calls themselves.
 //
 // Everything is read at runtime from the recorded investigation, web/public/runs/investigation-mayajaal.json
 // (model, plan, findings, trace, summary, report). The one-line findings are pulled out of each sub-agent's
@@ -14,7 +15,7 @@ import { motion, useReducedMotion } from "framer-motion";
 import { ArrowRight, Check, Download } from "lucide-react";
 import type { Investigation } from "@/components/langchain/Investigator";
 import { cn } from "@/components/ui";
-import { CardStage, EASE, Pending, Source, useRunFile } from "./Stage";
+import { CardStage, EASE, Pending, useRunFile } from "./Stage";
 
 const FILE = "/runs/investigation-mayajaal.json";
 const CASE_FILE = "/runs/investigation-mayajaal.md";   // the same /report.md, written by investigator.main()
@@ -24,13 +25,16 @@ const CASE_FILE = "/runs/investigation-mayajaal.md";   // the same /report.md, w
 const plain = (s: string) => s.replace(/\*\*|`/g, "").replace(/^\s*(?:[-*]|\d+\.)\s+/, "").trim();
 const firstSentence = (s: string) => s.match(/^.*?[.!?](?=\s|$)/)?.[0] ?? s;
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+/** A sub-agent's id as a name: "timeline-analyst" → "Timeline analyst". */
+const human = (id: string) => cap(id.replace(/[-_]+/g, " "));
 
-/** "1. What happened, stage by stage, with times …; when …" → "What happened, stage by stage, with times …". */
+/** Each plan item's topic, its own words up to the first comma, colon, semicolon or bracket:
+ *  "1. What happened, stage by stage, with times …" → "What happened". The full plan is in the case file. */
 function planItems(md: string): string[] {
   return md.split("\n")
     .map((l) => l.match(/^\s*\d+\.\s+(.+)$/)?.[1])
     .filter((x): x is string => !!x)
-    .map((x) => plain(x).split(/;\s|\s\(/)[0].replace(/[.:]$/, ""));
+    .map((x) => plain(x).split(/[,;:]\s|\s\(|\s—\s/)[0].replace(/[.:]$/, ""));
 }
 
 interface Finding { lead: ReactNode | null; detail: ReactNode | null }
@@ -79,7 +83,7 @@ function responseFinding(md: string): Finding {
   return {
     lead: rule ? cap(firstSentence(plain(rule).replace(/^[^:]*:\s*/, ""))) : null,
     detail: n > 0 && <>
-      <span className="block">{n} steps{owned === n && ", each with an owner"}</span>
+      <span className="block">{n} steps{owned === n && ", each with an owner:"}</span>
       <span className="block">
         {groups.map((g, i) => <span key={g.when}>{i > 0 && "\u00a0· "}<span className="whitespace-nowrap">{g.n} {g.when}</span></span>)}
       </span>
@@ -125,14 +129,15 @@ const loadInvestigation = () =>
 // ------------------------------------------------------------------ card
 
 /** When each column starts, seconds. */
-const COL = [0.15, 0.85, 1.75, 2.75];
+const COL = [0.2, 0.9, 1.8, 2.8];
 /** Most items each list can show on the canvas. */
-const MAX = { plan: 5, calls: 12, sections: 9 };
+const MAX = { plan: 5, calls: 12, sections: 8 };
 
-export function InvestigatorCard() {
+export function InvestigatorCard({ title }: { title: string }) {
   const { data, failed } = useRunFile("investigation", loadInvestigation);
+  const model = (data?.model ?? "").replace(/^anthropic:/, "");
   return (
-    <CardStage label="The Investigator, a LangChain deep agent, works the case and writes the case file">
+    <CardStage title={title} kicker={`Recorded run · LangChain deep agent${model ? ` · ${model}` : ""}`}>
       {data ? <Flow inv={data} /> : <Pending failed={failed} what="investigation" />}
     </CardStage>
   );
@@ -146,7 +151,6 @@ function Flow({ inv }: { inv: Investigation }) {
   const view = useMemo(() => {
     const f = inv.findings ?? {};
     return {
-      model: (inv.model ?? "").replace(/^anthropic:/, ""),
       plan: planItems(inv.plan ?? ""),
       rule: (inv.plan ?? "").match(/^Rule:\s*(.+)$/m)?.[1] ?? null,
       agents: AGENTS.map(({ read, ...a }) => ({ ...a, ...(f[a.file] ? read(f[a.file]) : { lead: null, detail: null }) })),
@@ -155,122 +159,113 @@ function Flow({ inv }: { inv: Investigation }) {
     };
   }, [inv]);
   const used = new Set(view.calls.map((c) => c.sub).filter(Boolean));
-  // What fits the 720px canvas; longer runs list the first ones and say how many more.
+  // What fits the canvas; longer runs list the first ones and say how many more.
   const shownCalls = view.calls.length > MAX.calls ? view.calls.slice(0, MAX.calls - 1) : view.calls;
   const moreCalls = view.calls.length - shownCalls.length;
   const agents = view.agents.filter((a) => used.has(a.name));
+  const sections = view.report.sections;
+  const shownSections = sections.length > MAX.sections ? sections.slice(0, MAX.sections - 1) : sections;
 
   return (
-    <>
-      <div className="flex items-center justify-between">
-        <Source>Recorded run · LangChain deep agent</Source>
-        {view.model && <span className="text-[16px] text-fg-subtle">Model <span className="font-mono text-fg-muted">{view.model}</span></span>}
-      </div>
-
-      <div className="mt-4 grid min-h-0 flex-1 grid-cols-[268px_28px_330px_28px_282px_28px_minmax(0,1fr)]">
-        {/* 1 · plan */}
-        <Column n={1} noun="plan" sub="/plan.md, before it delegates" tr={tr(COL[0])}>
-          <ol className="flex flex-col gap-3">
-            {view.plan.slice(0, MAX.plan).map((p, i) => (
-              <motion.li key={i} {...rise(COL[0] + 0.2 + i * 0.09, 6)} className="flex gap-2.5 text-[17px] leading-snug text-fg">
-                <span className="w-4 shrink-0 text-fg-subtle tabular-nums">{i + 1}</span>{p}
-              </motion.li>
-            ))}
-            {view.plan.length > MAX.plan && (
-              <li className="pl-[26px] text-[16px] text-fg-muted">and {view.plan.length - MAX.plan} more</li>
-            )}
-          </ol>
-          {view.rule && (
-            <motion.p {...rise(COL[0] + 0.25 + Math.min(view.plan.length, MAX.plan) * 0.09, 6)}
-              className="mt-auto border-t border-border pt-3.5 text-[16px] leading-snug text-fg-muted">
-              <span className="font-medium text-fg">Rule:</span> {view.rule}
-            </motion.p>
+    <div className="grid min-h-0 flex-1 grid-cols-[252px_24px_392px_24px_296px_24px_minmax(0,1fr)]">
+      {/* 1 · plan */}
+      <Column n={1} noun="plan" sub="written before it delegates" tr={tr(COL[0])}>
+        <ol className="flex flex-col gap-3.5">
+          {view.plan.slice(0, MAX.plan).map((p, i) => (
+            <motion.li key={i} {...rise(COL[0] + 0.2 + i * 0.09, 6)}
+              className="flex gap-3 text-[20px] leading-[1.3] tracking-[-0.01em] text-fg">
+              <span className="w-3 shrink-0 text-fg-subtle tabular-nums">{i + 1}</span>{p}
+            </motion.li>
+          ))}
+          {view.plan.length > MAX.plan && (
+            <li className="pl-6 text-[17px] text-fg-muted">and {view.plan.length - MAX.plan} more</li>
           )}
-        </Column>
-
-        <Arrow tr={tr(COL[1] - 0.15, 0.3)} />
-
-        {/* 2 · sub-agents */}
-        <Column n={agents.length} noun={agents.length === 1 ? "sub-agent" : "sub-agents"} sub="each with its own tools" tr={tr(COL[1])} flush>
-          {agents.map((a, i) => {
-            const at = COL[1] + 0.15 + i * 0.22;
-            return (
-              <motion.div key={a.name} {...rise(at, 8)} className={cn("flex flex-col px-5 py-3.5", i > 0 && "border-t border-border")}>
-                <p className="flex items-center justify-between gap-2">
-                  <span className="font-mono text-[17px] font-semibold text-fg">{a.name}</span>
-                  <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={tr(at + 0.3, 0.2)}>
-                    <Check className="size-[18px] text-ok" strokeWidth={2.5} aria-label="Finished" />
-                  </motion.span>
-                </p>
-                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={tr(at + 0.3, 0.3)}>
-                  {a.lead && <div className="mt-2 text-[18px] leading-snug font-medium tracking-[-0.01em] text-pretty text-fg">{a.lead}</div>}
-                  {a.detail && <div className="mt-1 text-[16px] leading-snug text-pretty text-fg-muted">{a.detail}</div>}
-                </motion.div>
-              </motion.div>
-            );
-          })}
-        </Column>
-
-        <Arrow tr={tr(COL[2] - 0.15, 0.3)} />
-
-        {/* 3 · tool calls */}
-        <Column n={view.calls.length} noun="tool calls" sub="by the lead agent, in order" tr={tr(COL[2])} flush>
-          <ol className="flex min-h-0 flex-1 flex-col py-1.5">
-            {shownCalls.map((c, i) => (
-              <motion.li key={i} initial={{ opacity: 0, x: -6 }} animate={{ opacity: 1, x: 0 }} transition={tr(COL[2] + 0.15 + i * 0.07, 0.25)}
-                className="flex max-h-[38px] min-h-[33px] flex-1 items-center gap-3 px-5 text-[16px]">
-                <span className="w-5 shrink-0 text-right text-fg-subtle tabular-nums">{i + 1}</span>
-                <code className={cn("shrink-0 font-mono", c.sub ? "text-fg-muted" : "text-fg")}>{c.tool}</code>
-                {c.sub
-                  ? <code className="min-w-0 truncate font-mono font-semibold text-fg">{c.sub}</code>
-                  : c.arg && <code className="min-w-0 truncate font-mono text-fg-subtle">{c.arg}</code>}
-              </motion.li>
-            ))}
-            {moreCalls > 0 && (
-              <motion.li initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={tr(COL[2] + 0.15 + shownCalls.length * 0.07, 0.25)}
-                className="flex min-h-[33px] flex-1 items-center px-5 pl-[52px] text-[16px] text-fg-muted">
-                and {moreCalls} more
-              </motion.li>
-            )}
-          </ol>
-          <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={tr(COL[2] + 0.2 + (shownCalls.length + 1) * 0.07, 0.3)}
-            className="mt-auto border-t border-border px-5 py-3 text-[16px] leading-snug text-fg-muted">
-            Each <code className="font-mono text-fg">task</code> hands work to a sub-agent, which makes its own calls.
+        </ol>
+        {view.rule && (
+          <motion.p {...rise(COL[0] + 0.25 + Math.min(view.plan.length, MAX.plan) * 0.09, 6)}
+            className="mt-auto border-t border-border pt-3.5 text-[17px] leading-snug text-pretty text-fg-muted">
+            <span className="font-semibold text-fg">Rule:</span> {view.rule}
           </motion.p>
-        </Column>
+        )}
+      </Column>
 
-        <Arrow tr={tr(COL[3] - 0.15, 0.3)} />
+      <Arrow tr={tr(COL[1] - 0.15, 0.3)} />
 
-        {/* 4 · case file */}
-        <Column n={1} noun="case file" sub="/report.md" tr={tr(COL[3])}>
-          {view.report.title && (
-            <motion.p {...rise(COL[3] + 0.15, 6)} className="text-[18px] leading-snug font-semibold tracking-[-0.015em] text-fg">
-              {view.report.title}
-            </motion.p>
+      {/* 2 · sub-agents */}
+      <Column n={agents.length} noun={agents.length === 1 ? "sub-agent" : "sub-agents"} sub="each with its own tools" tr={tr(COL[1])} flush>
+        {agents.map((a, i) => {
+          const at = COL[1] + 0.15 + i * 0.22;
+          return (
+            <motion.div key={a.name} {...rise(at, 8)}
+              className={cn("flex flex-1 flex-col justify-center px-5 py-3", i > 0 && "border-t border-border")}>
+              <p className="flex items-center justify-between gap-2">
+                <span className="text-[22px] leading-tight font-semibold tracking-[-0.02em] text-fg">{human(a.name)}</span>
+                <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={tr(at + 0.3, 0.2)}>
+                  <Check className="size-[22px] text-ok" strokeWidth={2.5} aria-label="Finished" />
+                </motion.span>
+              </p>
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={tr(at + 0.3, 0.3)}>
+                {a.lead && <div className="mt-2 text-[20px] leading-snug tracking-[-0.01em] text-pretty text-fg">{a.lead}</div>}
+                {a.detail && <div className="mt-1 text-[17px] leading-snug text-balance text-fg-muted">{a.detail}</div>}
+              </motion.div>
+            </motion.div>
+          );
+        })}
+      </Column>
+
+      <Arrow tr={tr(COL[2] - 0.15, 0.3)} />
+
+      {/* 3 · tool calls */}
+      <Column n={view.calls.length} noun="tool calls" sub="by the lead agent, in order" tr={tr(COL[2])} flush>
+        <ol className="flex min-h-0 flex-1 flex-col py-2">
+          {shownCalls.map((c, i) => (
+            <motion.li key={i} initial={{ opacity: 0, x: -6 }} animate={{ opacity: 1, x: 0 }} transition={tr(COL[2] + 0.15 + i * 0.07, 0.25)}
+              className="flex max-h-[46px] min-h-[34px] flex-1 items-center gap-2.5 px-4 text-[18px]">
+              <span className="w-6 shrink-0 text-right text-[17px] text-fg-subtle tabular-nums">{i + 1}</span>
+              <code className={cn("shrink-0 font-mono", c.sub ? "text-fg-muted" : "text-fg")}>{c.tool}</code>
+              {c.sub
+                ? <span className="min-w-0 truncate font-semibold tracking-[-0.01em] text-fg">{human(c.sub)}</span>
+                : c.arg && <code className="min-w-0 truncate font-mono text-fg-subtle">{c.arg}</code>}
+            </motion.li>
+          ))}
+          {moreCalls > 0 && (
+            <motion.li initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={tr(COL[2] + 0.15 + shownCalls.length * 0.07, 0.25)}
+              className="flex min-h-[34px] flex-1 items-center pr-4 pl-[58px] text-[17px] text-fg-muted">
+              and {moreCalls} more
+            </motion.li>
           )}
-          {view.report.summary && (
-            <motion.p {...rise(COL[3] + 0.22, 6)} className="mt-1.5 line-clamp-3 text-[16px] leading-snug text-pretty text-fg-muted">
-              {view.report.summary}
-            </motion.p>
+        </ol>
+      </Column>
+
+      <Arrow tr={tr(COL[3] - 0.15, 0.3)} />
+
+      {/* 4 · case file */}
+      <Column n={1} noun="case file" sub={sections.length ? `/report.md, ${sections.length} sections` : "/report.md"} tr={tr(COL[3])}>
+        {view.report.summary && (
+          <motion.p {...rise(COL[3] + 0.15, 6)} className="text-[19px] leading-snug font-medium tracking-[-0.01em] text-pretty text-fg">
+            &ldquo;{view.report.summary}&rdquo;
+          </motion.p>
+        )}
+        <ul className="mt-3.5 flex flex-col border-t border-border">
+          {shownSections.map((sec, i) => (
+            <motion.li key={`${i}-${sec}`} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={tr(COL[3] + 0.3 + i * 0.05, 0.25)}
+              className="flex gap-2.5 border-b border-border py-[3px] text-[17px] leading-snug text-fg">
+              <span className="w-4 shrink-0 text-fg-subtle tabular-nums">{i + 1}</span>
+              <span className="line-clamp-2">{sec}</span>
+            </motion.li>
+          ))}
+          {shownSections.length < sections.length && (
+            <li className="border-b border-border py-[3px] pl-[26px] text-[17px] text-fg-muted">and {sections.length - shownSections.length} more</li>
           )}
-          <ul className="mt-3 flex flex-col border-t border-border">
-            {view.report.sections.slice(0, MAX.sections).map((s, i) => (
-              <motion.li key={`${i}-${s}`} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={tr(COL[3] + 0.3 + i * 0.05, 0.25)}
-                className="flex h-[29px] items-center gap-2.5 border-b border-border text-[16px] text-fg">
-                <span className="w-4 shrink-0 text-fg-subtle tabular-nums">{i + 1}</span>
-                <span className="truncate">{s}</span>
-              </motion.li>
-            ))}
-          </ul>
-          <motion.div {...rise(COL[3] + 0.4 + Math.min(view.report.sections.length, MAX.sections) * 0.05, 6)} className="mt-auto pt-4">
-            <a href={CASE_FILE} download="investigation-mayajaal.md"
-              className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-md bg-fg px-4 text-[16px] font-medium text-background transition-opacity hover:opacity-90">
-              <Download className="size-[18px]" aria-hidden /> Download case file
-            </a>
-          </motion.div>
-        </Column>
-      </div>
-    </>
+        </ul>
+        <motion.div {...rise(COL[3] + 0.4 + shownSections.length * 0.05, 6)} className="mt-auto pt-4">
+          <a href={CASE_FILE} download="investigation-mayajaal.md"
+            className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-md bg-fg px-3 text-[18px] font-medium whitespace-nowrap text-background transition-opacity hover:opacity-90">
+            <Download className="size-5 shrink-0" aria-hidden /> Download case file
+          </a>
+        </motion.div>
+      </Column>
+    </div>
   );
 }
 
@@ -282,12 +277,12 @@ function Column({ n, noun, sub, tr, flush, children }: {
   return (
     <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={tr}
       className="flex min-h-0 flex-col overflow-hidden rounded-lg border border-border">
-      <header className="border-b border-border bg-surface px-5 pt-3 pb-3">
-        <p className="flex items-baseline gap-2">
-          <span className="text-[40px] leading-none font-semibold tracking-[-0.04em] text-fg tabular-nums">{n}</span>
-          <span className="text-[20px] font-semibold tracking-[-0.02em] text-fg">{noun}</span>
+      <header className="h-[120px] shrink-0 border-b border-border bg-surface px-5 pt-4">
+        <p className="flex items-baseline gap-2.5">
+          <span className="text-[56px] leading-none font-semibold tracking-[-0.045em] text-fg">{n}</span>
+          <span className="text-[24px] font-semibold tracking-[-0.025em] text-fg">{noun}</span>
         </p>
-        <p className="mt-1.5 truncate text-[16px] text-fg-muted">{sub}</p>
+        <p className="mt-2.5 truncate text-[17px] text-fg-muted">{sub}</p>
       </header>
       <div className={cn("flex min-h-0 flex-1 flex-col", !flush && "px-5 py-4")}>{children}</div>
     </motion.section>
@@ -297,8 +292,8 @@ function Column({ n, noun, sub, tr, flush, children }: {
 function Arrow({ tr }: { tr: object }) {
   return (
     <motion.span initial={{ opacity: 0, x: -4 }} animate={{ opacity: 1, x: 0 }} transition={tr}
-      className="flex h-[92px] items-center justify-center text-fg-subtle" aria-hidden>
-      <ArrowRight className="size-5" strokeWidth={1.75} />
+      className="flex h-[120px] items-center justify-center text-fg-subtle" aria-hidden>
+      <ArrowRight className="size-6" strokeWidth={1.75} />
     </motion.span>
   );
 }
@@ -306,10 +301,10 @@ function Arrow({ tr }: { tr: object }) {
 /** The timeline analyst's kill chain, stage names as it wrote them. */
 function Chain({ stages }: { stages: string[] }) {
   return (
-    <span className="flex flex-wrap items-center gap-x-1.5 gap-y-1.5">
+    <span className="flex flex-wrap items-center gap-x-1.5 gap-y-2">
       {stages.map((s, i) => (
         <span key={`${i}-${s}`} className="inline-flex items-center gap-1.5">
-          <span className="rounded-md border border-border bg-surface px-2 py-0.5 text-[16px] font-normal">{s}</span>
+          <span className="rounded-md border border-border bg-surface px-2 py-0.5 text-[18px] leading-snug">{s}</span>
           {i < stages.length - 1 && <span className="text-fg-subtle" aria-hidden>→</span>}
         </span>
       ))}

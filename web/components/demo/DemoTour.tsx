@@ -117,10 +117,11 @@ export function DemoTour() {
       {cur.card === "close" && <CloseCard title={headline} />}
       {cur.card === "why" && <WhyCard title={headline} />}
       {cur.card === "slide" && cur.slide && <Slide key={cur.slide} id={cur.slide} title={headline} />}
-      {cur.card === "leak" && <ZeroLeakCard />}
-      {cur.card === "investigator" && <InvestigatorCard />}
+      {cur.card === "leak" && <ZeroLeakCard title={headline} />}
+      {cur.card === "investigator" && <InvestigatorCard title={headline} />}
       {cur.card === "film" && cur.film && <FilmLayer key="film" shot={cur.film} />}
-      {cur.card !== "title" && cur.card !== "close" && cur.card !== "why" && cur.card !== "slide" && (
+      {cur.card !== "title" && cur.card !== "close" && cur.card !== "why" && cur.card !== "slide"
+        && cur.card !== "leak" && cur.card !== "investigator" && (
         <Caption stepKey={step} kicker={kicker} headline={cur.card === "compare" ? "" : headline} sub={cur.card && cur.card !== "film" ? undefined : sub} />
       )}
 

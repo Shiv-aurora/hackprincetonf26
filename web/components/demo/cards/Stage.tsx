@@ -1,27 +1,27 @@
 "use client";
-// Shared frame for the full-screen tour cards in this folder (ZeroLeak, Investigator). Like the slides'
-// SlideStage, each card is laid out on a fixed design canvas and zoomed to the screen, but this canvas sits
-// between the tour's caption pill (top) and its controls (bottom): 1920×1080 gets ~1.26×, 1440×900 ~1.0×,
-// so the smallest text (16px on the canvas) never renders under 16px on a projector.
+// Shared frame for the full-screen tour cards in this folder (ZeroLeak, Investigator), styled like the research
+// slides (slides/Frame.tsx's SlideFrame): a short kicker, the step's big title, then the visual. The tour hides
+// its caption pill on these steps, so a card owns the screen from the top down to the controls. Each card is
+// laid out on a fixed design canvas and zoomed to fit (1920×1080 gets ~1.27×, 1440×900 ~1.0×), so the smallest
+// text (16px on the canvas) never renders under 16px on a projector.
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useId, useState, type ReactNode } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import { Dot, cn } from "@/components/ui";
 
 export const EASE = [0.16, 1, 0.3, 1] as const;
-export const CANVAS = { w: 1320, h: 720 } as const;
+export const CANVAS = { w: 1400, h: 780 } as const;
 
-/** Room the tour keeps for its caption pill (top) and controls (bottom), in px. */
-const TOP = 108;
-const BOTTOM = 64;
-const SIDE = 12;
+/** Room the tour keeps for its controls at the bottom, and the margin around the card, in px. */
+const BOTTOM = 60;
+const MARGIN = 16;
 
 function useCardZoom(): number {
   const [z, setZ] = useState(1);
   useEffect(() => {
     const fit = () => setZ(Math.max(0.5, Math.min(1.8,
-      (window.innerWidth - 2 * SIDE) / CANVAS.w,
-      (window.innerHeight - TOP - BOTTOM) / CANVAS.h)));
+      (window.innerWidth - 2 * MARGIN) / CANVAS.w,
+      (window.innerHeight - BOTTOM - 2 * MARGIN) / CANVAS.h)));
     fit();
     window.addEventListener("resize", fit);
     return () => window.removeEventListener("resize", fit);
@@ -29,18 +29,34 @@ function useCardZoom(): number {
   return z;
 }
 
-/** Fixed overlay that centres the zoomed canvas between the caption and the controls. */
-export function CardStage({ label, children, className }: { label: string; children: ReactNode; className?: string }) {
+/** Fixed overlay that centres the zoomed canvas above the tour's controls: kicker, title, then `children`
+ *  filling the rest of the canvas. */
+export function CardStage({ kicker, title, children, className }: {
+  kicker: string; title: string; children: ReactNode; className?: string;
+}) {
   const zoom = useCardZoom();
   const reduce = useReducedMotion();
+  const id = useId();
+  // Always pass initial + animate (so server and client agree); reduced motion just makes it instant.
+  const rise = (delay: number) => ({
+    initial: { opacity: 0, y: 10 }, animate: { opacity: 1, y: 0 },
+    transition: reduce ? { duration: 0 } : { duration: 0.3, delay, ease: EASE },
+  });
   return (
-    <div className="pointer-events-none fixed inset-x-0 z-50 flex items-center justify-center" style={{ top: TOP, bottom: BOTTOM }}>
-      <motion.section aria-label={label}
+    <div className="pointer-events-none fixed inset-x-0 top-0 z-50 flex items-center justify-center" style={{ bottom: BOTTOM }}>
+      <motion.section aria-labelledby={id}
         initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
         transition={reduce ? { duration: 0 } : { duration: 0.25, ease: EASE }}
         style={{ zoom, width: CANVAS.w, height: CANVAS.h }}
-        className={cn("pointer-events-auto flex shrink-0 flex-col overflow-hidden rounded-2xl border border-border bg-background p-8", className)}>
-        {children}
+        className={cn("pointer-events-auto flex shrink-0 flex-col overflow-hidden rounded-2xl border border-border bg-background px-12 py-9", className)}>
+        <header className="shrink-0">
+          <motion.p {...rise(0.05)} className="text-[17px] text-fg-muted">{kicker}</motion.p>
+          <motion.h2 id={id} {...rise(0.1)}
+            className="mt-1.5 text-[56px] leading-[1.05] font-semibold tracking-[-0.045em] text-balance text-fg">
+            {title}
+          </motion.h2>
+        </header>
+        <div className="mt-6 flex min-h-0 flex-1 flex-col">{children}</div>
       </motion.section>
     </div>
   );

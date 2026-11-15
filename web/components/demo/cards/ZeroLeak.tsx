@@ -1,9 +1,9 @@
 "use client";
-// Demo step "Nothing real leaks" (replaces the Reveal step). The proof first: every response the attacker
-// got in the recorded MayaJaal run streams through the canary ledger (the gateway scans every response to a
-// non-clinician for the 12 canary secrets planted in the real database, as plain text, hex and base64) and
-// comes out clean. Then the hard numbers: real records out, canaries leaked, what the attacker took (all
-// decoy, carrying trackers), and the raw-byte scan of the encrypted database.
+// Demo step "Zero data leakage" (replaces the Reveal step; the tour passes the step headline as `title`). The
+// proof first: every response the attacker got in the recorded MayaJaal run streams through the canary ledger
+// (the gateway scans every response to a non-clinician for the 12 canary secrets planted in the real database,
+// as plain text, hex and base64) and comes out clean. Then the hard numbers: real records out, canaries
+// leaked, what the attacker took (all decoy, carrying trackers), and the raw-byte scan of the encrypted database.
 //
 // Run numbers are read at runtime from web/public/runs/ (mayajaal.jsonl, results.json, brief-mayajaal.json).
 // The encryption-at-rest numbers are copied from the paper (constants below, with sources). Nothing is
@@ -116,10 +116,10 @@ const rowAt = (i: number) => T.row0 + i * T.step;
 const scanAt = (i: number) => rowAt(i) + T.scan;
 const doneAt = (i: number, cells: number) => scanAt(i) + cells * T.sweep + 0.12;
 
-export function ZeroLeakCard() {
+export function ZeroLeakCard({ title }: { title: string }) {
   const { data, failed } = useRunFile("zero-leak", loadRun);
   return (
-    <CardStage label="Nothing real leaks: the canary ledger and the encrypted database">
+    <CardStage title={title} kicker={data ? `Recorded run · ${data.attacker}` : "Recorded run"}>
       {data ? <Body run={data} /> : <Pending failed={failed} what="run" />}
     </CardStage>
   );
@@ -133,61 +133,55 @@ function Body({ run }: { run: LeakRun }) {
   const tr = (delay: number, duration = 0.3) => (reduce ? { duration: 0 } : { duration, delay, ease: EASE });
 
   const clean = run.leaked === 0;
-  const realRows = run.rows.filter((r) => r.tier === "real");
   const dataRows = run.rows.filter((r) => r.status < 400 && r.bytes > 0);
   const allDecoy = dataRows.length > 0 && dataRows.every((r) => r.tier === "shadow");
 
   return (
-    <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_428px] gap-5">
+    <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_500px] gap-5">
       <Ledger run={run} clean={clean} reduce={reduce} />
 
-      <div className="flex min-h-0 flex-col gap-3.5">
-        <div className="grid grid-cols-2 gap-3.5">
+      <div className="flex min-h-0 flex-col gap-3">
+        <div className="grid grid-cols-2 gap-3">
           <Tile tr={tr(tilesAt)}>
             <TileLabel>Real records out</TileLabel>
             <Big value={run.realRecords} />
-            <TileNote>
-              {realRows.length > 0 && realRows.every((r) => r.login)
-                ? "Only the login reached the real hospital."
-                : `${realRows.length} ${realRows.length === 1 ? "response" : "responses"} came from the real hospital.`}
-            </TileNote>
           </Tile>
           <Tile tr={tr(tilesAt + T.tile)}>
             <TileLabel>Canaries leaked</TileLabel>
-            <p className="mt-1 flex items-baseline gap-2">
+            <p className="mt-1.5 flex items-baseline gap-2.5">
               <Big value={run.leaked} inline />
-              <span className="text-[26px] font-medium tracking-[-0.02em] text-fg-muted tabular-nums">of {run.protectedTotal}</span>
+              <span className="text-[32px] font-medium tracking-[-0.025em] text-fg-muted tabular-nums">of {run.protectedTotal}</span>
             </p>
-            <TileNote>The gateway&rsquo;s count, not a claim.</TileNote>
           </Tile>
         </div>
 
         <Tile tr={tr(tilesAt + 2 * T.tile)}>
           <TileLabel>What the attacker took</TileLabel>
           <p className="mt-1 flex items-baseline gap-3">
-            <span className={cn("text-[56px] leading-none font-semibold tracking-[-0.045em] tabular-nums",
+            <span className={cn("text-[64px] leading-none font-semibold tracking-[-0.045em] tabular-nums",
               allDecoy ? "text-shadow" : "text-fg")}>
               {run.fakeRecords === null ? "—" : run.fakeRecords.toLocaleString("en-US")}
             </span>
-            <span className="text-[22px] font-medium tracking-[-0.02em] text-fg">{allDecoy ? "fake patient records" : "records"}</span>
+            <span className="text-[24px] font-medium tracking-[-0.02em] text-fg">{allDecoy ? "fake patient records" : "records"}</span>
           </p>
           <TileNote>
-            {allDecoy && <span className="block">All from the decoy, carrying {run.trackers} {run.trackers === 1 ? "tracker" : "trackers"}.</span>}
-            {run.believed && <span className="block">It reported success.</span>}
+            {allDecoy && <>All from the decoy, carrying {run.trackers} {run.trackers === 1 ? "tracker" : "trackers"}.</>}
+            {allDecoy && run.believed && " "}
+            {run.believed && <>It reported success.</>}
           </TileNote>
         </Tile>
 
         <Tile tr={tr(tilesAt + 3 * T.tile)} className="flex flex-1 flex-col">
           <Source className="self-start">Measured on the running system</Source>
-          <p className="mt-2.5 text-[20px] leading-tight font-semibold tracking-[-0.02em] text-fg">The encrypted database, scanned raw</p>
-          <div className="mt-2.5 flex items-baseline gap-8">
+          <p className="mt-2.5 text-[21px] leading-tight font-semibold tracking-[-0.02em] text-fg">The encrypted database, scanned raw</p>
+          <div className="mt-2.5 flex items-baseline gap-10">
             <Zero n={AT_REST.canaries} label="canaries" />
             <Zero n={AT_REST.ssns} label="SSN-shaped strings" />
           </div>
           <p className="mt-2 text-[16px] text-fg-muted tabular-nums">
             in {AT_REST.bytes.toLocaleString("en-US")} bytes holding {AT_REST.values.toLocaleString("en-US")} encrypted values
           </p>
-          <div className="mt-auto flex flex-wrap gap-2 pt-3">
+          <div className="mt-auto flex flex-wrap gap-x-2 gap-y-1.5 pt-2.5">
             <Chip>AES-256-GCM</Chip>
             <Chip>Bound to table, column, row</Chip>
             <Chip>Key split {AT_REST.threshold} of {AT_REST.shares}</Chip>
@@ -231,15 +225,10 @@ function Ledger({ run, clean, reduce }: { run: LeakRun; clean: boolean; reduce: 
 
   return (
     <section aria-label="Canary ledger" className="flex min-h-0 flex-col overflow-hidden rounded-lg border border-border">
-      <div className="px-5 pt-4 pb-3.5">
-        <div className="flex items-center justify-between gap-4">
-          <h3 className="text-[22px] leading-tight font-semibold tracking-[-0.02em] text-fg">The canary ledger</h3>
-          <Source>Recorded run · {run.attacker}</Source>
-        </div>
-        <p className="mt-1.5 text-[17px] leading-snug text-fg-muted">
-          Every response to the attacker, checked for all {cells} canaries as plain text, hex and base64.
-        </p>
-      </div>
+      <p className="px-5 pt-3.5 pb-3 text-[18px] leading-snug text-pretty text-fg-muted">
+        <span className="font-semibold text-fg">The canary ledger</span> checks every response to the attacker for
+        all {cells} canaries, as plain text, hex and base64.
+      </p>
 
       <div role="table" aria-label="Responses to the attacker" className="flex min-h-0 flex-1 flex-col">
         <div role="row" className={cn(GRID, "h-[34px] shrink-0 border-t border-border bg-surface text-[16px] text-fg-subtle")}>
@@ -278,7 +267,7 @@ function Ledger({ run, clean, reduce }: { run: LeakRun; clean: boolean; reduce: 
   );
 }
 
-const GRID = "grid grid-cols-[50px_minmax(0,1fr)_92px_80px_141px_18px] items-center gap-3 px-5";
+const GRID = "grid grid-cols-[46px_minmax(0,1fr)_84px_72px_141px_18px] items-center gap-2.5 px-5";
 
 function LedgerRow({ r, i, cells, clean, reduce }: { r: Item; i: number; cells: number; clean: boolean; reduce: boolean }) {
   const tr = (delay: number, duration: number) => (reduce ? { duration: 0 } : { duration, delay, ease: EASE });
@@ -337,26 +326,26 @@ function TierTag({ tier, status }: { tier: Tier; status: number }) {
 function Tile({ tr, className, children }: { tr: object; className?: string; children: ReactNode }) {
   return (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={tr}
-      className={cn("rounded-lg border border-border px-5 py-3.5", className)}>
+      className={cn("rounded-lg border border-border px-5 py-3", className)}>
       {children}
     </motion.div>
   );
 }
 
-const TileLabel = ({ children }: { children: ReactNode }) => <p className="text-[17px] leading-snug text-fg-muted">{children}</p>;
-const TileNote = ({ children }: { children: ReactNode }) => <p className="mt-2 text-[16px] leading-snug text-fg-muted">{children}</p>;
+const TileLabel = ({ children }: { children: ReactNode }) => <p className="text-[18px] leading-snug text-fg-muted">{children}</p>;
+const TileNote = ({ children }: { children: ReactNode }) => <p className="mt-2 text-[17px] leading-snug text-pretty text-fg-muted">{children}</p>;
 
 function Big({ value, inline }: { value: number | null; inline?: boolean }) {
-  const cls = cn("text-[80px] leading-[0.9] font-semibold tracking-[-0.05em] tabular-nums",
-    value === null ? "text-fg-subtle" : value > 0 ? "text-danger" : "text-fg", !inline && "mt-1 block");
+  const cls = cn("text-[96px] leading-[0.9] font-semibold tracking-[-0.05em] tabular-nums",
+    value === null ? "text-fg-subtle" : value > 0 ? "text-danger" : "text-fg", !inline && "mt-1.5 block");
   return <span className={cls}>{value === null ? "—" : value.toLocaleString("en-US")}</span>;
 }
 
 function Zero({ n, label }: { n: number; label: string }) {
   return (
     <p className="flex items-baseline gap-2.5">
-      <span className={cn("text-[44px] leading-none font-semibold tracking-[-0.04em] tabular-nums", n > 0 ? "text-danger" : "text-fg")}>{n}</span>
-      <span className="text-[17px] text-fg-muted">{label}</span>
+      <span className={cn("text-[52px] leading-none font-semibold tracking-[-0.045em] tabular-nums", n > 0 ? "text-danger" : "text-fg")}>{n}</span>
+      <span className="text-[18px] text-fg-muted">{label}</span>
     </p>
   );
 }
