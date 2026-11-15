@@ -4,7 +4,7 @@ import { ArrowRight } from "lucide-react";
 import { ButtonLink, FloatingNav } from "@/components/ui";
 import { CareVisual, HeroLine, MoveVisual, SpotVisual } from "@/components/landing/Visuals";
 import { WhyNotBlock } from "@/components/landing/Why";
-import { HeroShield } from "@/components/landing/HeroShield";
+import { HeroScene } from "@/components/landing/HeroScene";
 import results from "../public/runs/results.json";
 import outage from "../public/runs/continuity-compare.json";
 
@@ -54,31 +54,33 @@ export default function Home() {
   ];
 
   return (
-    <div id="top" className="flex min-h-dvh flex-col bg-background text-fg">
+    <div id="top" className="flex min-h-dvh flex-col overflow-x-clip bg-background text-fg">
       <FloatingNav cta={<ButtonLink href="/demo" variant="primary" size="sm" className="rounded-full">Watch the demo</ButtonLink>} />
 
       <main className="mx-auto w-full max-w-[1200px] flex-1 px-4 sm:px-6">
-        <section className="relative pt-36 pb-10 sm:pt-44">
-          <HeroShield className="pointer-events-none absolute top-[250px] right-0 hidden w-[440px] xl:block" />
-          <h1 className="relative max-w-[900px] text-[44px] leading-[1.03] font-semibold tracking-[-0.045em] text-balance sm:text-[64px]">
-            Protecting critical hospitals from AI cyberattacks.
-          </h1>
-          <p className="mt-3 text-[26px] leading-tight font-semibold tracking-[-0.03em] text-danger sm:text-[34px]">
-            Without stopping the attacks.
-          </p>
-          <p className="mt-6 max-w-[680px] text-[17px] leading-[1.65] text-pretty text-fg-muted">
-            Hospitals can&rsquo;t switch off when they&rsquo;re attacked. When someone inside the network starts
-            acting like an attacker, MayaJaal doesn&rsquo;t block them. It quietly moves them into a fake copy of
-            the hospital, built fresh for them, so the attack carries on. They keep &ldquo;stealing&rdquo;, but none
-            of it is real. Doctors and nurses keep working
-            in the real one, and nobody has to pull the plug.
-          </p>
-          <div className="mt-8 flex flex-wrap gap-3">
-            <ButtonLink href="/demo" variant="primary" className="h-11 px-5">
-              Watch the 3-minute demo <ArrowRight className="size-4" aria-hidden />
-            </ButtonLink>
-            <ButtonLink href="#how" className="h-11 px-5">How it works</ButtonLink>
+        <section className="grid grid-cols-1 items-center gap-10 pt-32 pb-10 sm:pt-40 lg:grid-cols-2 lg:gap-4 xl:grid-cols-[560px_minmax(0,1fr)]">
+          <div className="relative z-10">
+            <h1 className="text-[44px] leading-[1.03] font-semibold tracking-[-0.045em] text-balance sm:text-[60px] lg:text-[50px] xl:text-[62px]">
+              Protecting critical hospitals from AI cyberattacks.
+            </h1>
+            <p className="mt-3 text-[26px] leading-tight font-semibold tracking-[-0.03em] text-danger sm:text-[34px] lg:text-[30px] xl:text-[34px]">
+              Without stopping the attacks.
+            </p>
+            <p className="mt-6 max-w-[680px] text-[17px] leading-[1.65] text-pretty text-fg-muted">
+              Hospitals can&rsquo;t switch off when they&rsquo;re attacked. When someone inside the network starts
+              acting like an attacker, MayaJaal doesn&rsquo;t block them. It quietly moves them into a fake copy of
+              the hospital, built fresh for them, so the attack carries on. They keep &ldquo;stealing&rdquo;, but none
+              of it is real. Doctors and nurses keep working
+              in the real one, and nobody has to pull the plug.
+            </p>
+            <div className="mt-8 flex flex-wrap gap-3">
+              <ButtonLink href="/demo" variant="primary" className="h-11 px-5">
+                Watch the 3-minute demo <ArrowRight className="size-4" aria-hidden />
+              </ButtonLink>
+              <ButtonLink href="#how" className="h-11 px-5">How it works</ButtonLink>
+            </div>
           </div>
+          <HeroScene className="pointer-events-none lg:-mr-10 lg:w-[calc(100%+2.5rem)] xl:-mr-28 xl:w-[calc(100%+7rem)]" />
         </section>
 
         <section className="py-12" aria-hidden={false}>
