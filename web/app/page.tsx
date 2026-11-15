@@ -4,6 +4,7 @@ import { ArrowRight } from "lucide-react";
 import { ButtonLink, FloatingNav } from "@/components/ui";
 import { CareVisual, HeroLine, MoveVisual, SpotVisual } from "@/components/landing/Visuals";
 import { WhyNotBlock } from "@/components/landing/Why";
+import { HeroShield } from "@/components/landing/HeroShield";
 import results from "../public/runs/results.json";
 import outage from "../public/runs/continuity-compare.json";
 
@@ -57,8 +58,9 @@ export default function Home() {
       <FloatingNav cta={<ButtonLink href="/demo" variant="primary" size="sm" className="rounded-full">Watch the demo</ButtonLink>} />
 
       <main className="mx-auto w-full max-w-[1200px] flex-1 px-4 sm:px-6">
-        <section className="pt-36 pb-10 sm:pt-44">
-          <h1 className="max-w-[900px] text-[44px] leading-[1.03] font-semibold tracking-[-0.045em] text-balance sm:text-[64px]">
+        <section className="relative pt-36 pb-10 sm:pt-44">
+          <HeroShield className="pointer-events-none absolute top-[250px] right-0 hidden w-[440px] xl:block" />
+          <h1 className="relative max-w-[900px] text-[44px] leading-[1.03] font-semibold tracking-[-0.045em] text-balance sm:text-[64px]">
             Protecting critical hospitals from AI cyberattacks.
           </h1>
           <p className="mt-3 text-[26px] leading-tight font-semibold tracking-[-0.03em] text-danger sm:text-[34px]">
