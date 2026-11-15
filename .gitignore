@@ -17,3 +17,7 @@ backend/data/
 *.log
 # worktrees made by agents
 .claude/worktrees/
+# private working notes (kept locally, not published)
+CLAUDE.md
+PLAN.md
+vision.md

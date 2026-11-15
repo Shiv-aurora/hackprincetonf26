@@ -1,6 +1,6 @@
 # MayaJaal — Design (hackathon cut: looks and sounds first, backend lean)
 
-> Companion to `vision.md`. Execution plan (who builds what, branches, timeline) is in `PLAN.md`.
+> How the parts fit together.
 > Rule for this build: **the demo is the product.** The backend only needs to be real enough that
 > every number on screen comes from an actual attack, never a canned animation.
 

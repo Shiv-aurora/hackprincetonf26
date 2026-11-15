@@ -89,4 +89,4 @@ scripts/dev.sh --mock                               # UI + hub replaying a recor
 - `web/`: Next.js landing page, guided demo (`/demo`) and live dashboard (`/war-room`).
 - `paper/`: the MIRAGE-S paper (LaTeX).
 - `contracts/`: the event contract every part shares.
-- `DESIGN.md`, `vision.md`: background.
+- `DESIGN.md`: design background.
