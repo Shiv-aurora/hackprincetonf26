@@ -19,6 +19,7 @@ from mayajaal.real.ledger import CanaryLedger
 from mayajaal.real.seed import PHISHED_USER, seed
 from mayajaal.real.world import RealStore
 
+EHR_UA = "MeridianEHR/4.2 (test clinician)"  # the hospital's own client; early warning flags scripts
 ADMIN = "test-admin-key"
 
 
@@ -40,7 +41,7 @@ class Rig:
                               shadow_transport=httpx.ASGITransport(app=self.shadow),
                               shadow_ws_connect=FakeShadowShell, admin_key_value=ADMIN)
         self.gw = self.app.state.gateway
-        self.client = TestClient(self.app)
+        self.client = TestClient(self.app, headers={"User-Agent": EHR_UA})
         self.store = store
 
     def login(self, username=PHISHED_USER[0], password=PHISHED_USER[1], **headers) -> dict[str, str]:
@@ -262,7 +263,8 @@ async def test_clinicians_never_diverted_or_served_shadow(store: RealStore) -> N
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=rig.app), base_url="http://gw") as c:
         res = await run_sim(client=c, rate=0, n_requests=80, admin_key=ADMIN, store=store, seed=3,
                             run_id="run-clin")
-    assert res["requests"] == 80 and res["false_positives"] == 0, res
+    ev = {sid: (st.client, st.evidence) for sid, st in rig.gw.early.sessions.items() if st.evidence}
+    assert res["requests"] == 80 and res["false_positives"] == 0, (res, ev)
     assert rig.shadow.state.received == []
     assert not rig.types("session.diverted")
     clin = [e for e in rig.types("request") if e.actor == "clinician"]

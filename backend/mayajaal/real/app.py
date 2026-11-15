@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import dataclasses
 import hashlib
 import json
 import os
@@ -40,8 +41,11 @@ from fastapi.responses import JSONResponse, Response
 
 from mayajaal.contracts import Event, make_event
 from mayajaal.mirage.intent import IntentFilter, features_from_request, make_lane_adjuster
+from mayajaal.real.devices import HEADER as DEVICE_HEADER, verify as verify_device
+from mayajaal.real.early import EarlyWarning
 from mayajaal.real.ledger import CanaryLedger
 from mayajaal.real.policy import (
+    LANE_ORDER,
     Classified, Decision, LaneAdjuster, PolicyInput, classify, decide, shell_technique, technique,
 )
 from mayajaal.real.world import RealStore, RealWorld
@@ -88,6 +92,7 @@ class GatewaySession:
     diverted: bool = False
     honeytokens: set[str] = field(default_factory=set)
     created: float = field(default_factory=time.time)
+    early_announced: bool = False      # the early-warning alarm has been reported for this session
     current_config: str = "mayajaal"   # config of the request being served (RealWorld scoping)
 
     def context(self, run_id: str, lane: str) -> SessionContext:
@@ -152,6 +157,8 @@ class Gateway:
         self.shadow = httpx.AsyncClient(base_url=self.shadow_url, transport=shadow_transport, timeout=30.0)
         self.ws_connect: WsConnect = shadow_ws_connect or _WebsocketsUpstream
         self.adjuster = lane_adjuster
+        # Early warning (CUSUM over weak signals) runs under MayaJaal only; MJ_EARLY=0 turns it off.
+        self.early: EarlyWarning | None = None if os.environ.get("MJ_EARLY", "1") == "0" else EarlyWarning()
         self.admin_key = admin_key_value or admin_key()
         self.by_token: dict[str, GatewaySession] = {}
         self.by_id: dict[str, GatewaySession] = {}
@@ -287,8 +294,13 @@ class Gateway:
         query = dict(request.query_params)
         req = classify(request.method, req_path, query, body.decode("utf-8", errors="ignore"))
         intent = getattr(self, "intent", None)
+        early_now = self.early_before(s, config, req)
         with (intent.bind(s.session_id) if intent is not None else contextlib.nullcontext()):
             d = self.evaluate(s, config, req)
+        if s.early_announced and d.lane == "suspicious" and d.reason.startswith("Session is in the"):
+            tail = {"step_up": " Step-up authentication required; no data served.",
+                    "divert_shadow": " Moved into the decoy."}.get(d.action, "")
+            d = dataclasses.replace(d, reason=(early_now or "Flagged earlier by the early warning.") + tail)
         await self.apply(s, d, run_id)
 
         tier = d.tier
@@ -331,6 +343,8 @@ class Gateway:
             resp = Response(content, status, media_type="application/json")
 
         await self.scan_out(s, run_id, content)
+        if self.early is not None and s.authenticated:
+            self.early.after(s.session_id, status=status)
 
         method, shown = request.method, req_path + (("?" + request.url.query) if request.url.query else "")
         if req.surface == "shell" and req.command:
@@ -356,6 +370,22 @@ class Gateway:
             resp.headers["X-MJ-Rule"] = d.rule
         return resp
 
+    # ---------------------------------------------------------------- early warning
+    def early_before(self, s: GatewaySession, config: str, req: Classified) -> str | None:
+        """Feed the early-warning test; if it has just fired, raise the lane and return the reason."""
+        if self.early is None or config != "mayajaal" or not s.authenticated:
+            return None
+        st = self.early.before(s.session_id, target_patient=req.target_mrn if req.kind == "clinical_read" else None)
+        return self._early_fire(s, st)
+
+    def _early_fire(self, s: GatewaySession, st: Any) -> str | None:
+        if st is None or not st.fired or s.early_announced:
+            return None
+        s.early_announced = True
+        if LANE_ORDER.get(s.lane, 0) < LANE_ORDER["suspicious"]:
+            s.lane = "suspicious"
+        return st.reason
+
     # ---------------------------------------------------------------- login
     async def login(self, request: Request) -> Response:
         try:
@@ -379,6 +409,17 @@ class Gateway:
                                                   "technique": None if actor == "clinician" else "T1078",
                                                   **client_meta(request)},
                                       s, run_id, actor=actor, tier="real"))
+            if self.early is not None and config == "mayajaal":
+                meta = client_meta(request)
+                device = verify_device(request.headers.get(DEVICE_HEADER))
+                st = self.early.on_login(s.session_id, username=user.username, role=user.role,
+                                         ua=meta["user_agent"], ip=meta["client_ip"], managed=device is not None)
+                why = self._early_fire(s, st)
+                if why:
+                    await self._emit(self._ev("policy.decision", {
+                        "lane": "suspicious", "action": "allow_real",
+                        "reason": why + " Login allowed; clinical reads now need badge + MFA, everything else goes to the decoy."},
+                        s, run_id, actor="defender", tier="real"))
             if actor != "clinician":
                 await self.canary_check(s, run_id)
             return JSONResponse({"token": s.token, "session_id": s.session_id, "username": user.username,
@@ -391,6 +432,8 @@ class Gateway:
             if s is not None:
                 return JSONResponse({"token": s.token, "session_id": s.session_id, "username": s.username,
                                      "role": s.role, "hospital_id": s.hospital_id})
+        if self.early is not None:
+            self.early.on_failed_login(client_meta(request)["client_ip"])
         anon = self.session_for(request.headers, request.client.host if request.client else "?")
         await self._emit(self._ev("request", {"method": "POST", "path": "/auth/login", "surface": "api",
                                               "status": 401, "bytes": 0, "technique": "T1110",

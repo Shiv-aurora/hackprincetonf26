@@ -20,6 +20,7 @@ from typing import Any
 
 import httpx
 
+from mayajaal.real.devices import mint as mint_device
 from mayajaal.real.seed import SIM_CLINICIANS
 from mayajaal.real.world import RealStore
 
@@ -43,8 +44,10 @@ async def run_sim(base_url: str = "http://127.0.0.1:8000", *, rate: float = 0.5,
     clinicians = []
     try:
         for username, _display, role, hospital, password in SIM_CLINICIANS:
+            # each clinician signs in from one of their hospital's managed workstations
+            dev = {"X-Device-Token": mint_device(f"ws-{hospital}-{abs(hash(username)) % 40:02d}")}
             r = await client.post("/auth/login", json={"username": username, "password": password},
-                                  headers=base_headers)
+                                  headers={**base_headers, **dev})
             if r.status_code != 200:
                 print(f"[clinician_sim] login failed for {username}: {r.status_code}")
                 continue

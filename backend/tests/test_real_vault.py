@@ -165,7 +165,7 @@ class Rig:
                               shadow_transport=httpx.ASGITransport(app=fake_shadow_app()),
                               shadow_ws_connect=FakeShadowShell, admin_key_value=ADMIN)
         self.gw = self.app.state.gateway
-        self.client = TestClient(self.app)
+        self.client = TestClient(self.app, headers={"User-Agent": "MeridianEHR/4.2 (test clinician)"})
 
     def login(self, username: str, password: str) -> dict[str, str]:
         r = self.client.post("/auth/login", json={"username": username, "password": password})

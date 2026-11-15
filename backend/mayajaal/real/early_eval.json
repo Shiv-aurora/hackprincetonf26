@@ -1,0 +1,51 @@
+{
+  "note": "Simulation with hand-set session distributions; shows behaviour, not field accuracy. A false alarm costs the clinician one badge + MFA prompt; they still get real data.",
+  "benign_sessions": 4000,
+  "false_alarm_rate": 0.04,
+  "false_alarms_from_unmanaged_device_at_new_address": 0.0362,
+  "rule_fires_at_request": 3,
+  "profiles": {
+    "scripted_outside": {
+      "what": "a Python script from outside (the recorded attacker)",
+      "caught_before_rules": 1.0,
+      "caught_at_login": 1.0,
+      "median_detect_request": 0.0,
+      "median_detect_request_rules_only": 3
+    },
+    "ai_agent_outside": {
+      "what": "an LLM agent claiming to be Chrome, from outside",
+      "caught_before_rules": 1.0,
+      "caught_at_login": 1.0,
+      "median_detect_request": 0.0,
+      "median_detect_request_rules_only": 3
+    },
+    "human_outside": {
+      "what": "a person in a browser at human speed, from outside",
+      "caught_before_rules": 1.0,
+      "caught_at_login": 1.0,
+      "median_detect_request": 0.0,
+      "median_detect_request_rules_only": 3
+    },
+    "spoofs_ehr_outside": {
+      "what": "an agent copying the EHR app's client string, from outside",
+      "caught_before_rules": 1.0,
+      "caught_at_login": 1.0,
+      "median_detect_request": 0.0,
+      "median_detect_request_rules_only": 3
+    },
+    "ai_agent_on_nurse_pc": {
+      "what": "an LLM agent running on the nurse's own PC",
+      "caught_before_rules": 0.0,
+      "caught_at_login": 0.0,
+      "median_detect_request": 3.0,
+      "median_detect_request_rules_only": 3
+    },
+    "human_on_nurse_pc": {
+      "what": "a person at the nurse's own PC, human speed",
+      "caught_before_rules": 0.0,
+      "caught_at_login": 0.0,
+      "median_detect_request": 3.0,
+      "median_detect_request_rules_only": 3
+    }
+  }
+}
