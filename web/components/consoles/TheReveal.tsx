@@ -18,11 +18,13 @@ export interface TheRevealProps {
   replayKey?: number;
   /** Ignore `reveal` events older than this — the hub sends a backlog on connect. Default 8 s. */
   freshMs?: number;
+  /** Start open (the guided demo mounts it on the reveal step). Default false. */
+  defaultOpen?: boolean;
   onOpenChange?: (open: boolean) => void;
 }
 
-export function TheReveal({ auto = true, replayKey, freshMs = 8000, onOpenChange }: TheRevealProps) {
-  const [state, setState] = useState({ open: false, key: 0 });
+export function TheReveal({ auto = true, replayKey, freshMs = 8000, defaultOpen = false, onOpenChange }: TheRevealProps) {
+  const [state, setState] = useState({ open: defaultOpen, key: 0 });
   const openCb = useRef(onOpenChange);
   useEffect(() => { openCb.current = onOpenChange; });
   useEffect(() => { openCb.current?.(state.open); }, [state.open]);
