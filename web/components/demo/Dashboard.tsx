@@ -1,7 +1,8 @@
 "use client";
 // The War Room layout, shared by /war-room (live hub stream) and /demo (guided tour over a recorded run).
-// Left: what the attacker sees. Right: what actually happened. Below: the network map, key events and lab
-// continuity. Reads only the shared store; the caller decides where events come from.
+// Main stage: the explainer film's world driven by the events (film/LiveFilm). Right: what just happened.
+// Below: who the attacker is and the headline numbers. Reads only the shared store; the caller decides where
+// events come from.
 //
 // `data-demo` attributes name the panels the guided tour spotlights:
 //   attacker · defender (headline · intel · decisions inside it) · map · timeline · continuity
@@ -14,7 +15,7 @@ import { NetworkMap } from "@/components/map";
 import { HospitalNumbers, TwoHospitals } from "@/components/hospital/HospitalView";
 import { LearnedPanel, SwitchView } from "@/components/hospital/Live";
 import { FlashStyles, LogPanel } from "@/components/hospital/Log";
-import { FlowScene } from "@/components/hospital/Flow";
+import { LiveFilm } from "./film/LiveFilm";
 import { AttackControls } from "@/components/hospital/AttackControls";
 import { FingerprintPanel } from "@/components/hospital/Fingerprint";
 import { LiveBrief } from "@/components/hospital/Brief";
@@ -49,11 +50,13 @@ export function Dashboard({ mode = "live", revealOpen = false }: DashboardProps)
       {!demo && <FloatingNav cta={<AttackControls compact />} />}
 
       <DemoFrame demo={demo}>
-      <main className={cn("mx-auto flex w-full max-w-[1400px] flex-col gap-4 px-4 sm:px-6", demo ? "min-h-0 flex-1" : "pt-20 pb-5")}>
-        <div className={cn("grid min-h-0 grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]",
-          demo ? "flex-1" : "lg:h-[min(56vh,540px)]")}>
-          <section className="relative min-h-[360px] rounded-xl border border-border bg-background lg:min-h-0">
-            <FlowScene />
+      <main className={cn("mx-auto flex w-full max-w-[1840px] flex-col gap-4 px-4 sm:px-6", demo ? "min-h-0 flex-1" : "pt-20 pb-5")}>
+        {/* The stage takes everything the log column doesn't; in live view it fills the first screen above
+            the two rows below it. */}
+        <div className={cn("grid min-h-0 grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_clamp(420px,30vw,560px)]",
+          demo ? "flex-1" : "lg:h-[max(460px,calc(100dvh-410px))]")}>
+          <section data-demo="scene" className="relative h-[min(64vh,560px)] overflow-hidden rounded-xl border border-border bg-background lg:h-auto lg:min-h-0">
+            <LiveFilm />
           </section>
           <div className="grid min-h-0 grid-rows-[minmax(0,1fr)_auto] gap-4">
             <LogPanel className="min-h-[320px] lg:min-h-0" />

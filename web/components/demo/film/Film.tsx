@@ -11,20 +11,64 @@
 // Labels and moving sprites (file cards, shards, beacons, the eye) live in a flat 2D layer. Their anchors are
 // projected with exactly the maths of the CSS transform, so text stays upright, crisp and at a fixed readable
 // size while the world moves underneath.
+//
+// Live mode (`live` prop, used by the dashboard's LiveFilm): what is on stage follows the event stream instead
+// of the shot order (twin, laptop, eye turns, file stream), the big 2D inserts are off, and short labels pinned
+// in the scene carry the run's numbers. Two shots exist only there: `exfil` (files leave for the attacker's
+// laptop, from the decoy or the real store) and `outage` (the shared lab goes down, tests reroute).
 
 import { useEffect, useId, useLayoutEffect, useRef, useState, useSyncExternalStore, type CSSProperties, type ReactNode } from "react";
 import {
   AnimatePresence, animate, motion, useMotionValue, useReducedMotion, useTime, useTransform, type MotionValue,
 } from "framer-motion";
-import { FileText, IdCard, Lock } from "lucide-react";
+import { FileText, IdCard, Lock, TestTube } from "lucide-react";
 import { WORLD } from "@/lib/contracts";
 import { cn } from "@/components/ui";
-import { useRunFacts } from "../story/useRunFacts";
+import { useRunFacts, type RunFacts } from "../story/useRunFacts";
 import { CopyDialog, FingerprintCard, FirstSightGauge, KeySplit, TrackerDoc } from "./overlays";
 import { Sharingan } from "./Sharingan";
 
+/** The nine tour shots (steps.ts and Film3D draw exactly these). */
 export type Shot = "network" | "hospital" | "request" | "firstsight" | "transfer" | "swap" | "tracker" | "fingerprint" | "disperse";
 export const SHOTS: Shot[] = ["network", "hospital", "request", "firstsight", "transfer", "swap", "tracker", "fingerprint", "disperse"];
+/** Every shot the CSS film can frame: the tour's nine plus the two the live dashboard adds. Kept apart from
+ *  `Shot` so Film3D, which keys its framing on the nine, still type-checks. */
+export type StageShot = Shot | "exfil" | "outage";
+const ORDER: StageShot[] = [...SHOTS, "exfil", "outage"];
+
+/* ================================================================== live scene (dashboard) */
+
+export type NoteTone = "neutral" | "muted" | "focus" | "alert" | "shadow" | "ok" | "danger";
+/** A short label pinned in the scene. Every number in it comes from the event stream. */
+export interface LiveNote { title: string; value?: string; sub?: string; tone?: NoteTone; subTone?: NoteTone }
+export type NoteAnchor = "gate" | "laptop" | "twin" | "real";
+export interface LiveOutage {
+  /** The lab that went down. */
+  lab: string;
+  state: "ok" | "hit" | "isolated";
+  /** Tests sent from one hospital to another hospital's lab so far. */
+  routes: { from: string; to: string; n: number }[];
+}
+export interface LiveScene {
+  /** The attacker's laptop is on stage. */
+  attacker: boolean;
+  /** The decoy twin stands beside the gateway (the session was diverted). */
+  twin: boolean;
+  /** Files flying to the attacker: from the twin (fake) or the real store (real). */
+  copy: "twin" | "real" | null;
+  /** How many times the gateway's eye has turned (First Sight, trackers calling home). */
+  spin: number;
+  /** The login is held at the gateway for badge + MFA. */
+  stepUp: boolean;
+  /** Trackers calling home (fingerprint shot). */
+  beacons: number;
+  /** Hospitals holding a piece of the scattered copy. */
+  holders: string[] | null;
+  notes: Partial<Record<NoteAnchor, LiveNote>>;
+  /** Adds to a hospital's label: a sub line, a tone (the name stays the film's own unless given). */
+  hospitals: Partial<Record<string, Partial<LiveNote>>>;
+  outage: LiveOutage | null;
+}
 
 /* ================================================================== geometry (layout px)
    Layout plane: u → right, v → toward the viewer, z → up. Buildings are boxes on their own axes, set at 45°
@@ -84,6 +128,10 @@ const COPY_A: V3 = at(TWIN, STACK_H + 18);
 const COPY_B: V3 = at(off(LAP, 0, -12), 42);
 const COPY_PEAK = 250;
 const APEX = arcPt(COPY_A, COPY_B, COPY_PEAK, 0.5);
+// Live only: real files leaving the real store (a run with no decoy).
+const COPY_R: V3 = at(REAL, STACK_H + 18);
+const COPY_R_PEAK = 330;
+const APEX_R = arcPt(COPY_R, COPY_B, COPY_R_PEAK, 0.5);
 
 const ISL = { u0: -1100, v0: -700, u1: 980, v1: 800, t: 44 };
 
@@ -120,14 +168,20 @@ const STACK_PTS = (p: V3) => boxPts(p, SLAB.w, SLAB.d, STACK_H + 60);
 type Side = "none" | "right" | "center";
 interface Spec { tilt: number; swing: number; focus: V3[]; insert: Side; panel?: number; zoom?: number; maxZoom?: number; pad?: number }
 
-const SPEC: Record<Shot, Spec> = {
+const SPEC: Record<StageShot, Spec> = {
+  // live only: the attacker's laptop, the gateway, the twin and the real store in one frame
+  exfil: {
+    tilt: 54, swing: 6, insert: "none", pad: 0.06,
+    focus: [...TILE_PTS, ...STACK_PTS(TWIN), ...STACK_PTS(REAL), ...GATE_PTS, at(APEX, APEX[2] + 40), at(APEX_R, APEX_R[2] + 30)],
+  },
+  outage: { tilt: 50, swing: 0, focus: [...ISLAND_PTS, ...CITY_PTS], insert: "none", pad: 0.035 },
   network: { tilt: 50, swing: 0, focus: [...ISLAND_PTS, ...CITY_PTS], insert: "none", pad: 0.035 },
   hospital: {
     tilt: 56, swing: -16, insert: "none", pad: 0.1, maxZoom: 1.45,
     focus: [...boxPts(E, EB.w, EB.d, EB.h + 70), ...STACK_PTS(REAL), [REAL[0] + 420, REAL[1] - 60, 120], off(REAL, 120, 120, 0)],
   },
   request: { tilt: 54, swing: 22, insert: "none", pad: 0.08, focus: [...TILE_PTS, ...GATE_PTS, ...boxPts(E, EB.w, EB.d, EB.h)] },
-  firstsight: { tilt: 55, swing: 4, insert: "right", panel: 480, pad: 0.07, maxZoom: 1.9, focus: [...GATE_PTS, off(GATE, 0, 120, 30)] },
+  firstsight: { tilt: 55, swing: 4, insert: "right", panel: 560, pad: 0.07, maxZoom: 1.9, focus: [...GATE_PTS, off(GATE, 0, 120, 30)] },
   transfer: { tilt: 54, swing: 8, insert: "right", panel: 560, pad: 0.06, focus: [...TILE_PTS, ...STACK_PTS(TWIN), ...GATE_PTS, at(APEX, APEX[2] + 40)] },
   swap: {
     tilt: 53, swing: -26, insert: "right", panel: 560, pad: 0.07, maxZoom: 1.3,
@@ -138,16 +192,18 @@ const SPEC: Record<Shot, Spec> = {
   disperse: { tilt: 50, swing: 0, insert: "right", panel: 560, pad: 0.03, focus: [...ISLAND_PTS, ...CITY_PTS] },
 };
 
-/** Fit a shot to a frame: dolly until the focus box fills the free rect, then offset the lens to centre it. */
-function fit(shot: Shot, w: number, h: number): Cam {
+/** Fit a shot to a frame: dolly until the focus box fills the free rect, then offset the lens to centre it.
+ *  Without inserts nothing is kept free on the right; `top` keeps a band free above (the live beat chips). */
+function fit(shot: StageShot, w: number, h: number, inserts = true, top = 0): Cam {
   const s = SPEC[shot];
+  const side: Side = inserts ? s.insert : "none";
   const lo: V3 = [Infinity, Infinity, Infinity], hi: V3 = [-Infinity, -Infinity, -Infinity];
   for (const p of s.focus) for (let i = 0; i < 3; i++) { lo[i] = Math.min(lo[i], p[i]); hi[i] = Math.max(hi[i], p[i]); }
   const c: CamPose = { tu: (lo[0] + hi[0]) / 2, tv: (lo[1] + hi[1]) / 2, tz: (lo[2] + hi[2]) / 2, tilt: s.tilt, swing: s.swing, zoom: s.zoom ?? 1 };
   const pad = s.pad ?? 0.06;
   const gap = Math.max(20, w * 0.025);
-  const right = s.insert === "right" ? Math.min(w * 0.46, (s.panel ?? 520) + 2 * gap) : 0;
-  const rect = { l: w * pad, r: w - Math.max(w * pad, right), t: h * (pad + 0.02), b: h * (1 - pad) };
+  const right = side === "right" ? Math.min(w * 0.46, (s.panel ?? 520) + 2 * gap) : 0;
+  const rect = { l: w * pad, r: w - Math.max(w * pad, right), t: Math.max(h * (pad + 0.02), top), b: h * (1 - pad) };
   const bounds = () => {
     let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
     for (const p of s.focus) { const q = project(p, c); x0 = Math.min(x0, q.x); x1 = Math.max(x1, q.x); y0 = Math.min(y0, q.y); y1 = Math.max(y1, q.y); }
@@ -160,7 +216,7 @@ function fit(shot: Shot, w: number, h: number): Cam {
       c.zoom = clamp(c.zoom * Math.pow(k, 0.9), 0.3, s.maxZoom ?? 2.2);
     }
   }
-  if (s.insert === "center") return { ...c, lx: 0, ly: 0 };
+  if (side === "center") return { ...c, lx: 0, ly: 0 };
   const b = bounds();
   return { ...c, lx: (rect.l + rect.r) / 2 - w / 2 - (b.x0 + b.x1) / 2, ly: (rect.t + rect.b) / 2 - h / 2 - (b.y0 + b.y1) / 2 };
 }
@@ -209,6 +265,9 @@ const SLABP = pal("var(--mjf-sl-top)", "var(--mjf-sl-s)", "var(--mjf-sl-e)", "va
 const DECOYP = pal("var(--mjf-dc-top)", "var(--mjf-dc-s)", "var(--mjf-dc-e)", "var(--mjf-dc-e)", "var(--mjf-dc-s)");
 const TILEP = pal("var(--mjf-tile)", "var(--mjf-tile-s)", "var(--mjf-tile-e)", "var(--mjf-tile-e)", "var(--mjf-tile-s)");
 const DEVP = pal("var(--mjf-dev-top)", "var(--mjf-dev-s)", "var(--mjf-dev-e)", "var(--mjf-dev-e)", "var(--mjf-dev-s)");
+/** A building whose systems are down: the same faces washed amber. */
+const amber = (c: string, k: number) => `color-mix(in srgb, var(--alert) ${k}%, ${c})`;
+const DOWNP = pal(amber("var(--mjf-top)", 30), amber("var(--mjf-s)", 24), amber("var(--mjf-e)", 20), amber("var(--mjf-n)", 20), amber("var(--mjf-w)", 24));
 
 /** Dimming mixes a face colour toward the background by the inherited --mjf-dim (0..1). Opacity can't be
  *  used on 3D groups: it would flatten them. Face colour changes ease via the face's own transition. */
@@ -260,13 +319,13 @@ function Facade({ w, h, glass, door }: { w: number; h: number; glass: string; do
   );
 }
 
-function Building({ h: hs }: { h: Hosp }) {
+function Building({ h: hs, down = false }: { h: Hosp; down?: boolean }) {
   const { p, w, d, h } = hs;
   const lab = hs.kind === "pathology";
   const facade = (fw: number, glass: string, door?: boolean) => <Facade w={fw} h={h} glass={glass} door={door} />;
   return (
     <>
-      <Box p={p} w={w} d={d} h={h} colors={BLD}
+      <Box p={p} w={w} d={d} h={h} colors={down ? DOWNP : BLD}
         topStyle={{ boxShadow: `inset 0 0 0 6px ${mix("var(--mjf-parapet)")}` }}
         faces={{
           s: facade(w, "var(--mjf-win-s)", true), e: facade(d, "var(--mjf-win-e)"),
@@ -490,7 +549,7 @@ function Pin({ cam, p, children }: { cam: CamMVs; p: V3; children: ReactNode }) 
   return <motion.div className="absolute top-1/2 left-1/2 size-0" style={{ x: a.x, y: a.y }}>{children}</motion.div>;
 }
 
-type Tone = "neutral" | "focus" | "alert" | "shadow" | "ok" | "muted";
+type Tone = NoteTone;
 const TONE: Record<Tone, string> = {
   neutral: "border-border-strong bg-background text-fg",
   muted: "border-border bg-background text-fg-muted",
@@ -498,28 +557,72 @@ const TONE: Record<Tone, string> = {
   alert: "border-alert/70 bg-alert-bg text-alert",
   shadow: "border-shadow/70 bg-shadow-bg text-shadow",
   ok: "border-ok/60 bg-background text-ok",
+  danger: "border-danger/70 bg-background text-danger",
+};
+const TONE_TEXT: Record<Tone, string> = {
+  neutral: "text-fg", muted: "text-fg-muted", focus: "text-focus", alert: "text-alert", shadow: "text-shadow", ok: "text-ok", danger: "text-danger",
 };
 
+type Side4 = "up" | "right" | "left" | "down";
+type Align = "center" | "start" | "end";
+/** The free part of the frame, for labels that must stay inside it (live mode). */
+interface Fit { w: number; h: number; top: number; lx: MotionValue<number>; ly: MotionValue<number> }
+
+/** A label box beside a projected point that slides along the frame's edge instead of being cut off, and
+ *  stays below the band kept clear at the top. Used in live mode, where the stage is smaller. */
+function Clamped({ cam, p, side, dy, fit, align = "center", children }: {
+  cam: CamMVs; p: V3; side: Side4; dy: number; fit: Fit; align?: Align; children: ReactNode;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [box, setBox] = useState({ w: 0, h: 0 });
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => setBox((b) => (b.w === el.offsetWidth && b.h === el.offsetHeight ? b : { w: el.offsetWidth, h: el.offsetHeight })));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const a = useAnchor(cam, p);
+  // Up and down labels can lean: "end" ends just past its point (leans left), "start" begins just before it.
+  const ox = side === "right" ? dy : side === "left" ? -dy - box.w : align === "end" ? 36 - box.w : align === "start" ? -36 : -box.w / 2;
+  const oy = side === "up" ? -dy - box.h : side === "down" ? dy : -box.h / 2;
+  const M = 10;
+  const x = useTransform([a.x, fit.lx], ([ax, lx]: number[]) => {
+    const rel = ax + ox, left = fit.w / 2 + lx + rel;
+    return rel + clamp(left, M, Math.max(M, fit.w - M - box.w)) - left;
+  });
+  const y = useTransform([a.y, fit.ly], ([ay, ly]: number[]) => {
+    const rel = ay + oy, top = fit.h / 2 + ly + rel;
+    return rel + clamp(top, fit.top, Math.max(fit.top, fit.h - M - box.h)) - top;
+  });
+  return (
+    <motion.div className="pointer-events-none absolute top-1/2 left-1/2" style={{ x, y }}>
+      <div ref={ref} className="w-max">{children}</div>
+    </motion.div>
+  );
+}
+
 /** A label pinned above (or beside) a 3D point, always upright, fixed size. */
-function Tag({ cam, p, show, tone = "neutral", title, sub, side = "up", delay = 0, dy = 12, size = "md" }: {
-  cam: CamMVs; p: V3; show: boolean; tone?: Tone; title: ReactNode; sub?: ReactNode; side?: "up" | "right" | "left" | "down";
-  delay?: number; dy?: number; size?: "md" | "lg";
+function Tag({ cam, p, show, tone = "neutral", title, sub, side = "up", delay = 0, dy = 12, size = "md", fit = null }: {
+  cam: CamMVs; p: V3; show: boolean; tone?: Tone; title: ReactNode; sub?: ReactNode; side?: Side4;
+  delay?: number; dy?: number; size?: "md" | "lg"; fit?: Fit | null;
 }) {
   const reduce = !!useReducedMotion();
   const pos = side === "up" ? { left: 0, bottom: dy, translate: "-50% 0" }
     : side === "down" ? { left: 0, top: dy, translate: "-50% 0" }
       : side === "right" ? { left: dy, top: 0, translate: "0 -50%" } : { right: dy, top: 0, translate: "0 -50%" };
-  return (
-    <Pin cam={cam} p={p}>
-      <motion.div className={cn("pointer-events-none absolute rounded-xl border px-3.5 py-1.5 whitespace-nowrap", TONE[tone], size === "lg" && "px-4 py-2")}
-        style={pos}
-        initial={{ opacity: 0, scale: 0.94 }} animate={{ opacity: show ? 1 : 0, scale: show ? 1 : 0.94 }}
-        transition={reduce ? { duration: 0 } : { duration: 0.35, delay: show ? delay : 0, ease: [0.2, 0.8, 0.2, 1] }}>
-        <div className={cn("leading-tight font-semibold tracking-[-0.01em]", size === "lg" ? "text-[22px]" : "text-[19px]")}>{title}</div>
-        {sub && <div className="mt-0.5 text-[16px] leading-tight font-normal text-fg-muted">{sub}</div>}
-      </motion.div>
-    </Pin>
+  const label = (
+    <motion.div className={cn("pointer-events-none rounded-xl border px-3.5 py-1.5 whitespace-nowrap", !fit && "absolute", TONE[tone], size === "lg" && "px-4 py-2")}
+      style={fit ? undefined : pos}
+      initial={{ opacity: 0, scale: 0.94 }} animate={{ opacity: show ? 1 : 0, scale: show ? 1 : 0.94 }}
+      transition={reduce ? { duration: 0 } : { duration: 0.35, delay: show ? delay : 0, ease: [0.2, 0.8, 0.2, 1] }}>
+      <div className={cn("leading-tight font-semibold tracking-[-0.01em]", size === "lg" ? "text-[22px]" : "text-[19px]")}>{title}</div>
+      {sub && <div className="mt-0.5 text-[16px] leading-tight font-normal text-fg-muted">{sub}</div>}
+    </motion.div>
   );
+  return fit
+    ? <Clamped cam={cam} p={p} side={side} dy={dy} fit={fit}>{label}</Clamped>
+    : <Pin cam={cam} p={p}>{label}</Pin>;
 }
 
 function Sprite({ pose, children }: { pose: ReturnType<typeof usePose>; children: ReactNode }) {
@@ -643,28 +746,28 @@ function useFrame(ref: React.RefObject<HTMLDivElement | null>) {
   return size;
 }
 
-function useCamera(shot: Shot, w: number, h: number, reduce: boolean) {
-  const [c0] = useState(() => fit(shot, w, h));
+function useCamera(shot: StageShot, w: number, h: number, reduce: boolean, inserts: boolean, top: number) {
+  const [c0] = useState(() => fit(shot, w, h, inserts, top));
   const tu = useMotionValue(c0.tu), tv = useMotionValue(c0.tv), tz = useMotionValue(c0.tz);
   const tilt = useMotionValue(c0.tilt), swing = useMotionValue(c0.swing), zoom = useMotionValue(c0.zoom);
   const lx = useMotionValue(c0.lx), ly = useMotionValue(c0.ly);
-  const last = useRef<Shot | null>(null);
+  const last = useRef<StageShot | null>(null);
   useLayoutEffect(() => {
-    const c = fit(shot, w, h);
+    const c = fit(shot, w, h, inserts, top);
     const pairs: [MotionValue<number>, number][] = [[tu, c.tu], [tv, c.tv], [tz, c.tz], [tilt, c.tilt], [swing, c.swing], [zoom, c.zoom], [lx, c.lx], [ly, c.ly]];
     const jump = reduce || last.current === null || last.current === shot;
     last.current = shot;
     if (jump) { for (const [m, v] of pairs) { m.stop(); m.set(v); } return; }
     const ctl = pairs.map(([m, v]) => animate(m, v, { duration: 1.3, ease: [0.65, 0, 0.35, 1] }));
     return () => { for (const a of ctl) a.stop(); };
-  }, [shot, w, h, reduce, tu, tv, tz, tilt, swing, zoom, lx, ly]);
+  }, [shot, w, h, reduce, inserts, top, tu, tv, tz, tilt, swing, zoom, lx, ly]);
   const transform = useTransform([tu, tv, tz, tilt, swing, zoom], (v: number[]) =>
     `scale3d(${v[5]},${v[5]},${v[5]}) rotateX(${v[3]}deg) rotateZ(${v[4]}deg) translate3d(${-v[0]}px,${-v[1]}px,${-v[2]}px)`);
   return { list: [tu, tv, tz, tilt, swing, zoom], transform, lx, ly };
 }
 
 /** Seconds since the current shot began (a large constant under reduced motion = every end state). */
-function useShotClock(shot: Shot, reduce: boolean) {
+function useShotClock(shot: StageShot, reduce: boolean) {
   const time = useTime();
   const start = useMotionValue(0);
   useLayoutEffect(() => { start.set(time.get()); }, [shot, start, time]);
@@ -673,7 +776,7 @@ function useShotClock(shot: Shot, reduce: boolean) {
 
 /* ================================================================== the film */
 
-const IDX = (s: Shot) => SHOTS.indexOf(s);
+const IDX = (s: StageShot) => ORDER.indexOf(s);
 const noSub = () => () => {};
 /** False on the server and during hydration, true after: the film draws client-side only, so there is no
  *  SSR/CSR float or reduced-motion mismatch, and nothing can be left stuck at its initial state. */
@@ -681,42 +784,99 @@ function useIsClient() {
   return useSyncExternalStore(noSub, () => true, () => false);
 }
 
-export function Film({ shot, className }: { shot: Shot; className?: string }) {
+/* Guided films on screen. The tour's full-screen film covers the dashboard, so the live film underneath stops
+   drawing meanwhile: one CSS-3D world at a time keeps the projector laptop smooth. */
+let guidedOn = 0;
+const guidedSubs = new Set<() => void>();
+function bumpGuided(d: number) {
+  guidedOn += d;
+  guidedSubs.forEach((f) => f());
+}
+function subGuided(cb: () => void) {
+  guidedSubs.add(cb);
+  return () => { guidedSubs.delete(cb); };
+}
+/** True while a guided film (no `live` prop) is mounted. */
+export function useGuidedFilmOnScreen(): boolean {
+  return useSyncExternalStore(subGuided, () => guidedOn > 0, () => false);
+}
+
+export interface FilmProps {
+  shot: StageShot;
+  className?: string;
+  /** Facts to show instead of the recorded run's (useRunFacts). */
+  facts?: RunFacts | null;
+  /** The big 2D panels beside the scene (gauge, copy dialog, tracker file, fingerprint card, key split). */
+  inserts?: boolean;
+  /** Dashboard mode: what is on stage follows the event stream (see LiveScene). */
+  live?: LiveScene | null;
+  /** Pixels at the top of the frame kept clear of the shot's subject (a row of chips over the stage). */
+  insetTop?: number;
+}
+
+export function Film({ shot, className, facts, inserts = true, live = null, insetTop = 0 }: FilmProps) {
   const client = useIsClient();
+  const guided = !live;
+  useEffect(() => {
+    if (!guided) return;
+    bumpGuided(1);
+    return () => bumpGuided(-1);
+  }, [guided]);
+  const props = { shot, inserts, live, insetTop };
   return (
     <div className={cn("mjf relative h-full w-full overflow-hidden bg-background select-none", className)}>
       <style>{CSS}</style>
-      {client && <Stage shot={shot} />}
+      {client && (facts === undefined ? <RecordedStage {...props} /> : <Stage {...props} facts={facts} />)}
     </div>
   );
 }
 
-function Stage({ shot }: { shot: Shot }) {
+interface StageProps { shot: StageShot; facts: RunFacts | null; inserts: boolean; live: LiveScene | null; insetTop: number }
+
+/** The guided film: numbers from the recorded run. */
+function RecordedStage(props: Omit<StageProps, "facts">) {
   const facts = useRunFacts();
+  return <Stage {...props} facts={facts} />;
+}
+
+function Stage({ shot, facts, inserts, live, insetTop }: StageProps) {
   const reduce = !!useReducedMotion();
   const uid = useId().replace(/[^a-zA-Z0-9]/g, "");
   const ref = useRef<HTMLDivElement>(null);
   const { w, h } = useFrame(ref);
-  const cam = useCamera(shot, w, h, reduce);
+  // Live, the band kept clear at the top also has to fit the labels that sit above the subject: the back row's
+  // names in the wide shots, the note over the gateway's eye in the login and tracker shots.
+  const lift = shot === "network" || shot === "disperse" || shot === "outage" ? 58 : shot === "request" || shot === "fingerprint" ? 64 : 0;
+  const top = live && insetTop > 0 ? insetTop + lift : insetTop;
+  const cam = useCamera(shot, w, h, reduce, inserts, top);
   const clock = useShotClock(shot, reduce);
+  // live labels stay inside the frame and under the chips
+  const fit: Fit | null = live ? { w, h, top: Math.max(10, insetTop - 6), lx: cam.lx, ly: cam.ly } : null;
 
   const i = IDX(shot);
-  const from = (s: Shot) => i >= IDX(s);
-  const is = (...s: Shot[]) => s.includes(shot);
+  const from = (s: StageShot) => i >= IDX(s);
+  const is = (...s: StageShot[]) => s.includes(shot);
 
-  const attackerOn = from("request") && !is("disperse");
-  const twinOn = from("transfer");
-  const decoy = from("swap");
-  const wide = is("network", "disperse");
+  // What is on stage: the shot order in the guided film, the event stream in live mode.
+  const wide = is("network", "disperse", "outage");
+  const attackerOn = live ? live.attacker && !wide : from("request") && !is("disperse");
+  const twinOn = live ? live.twin : from("transfer");
+  const decoy = live ? live.twin : from("swap");
   const fs = facts?.firstSight ?? null;
-  const beacons = Math.max(1, facts?.trackers.length ?? 3);
+  const beacons = Math.max(1, live ? live.beacons : facts?.trackers.length ?? 3);
+  const copy = live ? (is("transfer", "swap", "exfil") ? live.copy : null) : is("transfer", "swap") ? "twin" : null;
+  const out = is("outage") ? live?.outage ?? null : null;
+  const lab = out ? HBY.get(out.lab) ?? null : null;
+  const labDown = !!lab && out?.state !== "ok";
+  const holders = live?.holders ?? null;
+  const shardTo = HOSP.filter((x) => x.id !== EB.id && (!holders || holders.includes(x.id)));
 
   // Dimming of the 3D pieces per shot (0 = full colour, 1 = background).
   const dimOther = wide ? 0 : 0.55;
-  const dimE = is("network", "hospital", "disperse") ? 0 : is("swap") ? 0.15 : 0.42;
-  const dimGate = is("request", "firstsight", "fingerprint") ? 0 : is("hospital") ? 0.55 : is("network") ? 0.35 : is("disperse") ? 0.4 : 0.22;
-  const dimReal = is("network", "hospital", "swap", "disperse") ? 0 : 0.42;
-  const dimLap = is("request", "transfer", "fingerprint") ? 0 : is("disperse") ? 0.5 : 0.2;
+  const dimE = is("network", "hospital", "disperse", "outage") ? 0 : is("swap") ? 0.15 : 0.42;
+  const dimGate = is("request", "firstsight", "fingerprint") ? 0 : is("hospital") ? 0.55 : is("network") ? 0.35 : is("disperse", "outage") ? 0.4 : 0.22;
+  const dimReal = is("network", "hospital", "swap", "disperse", "exfil", "outage") ? 0 : 0.42;
+  const dimLap = is("request", "transfer", "fingerprint", "exfil") ? 0 : is("disperse") ? 0.5 : 0.2;
 
   return (
     <div ref={ref} className="absolute inset-0">
@@ -726,10 +886,17 @@ function Stage({ shot }: { shot: Shot }) {
           <motion.div className="mjf-3d absolute top-1/2 left-1/2 size-0" style={{ transform: cam.transform }}>
             <Island uid={uid} />
 
-            {/* network links */}
+            {/* network links (in the outage, the lab's links turn amber, then are cut) */}
             {WORLD.links.map(([a, b], k) => {
               const A = HBY.get(a), B = HBY.get(b);
               if (!A || !B) return null;
+              if (out) {
+                const touches = a === out.lab || b === out.lab;
+                return <Cable key={`${a}-${b}`} a={A.p} b={B.p} seed={k}
+                  dots={out.state === "ok" || (out.state === "hit" && !touches) ? 4 : 0}
+                  dashed={touches && out.state === "isolated"}
+                  line={touches && out.state !== "ok" ? "color-mix(in srgb, var(--alert) 70%, transparent)" : undefined} />;
+              }
               const hot = is("hospital") && (a === EB.id || b === EB.id);
               return <Cable key={`${a}-${b}`} a={A.p} b={B.p} seed={k} dots={is("network") || hot ? 4 : 0} width={hot ? 7 : 6} />;
             })}
@@ -739,7 +906,7 @@ function Stage({ shot }: { shot: Shot }) {
 
             {/* hospitals */}
             {HOSP.map((hs) => (
-              <Dim key={hs.id} dim={hs.id === EB.id ? dimE : dimOther}><Building h={hs} /></Dim>
+              <Dim key={hs.id} dim={hs.id === EB.id ? dimE : dimOther}><Building h={hs} down={labDown && hs.id === lab?.id} /></Dim>
             ))}
 
             <Dim dim={dimReal}><Stack p={REAL} decoy={false} /></Dim>
@@ -749,7 +916,7 @@ function Stage({ shot }: { shot: Shot }) {
               {twinOn && <TwinPad key="twinpad" />}
               {twinOn && (
                 <Rise key="twin" depth={STACK_H + 20} delay={reduce ? 0 : 0.25}>
-                  <Dim dim={is("fingerprint") ? 0.35 : is("disperse") ? 0.62 : 0}><Stack p={TWIN} decoy={decoy} /></Dim>
+                  <Dim dim={is("fingerprint") ? 0.35 : is("disperse", "outage") ? 0.62 : 0}><Stack p={TWIN} decoy={decoy} /></Dim>
                 </Rise>
               )}
               {attackerOn && (
@@ -768,23 +935,29 @@ function Stage({ shot }: { shot: Shot }) {
             {is("swap") && <GroundRing key="r-twin2" p={TWIN} r={130} color="var(--shadow)" delay={0.9} />}
             {is("swap") && <GroundHalo key="h-real" p={REAL} r={124} color="var(--focus)" fill="color-mix(in srgb, var(--focus) 10%, transparent)" delay={1.2} />}
             {is("fingerprint") && <GroundRing key="r-gate2" p={GATE} r={138} color="var(--shadow)" delay={1.3} repeat={2} />}
-            {is("disperse") && HOSP.filter((x) => x.id !== EB.id).map((x, k) => (
+            {is("disperse") && shardTo.map((x, k) => (
               <GroundRing key={`r-${x.id}`} p={x.p} r={Math.max(x.w, x.d) * 0.95} color="var(--ok)" delay={2.5 + k * 0.16} />
             ))}
+            {is("exfil") && <GroundRing key="r-lap3" p={LAP} r={150} color={copy === "real" ? "var(--danger)" : "var(--shadow)"} delay={0.9} />}
+            {is("exfil") && copy !== "real" && <GroundHalo key="h-real3" p={REAL} r={124} color="var(--focus)" fill="color-mix(in srgb, var(--focus) 10%, transparent)" delay={1.1} />}
+            {labDown && lab && <GroundHalo key="h-lab" p={lab.p} r={Math.max(lab.w, lab.d) * 0.92} color="var(--alert)" fill="color-mix(in srgb, var(--alert) 10%, transparent)" delay={0.1} />}
+            {labDown && lab && <GroundRing key={`r-lab-${out?.state}`} p={lab.p} r={Math.max(lab.w, lab.d) * 0.92} color="var(--alert)" delay={0.2} repeat={out?.state === "hit" ? 2 : 0} />}
           </motion.div>
         </div>
 
         {/* ----- 2D layer: routes, flyers, labels ----- */}
         <div className="pointer-events-none absolute inset-0">
           <Route cam={cam.list} a={at(off(LAP, 0, -60), 4)} b={at(GATE, 4)} color="var(--alert)" show={is("request", "firstsight")} />
-          <Eye cam={cam.list} clock={clock} shot={shot} reduce={reduce} />
+          <Eye cam={cam.list} clock={clock} shot={shot} reduce={reduce} spin={live?.spin} />
 
-          {/* stream of copied files: twin stack → attacker */}
-          <ArcTrail cam={cam.list} a={COPY_A} b={COPY_B} peak={COPY_PEAK} color={decoy ? "var(--shadow)" : "var(--focus)"} show={is("transfer", "swap")} />
-          {is("transfer", "swap") && Array.from({ length: 8 }, (_, k) => (
-            <Flyer key={k} cam={cam.list} clock={clock} a={COPY_A} b={COPY_B} peak={COPY_PEAK} slot={k} n={8} gap={0.26} dur={1.7}
+          {/* stream of copied files: twin stack (or, live, the real store) → attacker */}
+          <ArcTrail cam={cam.list} a={COPY_A} b={COPY_B} peak={COPY_PEAK} color={decoy ? "var(--shadow)" : "var(--focus)"} show={copy === "twin"} />
+          {live && <ArcTrail cam={cam.list} a={COPY_R} b={COPY_B} peak={COPY_R_PEAK} color="var(--focus)" show={copy === "real"} />}
+          {copy && Array.from({ length: 8 }, (_, k) => (
+            <Flyer key={`${copy}-${k}`} cam={cam.list} clock={clock} a={copy === "real" ? COPY_R : COPY_A} b={COPY_B}
+              peak={copy === "real" ? COPY_R_PEAK : COPY_PEAK} slot={k} n={8} gap={0.26} dur={1.7}
               start={is("transfer") ? 1.1 : 0} reduce={reduce}>
-              <FileCard decoy={decoy} />
+              <FileCard decoy={copy === "twin" && decoy} />
             </Flyer>
           ))}
 
@@ -797,35 +970,49 @@ function Stage({ shot }: { shot: Shot }) {
           ))}
 
           {/* encrypted pieces fly from Eastbank's store to the other hospitals, then stay */}
-          {is("disperse") && HOSP.filter((x) => x.id !== EB.id).map((x, k) => (
+          {is("disperse") && shardTo.map((x, k) => (
             <Shard key={x.id} cam={cam.list} clock={clock} to={x} k={k} reduce={reduce} />
           ))}
 
-          <Packet cam={cam.list} clock={clock} shot={shot} reduce={reduce} />
+          {/* outage: tests rerouted to hospitals whose labs still work */}
+          {labDown && out?.routes.map((r, k) => {
+            const A = HBY.get(r.from), B = HBY.get(r.to);
+            return A && B ? <Reroute key={`${r.from}>${r.to}`} cam={cam.list} clock={clock} from={A} to={B} k={k} reduce={reduce} /> : null;
+          })}
+          {lab && <PadLock cam={cam.list} p={at(lab.p, lab.h + 44)} tone="alert" show={out?.state === "isolated"} reduce={reduce} />}
+
+          <Packet cam={cam.list} clock={clock} shot={shot} reduce={reduce} locked={!!live?.stepUp && is("firstsight")} />
           <HeroFile cam={cam.list} clock={clock} active={is("tracker")} reduce={reduce} />
           <Pulse cam={cam.list} p={EYE} color="var(--alert)" size={110} delay={0.75} repeat={2} every={0.15} show={is("firstsight")} />
           <Pulse cam={cam.list} p={at(off(GATE, 0, 14), 50)} color="var(--alert)" size={90} delay={1.0} repeat={2} every={0.3} show={is("firstsight")} />
 
           {/* padlock on the real store once the twin is revealed */}
-          <PadLock cam={cam.list} show={from("swap") && !is("tracker")} reduce={reduce} />
+          <PadLock cam={cam.list} show={live ? live.twin && !is("outage") : from("swap") && !is("tracker")} reduce={reduce} />
 
           {/* ----- labels ----- */}
           {HOSP.map((x, k) => {
             const eas = x.id === EB.id;
             const show = wide || (eas && !is("tracker"));
+            const ov = live?.hospitals[x.id];
+            const sub = live
+              ? ov?.sub ? <span className={cn("font-medium tabular-nums", TONE_TEXT[ov.subTone ?? "muted"])}>{ov.sub}</span> : undefined
+              : eas && is("swap") ? <span className="font-medium text-ok">Care keeps running</span>
+                : eas && is("disperse") ? <span className="font-medium text-focus">Live records stay</span> : undefined;
             return (
-              <Tag key={x.id} cam={cam.list} p={at(x.p, x.h + (is("disperse") ? 84 : wide ? 46 : 26))} show={show} title={x.label}
-                sub={eas && is("swap") ? <span className="font-medium text-ok">Care keeps running</span>
-                  : eas && is("disperse") ? <span className="font-medium text-focus">Live records stay</span> : undefined}
-                delay={wide ? 0.5 + k * 0.07 : 0.4} size={eas && is("hospital") ? "lg" : "md"} />
+              <Tag key={x.id} cam={cam.list} p={at(x.p, x.h + (is("disperse", "outage") ? 84 : wide ? 46 : 26))} show={show} title={ov?.title || x.label}
+                tone={ov?.tone} sub={sub} delay={wide ? 0.5 + k * 0.07 : 0.4} size={eas && is("hospital") ? "lg" : "md"} fit={fit} />
             );
           })}
           <SlabList cam={cam.list} show={is("hospital")} />
-          <Tag cam={cam.list} p={at(GATE, GATE_TOP + 112)} show={is("request")} title="MayaJaal gateway" delay={0.9} />
-          <Tag cam={cam.list} p={at(GATE, GATE_TOP + 112)} show={is("fingerprint")} tone="shadow" title="Trackers call home" delay={1.2} />
-          <Tag cam={cam.list} p={at(LAP, 150)} show={is("request", "transfer", "fingerprint")} tone="alert" title="Attacker" delay={0.8} />
-          <Tag cam={cam.list} p={off(TWIN, SLAB.w / 2, -SLAB.d / 2, STACK_H * 0.55)} side="right" dy={40} show={is("swap")} tone="shadow" title="Decoy twin" sub="Built for this login" delay={1.0} size="lg" />
-          <Tag cam={cam.list} p={at(REAL, STACK_H + 110)} show={is("swap")} tone="focus" title="Real records" sub="Locked · untouched" delay={1.3} size="lg" />
+          {live && fit ? <LiveNotes cam={cam.list} fit={fit} shot={shot} live={live} /> : (
+            <>
+              <Tag cam={cam.list} p={at(GATE, GATE_TOP + 112)} show={is("request")} title="MayaJaal gateway" delay={0.9} />
+              <Tag cam={cam.list} p={at(GATE, GATE_TOP + 112)} show={is("fingerprint")} tone="shadow" title="Trackers call home" delay={1.2} />
+              <Tag cam={cam.list} p={at(LAP, 150)} show={is("request", "transfer", "fingerprint")} tone="alert" title="Attacker" delay={0.8} />
+              <Tag cam={cam.list} p={off(TWIN, SLAB.w / 2, -SLAB.d / 2, STACK_H * 0.55)} side="right" dy={40} show={is("swap")} tone="shadow" title="Decoy twin" sub="Built for this login" delay={1.0} size="lg" />
+              <Tag cam={cam.list} p={at(REAL, STACK_H + 110)} show={is("swap")} tone="focus" title="Real records" sub="Locked · untouched" delay={1.3} size="lg" />
+            </>
+          )}
         </div>
       </motion.div>
 
@@ -833,8 +1020,65 @@ function Stage({ shot }: { shot: Shot }) {
       <motion.div className="pointer-events-none absolute inset-0 bg-background" initial={{ opacity: 0 }}
         animate={{ opacity: is("tracker") ? 0.82 : 0 }} transition={reduce ? { duration: 0 } : { duration: 0.6, delay: is("tracker") ? 0.9 : 0 }} />
 
-      <Inserts shot={shot} facts={facts} fs={fs} reduce={reduce} w={w} h={h} />
+      {inserts && <Inserts shot={shot} facts={facts} fs={fs} reduce={reduce} w={w} h={h} />}
     </div>
+  );
+}
+
+/* ================================================================== live labels */
+
+interface NotePlace { key: string; p: V3; side: Side4; dy: number; note: LiveNote; size: "md" | "lg"; align?: Align }
+
+/** The live scene's labels at their anchors. Where an anchor's label sits depends on the shot (left of the eye
+ *  when the camera is on the gateway, clear of the hospital's name; under the store in the wide view). A label fades out and the next fades
+ *  in when its wording changes; numbers inside it update in place. */
+function LiveNotes({ cam, fit, shot, live }: { cam: CamMVs; fit: Fit; shot: StageShot; live: LiveScene }) {
+  const wide = shot === "network" || shot === "disperse" || shot === "outage";
+  const n = live.notes;
+  const list: NotePlace[] = [];
+  if (n.gate && !wide) {
+    list.push(shot === "firstsight"
+      ? { key: "gate-side", p: EYE, side: "left", dy: 74, note: n.gate, size: "lg" }
+      : { key: "gate-up", p: at(GATE, GATE_TOP + 112), side: "up", dy: 12, note: n.gate, size: "md", align: shot === "fingerprint" ? "end" : "center" });
+  }
+  if (n.laptop && live.attacker && !wide) list.push({ key: "laptop", p: at(LAP, 150), side: "up", dy: 12, note: n.laptop, size: n.laptop.value ? "lg" : "md" });
+  // The exfil frame also holds the laptop, so the stores are small and there is no room beside them: their
+  // labels go underneath instead.
+  const under = shot === "exfil";
+  if (n.twin && live.twin && !wide) {
+    list.push(under
+      ? { key: "twin-down", p: at(off(TWIN, 0, SLAB.d / 2 + 24), 0), side: "down", dy: 14, note: n.twin, size: "lg" }
+      : { key: "twin", p: off(TWIN, SLAB.w / 2, -SLAB.d / 2, STACK_H * 0.55), side: "right", dy: 40, note: n.twin, size: "lg" });
+  }
+  if (n.real && shot !== "network" && shot !== "outage") {
+    list.push(shot === "disperse" || under
+      ? { key: "real-down", p: at(off(REAL, 0, SLAB.d / 2 + 30), 0), side: "down", dy: 18, note: n.real, size: "lg", align: under ? "start" : "center" }
+      : { key: "real-side", p: off(REAL, SLAB.w / 2, -SLAB.d / 2, STACK_H * 0.6), side: "right", dy: 40, note: n.real, size: "lg" });
+  }
+  return (
+    <AnimatePresence>
+      {list.map((x) => <NoteTag key={`${x.key}:${x.note.title}`} cam={cam} fit={fit} place={x} />)}
+    </AnimatePresence>
+  );
+}
+
+function NoteTag({ cam, fit, place }: { cam: CamMVs; fit: Fit; place: NotePlace }) {
+  const reduce = !!useReducedMotion();
+  const { p, side, dy, note, size, align } = place;
+  const lg = size === "lg";
+  return (
+    <Clamped cam={cam} p={p} side={side} dy={dy} fit={fit} align={align}>
+      <motion.div className={cn("pointer-events-none rounded-xl border whitespace-nowrap", TONE[note.tone ?? "neutral"], lg ? "px-4 py-2" : "px-3.5 py-1.5")}
+        initial={{ opacity: 0, scale: 0.94 }} animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.97, transition: reduce ? { duration: 0 } : { duration: 0.2 } }}
+        transition={reduce ? { duration: 0 } : { duration: 0.35, delay: 0.75, ease: [0.2, 0.8, 0.2, 1] }}>
+        <div className="flex items-baseline gap-2.5">
+          {note.value && <span className={cn("leading-none font-semibold tracking-[-0.03em] tabular-nums", lg ? "text-[30px]" : "text-[24px]")}>{note.value}</span>}
+          <span className={cn("leading-tight font-semibold tracking-[-0.01em]", lg ? "text-[22px]" : "text-[19px]")}>{note.title}</span>
+        </div>
+        {note.sub && <div className={cn("mt-0.5 text-[16px] leading-tight font-normal tabular-nums", TONE_TEXT[note.subTone ?? "muted"])}>{note.sub}</div>}
+      </motion.div>
+    </Clamped>
   );
 }
 
@@ -863,7 +1107,7 @@ function SlabList({ cam, show }: { cam: CamMVs; show: boolean }) {
   );
 }
 
-function Packet({ cam, clock, shot, reduce }: { cam: CamMVs; clock: MotionValue<number>; shot: Shot; reduce: boolean }) {
+function Packet({ cam, clock, shot, reduce, locked = false }: { cam: CamMVs; clock: MotionValue<number>; shot: StageShot; reduce: boolean; locked?: boolean }) {
   const startP = at(off(LAP, 0, -40), 46);
   const front = at(off(GATE, 0, 110), 46);
   const held = at(GATE, 58);
@@ -885,8 +1129,14 @@ function Packet({ cam, clock, shot, reduce }: { cam: CamMVs; clock: MotionValue<
   return (
     <>
       <Sprite pose={pose}>
-        <div className={cn("grid h-[50px] w-[66px] place-items-center rounded-xl border-[3px] border-alert bg-alert-bg text-alert")}>
+        <div className={cn("relative grid h-[50px] w-[66px] place-items-center rounded-xl border-[3px] border-alert bg-alert-bg text-alert")}>
           <IdCard className="size-[30px]" strokeWidth={2} />
+          {/* live step-up: the login is held for badge + MFA */}
+          <motion.span className="absolute -top-4 -right-4 grid size-[30px] place-items-center rounded-full border-[3px] border-alert bg-background text-alert"
+            initial={{ opacity: 0, scale: 0.6 }} animate={{ opacity: locked ? 1 : 0, scale: locked ? 1 : 0.6 }}
+            transition={reduce ? { duration: 0 } : { duration: 0.3, delay: locked ? 0.9 : 0 }}>
+            <Lock className="size-[15px]" strokeWidth={2.6} />
+          </motion.span>
         </div>
       </Sprite>
       <PoseTag pose={pose} show={tagOn} reduce={reduce} />
@@ -906,13 +1156,14 @@ function PoseTag({ pose, show, reduce }: { pose: ReturnType<typeof usePose>; sho
   );
 }
 
-function Eye({ cam, clock, shot, reduce }: { cam: CamMVs; clock: MotionValue<number>; shot: Shot; reduce: boolean }) {
-  const hidden = shot === "tracker" || shot === "network" || shot === "hospital";
-  const back = shot === "transfer" || shot === "swap" || shot === "disperse";
+function Eye({ cam, clock, shot, reduce, spin: turns }: { cam: CamMVs; clock: MotionValue<number>; shot: StageShot; reduce: boolean; spin?: number }) {
+  const hidden = shot === "tracker" || shot === "network" || shot === "hospital" || shot === "outage";
+  const back = shot === "transfer" || shot === "swap" || shot === "disperse" || shot === "exfil";
   const full = back ? 0.45 : 1;
   const pose = usePose(cam, clock, (t) => ({ p: EYE, o: hidden ? 0 : reduce ? full : full * clamp((t - 0.3) / 0.4, 0, 1), k: back ? 0.75 : 1 }), 1, [0.45, 1.5]);
-  const mode: EyeMode = shot === "firstsight" ? "fire" : shot === "transfer" || shot === "swap" ? "watch" : shot === "fingerprint" ? "ping" : "calm";
-  const spin = (IDX(shot) >= IDX("firstsight") ? 1 : 0) + (IDX(shot) >= IDX("fingerprint") ? 1 : 0);
+  const mode: EyeMode = shot === "firstsight" ? "fire" : shot === "transfer" || shot === "swap" || shot === "exfil" ? "watch" : shot === "fingerprint" ? "ping" : "calm";
+  // guided film: turns follow the shot order; live: the run's own count (First Sight, trackers calling home)
+  const spin = turns ?? (IDX(shot) >= IDX("firstsight") ? 1 : 0) + (IDX(shot) >= IDX("fingerprint") ? 1 : 0);
   return <Sprite pose={pose}><EyeBadge mode={mode} spin={spin} reduce={reduce} /></Sprite>;
 }
 
@@ -935,10 +1186,31 @@ function Shard({ cam, clock, to, k, reduce }: { cam: CamMVs; clock: MotionValue<
   );
 }
 
-function PadLock({ cam, show, reduce }: { cam: CamMVs; show: boolean; reduce: boolean }) {
+/** Outage: tests from one hospital fly along an arc to another hospital's lab that still works. */
+function Reroute({ cam, clock, from, to, k, reduce }: { cam: CamMVs; clock: MotionValue<number>; from: Hosp; to: Hosp; k: number; reduce: boolean }) {
+  const a = at(from.p, from.h + 22);
+  const b = at(to.p, to.h + 22);
+  const peak = 80 + Math.hypot(b[0] - a[0], b[1] - a[1]) * 0.15;
   return (
-    <Pin cam={cam} p={at(REAL, STACK_H + 46)}>
-      <motion.div className="absolute top-0 left-0 grid size-[52px] -translate-1/2 place-items-center rounded-full border-[3px] border-focus bg-background text-focus"
+    <>
+      <ArcTrail cam={cam} a={a} b={b} peak={peak} color="var(--focus)" show />
+      {[0, 1].map((s) => (
+        <Flyer key={s} cam={cam} clock={clock} a={a} b={b} peak={peak} slot={s} n={2} gap={1.2} dur={2.1} start={0.4 + k * 0.23} reduce={reduce} base={0.8}>
+          <span className="grid size-[36px] place-items-center rounded-lg border-[3px] border-focus bg-background text-focus">
+            <TestTube className="size-[18px]" strokeWidth={2.4} />
+          </span>
+        </Flyer>
+      ))}
+    </>
+  );
+}
+
+const LOCK_REAL: V3 = at(REAL, STACK_H + 46);
+function PadLock({ cam, show, reduce, p = LOCK_REAL, tone = "focus" }: { cam: CamMVs; show: boolean; reduce: boolean; p?: V3; tone?: "focus" | "alert" }) {
+  return (
+    <Pin cam={cam} p={p}>
+      <motion.div className={cn("absolute top-0 left-0 grid size-[52px] -translate-1/2 place-items-center rounded-full border-[3px] bg-background",
+        tone === "alert" ? "border-alert text-alert" : "border-focus text-focus")}
         initial={{ opacity: 0, scale: 0.6 }} animate={{ opacity: show ? 1 : 0, scale: show ? 1 : 0.6 }}
         transition={reduce ? { duration: 0 } : { duration: 0.4, delay: show ? 1.1 : 0, ease: [0.2, 0.8, 0.2, 1] }}>
         <Lock className="size-[24px]" strokeWidth={2.4} />
@@ -991,7 +1263,7 @@ function Insert({ side, w, h, children, reduce, delay = 0.5 }: { side: Side; w: 
 }
 
 function Inserts({ shot, facts, fs, reduce, w, h }: {
-  shot: Shot; facts: ReturnType<typeof useRunFacts>; fs: { score: number; threshold: number; signals: string[] } | null; reduce: boolean; w: number; h: number;
+  shot: StageShot; facts: RunFacts | null; fs: { score: number; threshold: number; signals: string[] } | null; reduce: boolean; w: number; h: number;
 }) {
   return (
     <AnimatePresence>
@@ -1017,7 +1289,8 @@ function Inserts({ shot, facts, fs, reduce, w, h }: {
       )}
       {shot === "disperse" && (
         <Insert key="key" side="right" w={w} h={h} reduce={reduce} delay={0.9}>
-          <KeySplit holders={facts?.scatter?.holders ?? []} threshold={facts?.scatter?.keyThreshold ?? null} verified={!!facts?.scatter?.verified} />
+          <KeySplit holders={facts?.scatter?.holders ?? []} threshold={facts?.scatter?.keyThreshold ?? null} verified={!!facts?.scatter?.verified}
+            scatter={facts?.scatter ?? null} />
         </Insert>
       )}
     </AnimatePresence>
