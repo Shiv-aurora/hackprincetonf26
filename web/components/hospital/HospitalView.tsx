@@ -30,19 +30,13 @@ export function Narrator({ className }: { className?: string }) {
   const events = useMJ((s) => s.events);
   const beats = useMemo(() => storyBeats(events), [events]);
   const now = beats.at(-1);
-  const before = beats.slice(-4, -1).reverse();
   return (
-    <div data-demo="narrator" className={cn("flex min-h-[92px] flex-col justify-center gap-2", className)}>
+    <div data-demo="narrator" className={cn("flex min-h-[64px] flex-col justify-center", className)}>
       <p key={now?.id ?? "idle"} className={cn("mj-fade flex items-start gap-3 text-[22px] leading-snug font-semibold tracking-[-0.02em] text-balance",
         now ? TONE_TEXT[now.tone] : "text-fg-muted")}>
         <span className={cn("mt-[11px] size-2 shrink-0 rounded-full", now ? TONE_DOT[now.tone] : "bg-border-strong")} />
         {now?.text ?? "Waiting for activity on the hospital network."}
       </p>
-      {before.length > 0 && (
-        <ol className="flex flex-wrap gap-x-5 gap-y-1 pl-5 text-[13px] text-fg-subtle">
-          {before.map((b) => <li key={b.id} className="max-w-[440px] truncate">{b.text}</li>)}
-        </ol>
-      )}
     </div>
   );
 }

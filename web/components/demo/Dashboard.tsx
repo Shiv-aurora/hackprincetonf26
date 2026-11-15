@@ -13,6 +13,7 @@ import { useMJ } from "@/lib/events";
 import { Button, Card, SiteHeader, cn } from "@/components/ui";
 import { NetworkMap } from "@/components/map";
 import { HospitalNumbers, Narrator, TwoHospitals } from "@/components/hospital/HospitalView";
+import { LearnedPanel, SwitchView, TrackersPanel } from "@/components/hospital/Live";
 import {
   AttackerTerminal, ColumnHeading, ContinuityHUD, DefenderPanel, EventTimeline, RunBadge, SoundButton,
   StreamStatus, TheReveal, WarRoomSound, hospitalName, playRevealCue, useHasContinuity,
@@ -60,12 +61,23 @@ export function Dashboard({ mode = "live", revealOpen = false }: DashboardProps)
       <DemoFrame demo={demo}>
       <main className={cn("mx-auto flex w-full max-w-[1400px] flex-col gap-4 px-4 sm:px-6", demo ? "min-h-0 flex-1" : "py-5")}>
         <Narrator />
-        <TwoHospitals className={demo ? "min-h-0 flex-1" : "lg:h-[min(52vh,520px)]"} />
+        <div className={cn("grid min-h-0 grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]",
+          demo ? "flex-1" : "lg:h-[min(60vh,580px)]")}>
+          <SwitchView className="min-h-[420px] lg:min-h-0" />
+          <div className="grid min-h-0 grid-rows-[minmax(0,1fr)_auto] gap-4">
+            <TrackersPanel className="min-h-[220px] lg:min-h-0" />
+            <LearnedPanel />
+          </div>
+        </div>
         <HospitalNumbers />
 
         {!demo && (
-          <>
-            <h2 className="mt-8 text-[13px] font-medium text-fg-muted">Under the hood</h2>
+          <details className="group mt-6">
+            <summary className="flex h-9 w-fit cursor-pointer list-none items-center gap-2 rounded-md px-2 text-[13px] text-fg-muted hover:bg-surface-2 hover:text-fg">
+              <span className="transition-transform duration-150 group-open:rotate-90">›</span> More detail: floor plans, raw requests, gateway log
+            </summary>
+            <div className="mt-4 flex flex-col gap-5">
+            <TwoHospitals className="lg:h-[440px]" />
             <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] lg:gap-6">
               <section data-demo="attacker" className="flex min-h-0 flex-col">
                 <ColumnHeading
@@ -109,7 +121,8 @@ export function Dashboard({ mode = "live", revealOpen = false }: DashboardProps)
                 </Slot>
               )}
             </div>
-          </>
+            </div>
+          </details>
         )}
       </main>
       </DemoFrame>

