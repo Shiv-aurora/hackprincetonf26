@@ -67,6 +67,22 @@ Categories come from an HTTP request (features_from_request):
     exfil_channel, impact, record_write) or "other".
     status 401/403 sets the `denied` flag; honeytoken_touched sets the `honeytoken` flag.
 
+Lures over HTTP (the attacker has no shell). The gateway-side filter also runs the lure planner,
+because only the gateway sees every request of a session:
+    header(session)   called by the gateway for each request it diverts. Asks the planner whether to
+                      plant a lure now and returns X-MJ-Posterior with the goal posterior plus
+                      "lures": {kind: info_gain}, the full set that should exist in the shadow world.
+                      The shadow hook plants whatever is missing (mirage/shadow_hook.py).
+    seen              a planted lure counts as shown once the session fetches its host page
+                      (GET /portal/backups or GET /portal/docs, status 200) after it was planted.
+    taken             the session fetches the lure itself (the take URL names it, see
+                      model.LURE_MARKERS) and the shadow tier reports a new honeytoken touch:
+                      update with P(engage | goal, kind) instead of the generic honeytoken flag.
+    ignored           IGNORE_AFTER further requests after it was shown without taking it:
+                      update with 1 - P(engage | goal, kind).
+The planner only ever acts for sessions the policy engine has already diverted, and nothing here
+can lower a lane or grant access to anything.
+
 This is a hand-built model for a demo, not a trained classifier. Numbers are judgement calls.
 """
 
@@ -82,7 +98,10 @@ from typing import TYPE_CHECKING, Any, Callable, Iterator, Mapping
 from urllib.parse import parse_qsl, unquote
 
 from mayajaal.contracts import Event, make_event
-from mayajaal.mirage.model import ENGAGE, GOALS, STAGES, normalize, parse_table
+from mayajaal.mirage.model import ENGAGE, GOALS, HOST, KINDS, STAGES, lure_of, normalize, parse_table, robust_engage
+from mayajaal.mirage.planner import LURES_KEY, StealthPlanner
+from mayajaal.mirage.suspicion import DEFAULT as DEFAULT_SUSPICION
+from mayajaal.mirage.suspicion import LureState, SuspicionModel, apply_plant, survived
 
 if TYPE_CHECKING:     # type only; never imported at runtime
     from mayajaal.real.policy import LaneAdjuster, PolicyInput
@@ -97,6 +116,8 @@ STAGE_ADVANCE = 0.15
 TEMPER = 0.7          # requests are correlated, so each counts as 0.7 of an independent observation
                       # (likelihood ** TEMPER); the k-th consecutive repeat of a category counts 1/sqrt(k) of that
 EMIT_DELTA = 0.05
+IGNORE_AFTER = 3      # requests after a lure was shown before "not taken" counts as evidence
+_DEFAULT = object()
 
 _CAT_ROWS = parse_table(__doc__, "category")
 CATEGORIES: tuple[str, ...] = tuple(_CAT_ROWS)
@@ -223,9 +244,13 @@ def features_from_request(method: str, path: str, query: Mapping[str, str] | str
     else:
         cat = _technique_category(technique) or ("discovery" if surface == "shell" else "other")
 
+    page = None
+    if method == "GET" and status == 200:
+        page = {"/portal/backups": "backups", "/portal/docs": "docs"}.get(low.rstrip("/"))
+    lure = lure_of(raw + " " + " ".join(q.values())) if low.startswith("/portal/") else None
     return {"category": cat, "surface": surface, "method": method, "count": count, "status": status,
             "denied": status in (401, 403) and not cat.startswith("login"),
-            "honeytoken": bool(honeytoken_touched), "technique": technique}
+            "honeytoken": bool(honeytoken_touched), "technique": technique, "page": page, "lure": lure}
 
 
 # --------------------------------------------------------------------------- state
@@ -280,6 +305,14 @@ class _Session:
     doc_reads: int = 0
     last_category: str | None = None
     repeat: int = 1
+    # lures (only used once the gateway has diverted the session and asked for a header)
+    lures: LureState = field(default_factory=LureState)
+    gains: dict[str, float] = field(default_factory=dict)       # kind -> IG bits when planted
+    quit_q: dict[str, float] = field(default_factory=dict)      # kind -> modelled cautious quit prob
+    shown: dict[str, int] = field(default_factory=dict)         # kind -> request index when first shown
+    taken: dict[str, bool] = field(default_factory=dict)        # kind -> True taken / False ignored
+    diverted: bool = False
+    config: str | None = None
 
 
 def _initial_belief(prior: Mapping[str, float]) -> dict[tuple[str, str], float]:
@@ -293,7 +326,18 @@ class IntentFilter:
     """Per-session Bayesian goal filter. Not thread-safe; the gateway is a single event loop."""
 
     def __init__(self, prior: Mapping[str, float] | None = None, *, drift: float = GOAL_DRIFT, turn: float = BENIGN_TURN,
-                 advance: float = STAGE_ADVANCE, temper: float = TEMPER, max_sessions: int = 4096) -> None:
+                 advance: float = STAGE_ADVANCE, temper: float = TEMPER, max_sessions: int = 4096,
+                 planner: Any = _DEFAULT, suspicion: SuspicionModel = DEFAULT_SUSPICION, lure_trust: float = 1.0,
+                 ignore_after: int = IGNORE_AFTER) -> None:
+        """`planner`: anything with decide(posterior, LureState) -> (kind, gain) | None. Default is the
+        suspicion-aware StealthPlanner; None turns gateway-side planning off (the header is then the
+        bare posterior and the shadow-side planner decides, as before).
+        `lure_trust` < 1 mixes the engagement table with a flat 0.5 (robust to a wrong table)."""
+        self.planner = StealthPlanner(suspicion=suspicion, trust=lure_trust) if planner is _DEFAULT else planner
+        self.suspicion = suspicion
+        self.lure_trust = lure_trust
+        self.ignore_after = max(1, ignore_after)
+        self._engage = {k: robust_engage(ENGAGE[k], lure_trust) for k in ENGAGE}
         self.prior = normalize(prior or PRIOR)
         self.temper = temper
         self.drift = drift
@@ -368,16 +412,46 @@ class IntentFilter:
         if cat:
             lik *= LIKELIHOOD[(g, s)].get(cat, LIKELIHOOD[(g, s)]["other"]) ** (self.temper / math.sqrt(repeat))
         for flag, table in FLAGS.items():
-            if features.get(flag):
+            if features.get(flag) and not (flag == "honeytoken" and features.get("lure_taken")):
                 lik *= table[g] ** self.temper
         kind = features.get("breadcrumb")
-        if kind in ENGAGE and features.get("engaged") is not None:
-            pe = ENGAGE[kind][g]
+        if kind in self._engage and features.get("engaged") is not None:
+            pe = self._engage[kind][g]
             lik *= pe if features["engaged"] else 1.0 - pe
+        for kind, outcome in features.get("lure_outcomes") or ():
+            pe = self._engage[kind][g]
+            # "retake": the lure was scored as ignored earlier and is taken now; swap the factor.
+            lik *= pe if outcome is True else (1.0 - pe) if outcome is False else pe / max(1e-9, 1.0 - pe)
         return lik
+
+    def _lure_outcomes(self, s: _Session, features: Mapping[str, Any]) -> dict[str, Any]:
+        """Work out which lures this request showed, took or (by now) ignored. Returns extra features."""
+        n = s.n + 1                                   # index of the request being observed
+        s.lures.step = n
+        outcomes: list[tuple[str, Any]] = []
+        kind = features.get("lure")
+        taken_now = bool(kind in self._engage and features.get("honeytoken") and s.taken.get(kind) is not True)
+        if taken_now:
+            outcomes.append((kind, "retake" if s.taken.get(kind) is False else True))
+            s.taken[kind] = True
+        page = features.get("page")
+        if page and s.diverted:
+            for k, at in s.lures.planted.items():
+                if HOST.get(k) == page and k not in s.shown and at <= n:
+                    s.shown[k] = n
+                    survived(s.lures, s.quit_q.get(k, 0.0))      # they saw it and are still here
+            s.lures.viewed.add(page)
+        for k, at in s.shown.items():
+            if k not in s.taken and n - at >= self.ignore_after:
+                outcomes.append((k, False))
+                s.taken[k] = False
+        return {"lure_outcomes": outcomes, "lure_taken": taken_now} if outcomes else {}
 
     def observe(self, session_id: str, features: Mapping[str, Any]) -> IntentState:
         s = self._session(session_id)
+        extra = self._lure_outcomes(s, features)
+        if extra:
+            features = {**features, **extra}
         cat = features.get("category")
         s.repeat = s.repeat + 1 if cat and cat == s.last_category else 1
         s.last_category = cat
@@ -423,7 +497,40 @@ class IntentFilter:
         kind = f.get("breadcrumb")
         if kind and f.get("engaged") is not None:
             text += f" {'Took' if f['engaged'] else 'Ignored'} the {kind.replace('_', ' ')} breadcrumb."
+        for kind, outcome in f.get("lure_outcomes") or ():
+            text += f" {'Ignored' if outcome is False else 'Took'} the {kind.replace('_', ' ')} lure."
         return text.strip()
+
+    # ---------------------------------------------------------------- lures
+    def note_config(self, session_id: str, config: str | None) -> None:
+        """Remember which benchmark config the session runs under (lures only exist in "mayajaal")."""
+        if config:
+            self._session(session_id).config = str(config).lower()
+
+    def lures(self, session_id: str) -> dict[str, Any]:
+        """Defender-side view of a session's lures (tests, debugging)."""
+        s = self._sessions.get(session_id)
+        if s is None:
+            return {"planted": {}, "shown": {}, "taken": {}, "viewed": [], "p_cautious": 0.5, "gains": {}}
+        return {"planted": dict(s.lures.planted), "shown": dict(s.shown), "taken": dict(s.taken),
+                "viewed": sorted(s.lures.viewed), "p_cautious": s.lures.p_cautious,
+                "suspicion_log_odds": s.lures.log_odds, "gains": dict(s.gains)}
+
+    def _plan(self, s: _Session, posterior: Mapping[str, float]) -> None:
+        if self.planner is None or s.config not in (None, "mayajaal"):
+            return
+        s.diverted = True
+        s.lures.step = s.n + 1
+        try:
+            pick = self.planner.decide(posterior, s.lures)
+        except Exception as exc:                   # a planner bug must never break the gateway
+            print(f"[mirage] planner error: {exc!r}")
+            return
+        if pick is None or pick[0] not in KINDS or pick[0] in s.lures.planted:
+            return
+        kind, gain = pick
+        s.quit_q[kind] = apply_plant(self.suspicion, s.lures, kind)
+        s.gains[kind] = round(float(gain), 4)
 
     # ---------------------------------------------------------------- events
     def maybe_event(self, session_id: str, *, run_id: str, hospital_id: str | None = None,
@@ -440,7 +547,14 @@ class IntentFilter:
         return ev
 
     def header(self, session_id: str) -> str:
-        return posterior_header(self.state(session_id).posterior)
+        """X-MJ-Posterior for a request the gateway is about to divert. Also the planner's turn: it
+        may add one lure to the set the shadow world should hold (see the module docstring)."""
+        posterior = self.state(session_id).posterior
+        if self.planner is None:
+            return posterior_header(posterior)
+        s = self._session(session_id)
+        self._plan(s, posterior)
+        return posterior_header(posterior, s.gains if s.diverted else None)
 
 
 # --------------------------------------------------------------------------- helpers
@@ -477,9 +591,13 @@ def intent_event(state: IntentState, *, run_id: str, session_id: str, hospital_i
                       hospital_id=hospital_id, tier="none")
 
 
-def posterior_header(posterior: Mapping[str, float]) -> str:
-    """Compact JSON for the X-MJ-Posterior header, e.g. {"benign":0.05,"recon":0.1,...}."""
-    return json.dumps(rounded(posterior), separators=(",", ":"))
+def posterior_header(posterior: Mapping[str, float], lures: Mapping[str, float] | None = None) -> str:
+    """Compact JSON for the X-MJ-Posterior header, e.g. {"benign":0.05,"recon":0.1,...}. With `lures`
+    (kind -> info gain in bits) it also carries the lure directives under "lures"."""
+    data: dict[str, Any] = rounded(posterior)
+    if lures is not None:
+        data[LURES_KEY] = dict(lures)
+    return json.dumps(data, separators=(",", ":"))
 
 
 # --------------------------------------------------------------------------- lane adjuster
@@ -500,9 +618,11 @@ def make_lane_adjuster(intent: IntentFilter, *, session_of: Callable[[Any], str 
     """
 
     def adjust(inp: "PolicyInput", lane: str, reason: str) -> tuple[str, str] | None:
+        sid = session_of(inp) if session_of is not None else _CURRENT.get()
+        if sid and getattr(inp, "config", None):
+            intent.note_config(sid, inp.config)        # lures are only planted under "mayajaal"
         if lane not in LANE_ORDER:
             return None
-        sid = session_of(inp) if session_of is not None else _CURRENT.get()
         if not sid:
             return None
         st = intent.peek(sid)

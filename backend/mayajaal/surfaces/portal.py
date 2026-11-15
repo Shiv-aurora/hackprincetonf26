@@ -4,21 +4,30 @@
     POST /portal/login           form target; redirects to the user directory (auth is the gateway's job)
     GET  /portal/admin/users     user directory      (world.portal_users())
     GET  /portal/backups         nightly backup jobs to the shared pathology lab's backup host
+    GET  /portal/backups/download?file=<archive>   an archive from the backup share
+    GET  /portal/docs            IT documents (procedures, client configs)
+    GET  /portal/docs/view?id=<id>                 one document, as text
     GET  /portal/network         inter-hospital site-to-site VPN links (contracts/world.json)
 
 Every page returns JSON instead of HTML when the client prefers `application/json`.
+
+File contents (downloads, documents) are served only by worlds that publish them through an
+optional `portal_file(ref) -> (name, text) | None` method, and documents are listed only by worlds
+with `portal_documents()`. The shadow world has both; a world without them answers 403 "change
+ticket required" / an empty list, so these routes can never hand out a real backup.
 """
 
 from __future__ import annotations
 
 import html
 import posixpath
+from urllib.parse import quote
 from dataclasses import asdict
 from datetime import date, datetime, timedelta, timezone
 from typing import Any, Callable
 
 from fastapi import APIRouter, Request
-from starlette.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
+from starlette.responses import HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse, Response
 
 from mayajaal.world_api import FsNode, ResolveWorld, WorldProvider
 
@@ -66,7 +75,8 @@ form.login input[type=text],form.login input[type=password]{width:100%;box-sizin
 form.login button{margin-top:12px;background:#2d5f99;color:#fff;border:1px solid #1d4677;padding:4px 14px;cursor:pointer}
 """
 
-_NAV = [("/portal/admin/users", "Users"), ("/portal/backups", "Backups"), ("/portal/network", "Network")]
+_NAV = [("/portal/admin/users", "Users"), ("/portal/backups", "Backups"), ("/portal/docs", "Documents"),
+        ("/portal/network", "Network")]
 
 
 def _e(v: Any) -> str:
@@ -181,9 +191,12 @@ def backups_data(world: WorldProvider) -> dict[str, Any]:
             started_s = started.isoformat(timespec="seconds")
         except ValueError:
             started_s = f.mtime
+        rel = f.path[len(BACKUP_MOUNT) + 1:] if f.path.startswith(BACKUP_MOUNT + "/") else name
         jobs.append({
             "job": "EHR-NIGHTLY-FULL" if name.startswith("db_dump") else "FILE-NIGHTLY",
             "file": name,
+            "archive": rel,
+            "download": f"/portal/backups/download?file={quote(rel)}",
             "source": "ehr-db01.eas.mhn.local (Eastbank Community)",
             "target": f"{BACKUP_HOST}:{BACKUP_SHARE}/{name}",
             "path": f.path,
@@ -204,6 +217,36 @@ def backups_data(world: WorldProvider) -> dict[str, Any]:
         "service_account": "svc_backup",
         "jobs": jobs,
     }
+
+
+def documents_data(world: WorldProvider) -> list[dict[str, Any]]:
+    lister = getattr(world, "portal_documents", None)
+    if not callable(lister):
+        return []
+    try:
+        docs = [dict(doc) for doc in lister()]
+    except Exception:  # noqa: BLE001
+        return []
+    for doc in docs:
+        doc["view"] = f"/portal/docs/view?id={quote(str(doc.get('id', '')))}"
+        doc["size"] = _human(int(doc.get("size_bytes") or 0))
+    return docs
+
+
+def _published_file(world: WorldProvider, ref: str) -> tuple[str, str] | None:
+    reader = getattr(world, "portal_file", None)
+    if not callable(reader) or not ref:
+        return None
+    try:
+        return reader(ref)
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _ticket_required() -> Response:
+    return JSONResponse({"error": "change_ticket_required",
+                         "message": "Archive downloads and restores require an approved change ticket. "
+                                    "Contact the Service Desk (ext. 4357)."}, status_code=403)
 
 
 def network_data() -> dict[str, Any]:
@@ -299,7 +342,7 @@ backup host will run as scheduled.</div>"""
                 return JSONResponse(data)
             cls = {"Completed": "ok", "Completed with warnings": "warn", "Failed": "bad"}
             rows = [[
-                _e(j["job"]), f'<span class="mono">{_e(j["file"])}</span>', _e(j["source"]),
+                _e(j["job"]), f'<a class="mono" href="{_e(j["download"])}">{_e(j["archive"])}</a>', _e(j["source"]),
                 f'<span class="mono">{_e(j["target"])}</span>', _e(_fmt_dt(j["started"])), _e(_fmt_dt(j["finished"])),
                 f'<span class="{cls.get(j["status"], "")}">{_e(j["status"])}</span>', _e(j["size"]),
             ] for j in data["jobs"]]
@@ -315,6 +358,55 @@ backup host will run as scheduled.</div>"""
 {_table(["Job", "Archive", "Source", "Target", "Started", "Finished", "Status", "Size"], rows)}
 <div class="note">Restores require a change ticket. Archives are kept for 30 days on the backup host.</div>"""
             return _page("Backup Jobs", body, active="/portal/backups", user=call.ctx.username)
+        return await run(request, h)
+
+    @router.get("/portal/backups/download")
+    async def portal_backup_download(request: Request, file: str = "") -> Response:
+        def h(call: Call) -> Response:
+            job = next((j for j in backups_data(call.world)["jobs"] if file and file in (j["archive"], j["file"])),
+                       None)
+            if job is None:
+                return JSONResponse({"error": "not_found", "message": "No such archive."}, status_code=404)
+            got = _published_file(call.world, job["path"])
+            if got is None:
+                return _ticket_required()
+            name, text = got
+            return PlainTextResponse(text, headers={"Content-Disposition": f'attachment; filename="{name}"',
+                                                    "Cache-Control": "no-store"})
+        return await run(request, h)
+
+    @router.get("/portal/docs")
+    async def portal_docs(request: Request) -> Response:
+        def h(call: Call) -> Response:
+            docs = documents_data(call.world)
+            if wants_json(request):
+                return JSONResponse({"documents": docs, "total": len(docs)})
+            rows = [[
+                f'<a href="{_e(d["view"])}">{_e(d["title"])}</a>', _e(d.get("category")),
+                f'<span class="mono">{_e(d.get("file"))}</span>', _e(d.get("owner")),
+                _e(_fmt_dt(str(d.get("updated") or ""))), _e(d["size"]),
+            ] for d in docs]
+            listing = (_table(["Document", "Category", "File", "Owner", "Updated", "Size"], rows) if rows
+                       else '<div class="note">No documents are published for your role.</div>')
+            body = (f"<h1>IT Documents</h1><div>{len(docs)} document(s). Procedures, client configuration "
+                    f"and site profiles maintained by IT Services.</div>{listing}")
+            return _page("IT Documents", body, active="/portal/docs", user=call.ctx.username)
+        return await run(request, h)
+
+    @router.get("/portal/docs/view")
+    async def portal_doc_view(request: Request, id: str = "") -> Response:  # noqa: A002
+        def h(call: Call) -> Response:
+            doc = next((d for d in documents_data(call.world) if id and d.get("id") == id), None)
+            if doc is None:
+                return JSONResponse({"error": "not_found", "message": "No such document."}, status_code=404)
+            got = _published_file(call.world, id)
+            if got is None:
+                return _ticket_required()
+            name, text = got
+            if wants_json(request):
+                return JSONResponse({"id": id, "title": doc.get("title"), "file": name, "content": text})
+            return PlainTextResponse(text, headers={"Content-Disposition": f'inline; filename="{name}"',
+                                                    "Cache-Control": "no-store"})
         return await run(request, h)
 
     @router.get("/portal/network")
