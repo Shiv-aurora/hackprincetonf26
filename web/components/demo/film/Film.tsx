@@ -21,6 +21,7 @@ import { WORLD } from "@/lib/contracts";
 import { cn } from "@/components/ui";
 import { useRunFacts } from "../story/useRunFacts";
 import { CopyDialog, FingerprintCard, FirstSightGauge, KeySplit, TrackerDoc } from "./overlays";
+import { Sharingan } from "./Sharingan";
 
 export type Shot = "network" | "hospital" | "request" | "firstsight" | "transfer" | "swap" | "tracker" | "fingerprint" | "disperse";
 export const SHOTS: Shot[] = ["network", "hospital", "request", "firstsight", "transfer", "swap", "tracker", "fingerprint", "disperse"];
@@ -594,21 +595,18 @@ function Route({ cam, a, b, color, show }: { cam: CamMVs; a: V3; b: V3; color: s
 }
 
 type EyeMode = "calm" | "fire" | "watch" | "ping";
-function EyeBadge({ mode, reduce }: { mode: EyeMode; reduce: boolean }) {
-  const col = mode === "fire" || mode === "watch" ? "var(--alert)" : mode === "ping" ? "var(--shadow)" : "var(--fg-muted)";
-  const bg = mode === "fire" || mode === "watch" ? "var(--alert-bg)" : mode === "ping" ? "var(--shadow-bg)" : "var(--surface-2)";
-  const open = mode === "calm" ? 0.45 : 1;
-  const tr = reduce ? { duration: 0 } : { duration: 0.45, ease: [0.2, 0.8, 0.2, 1] as const };
+/** The gateway's eye is the logo's red Sharingan. It turns once when First Sight fires and once more when the
+ *  trackers call home (`spin` counts those turns, so stepping back turns it back); the ring takes the colour
+ *  of what is happening: amber suspicious, purple decoy. */
+function EyeBadge({ mode, spin, reduce }: { mode: EyeMode; spin: number; reduce: boolean }) {
+  const col = mode === "fire" || mode === "watch" ? "var(--alert)" : mode === "ping" ? "var(--shadow)" : "var(--border-strong)";
+  const tr = reduce ? { duration: 0 } : { rotate: { duration: 1.2, ease: [0.2, 0.8, 0.2, 1] as const }, scale: { duration: 0.4, ease: [0.2, 0.8, 0.2, 1] as const } };
   return (
     <div className="relative grid size-[96px] place-items-center rounded-full border-[3px] bg-background transition-colors duration-500 motion-reduce:transition-none" style={{ borderColor: col }}>
-      <svg viewBox="-40 -26 80 52" width={74} height={48} aria-hidden className="overflow-visible">
-        <motion.g initial={{ scaleY: open }} animate={{ scaleY: open }} transition={tr}>
-          <path d="M-36 0 Q0 -31 36 0 Q0 31 -36 0Z" style={{ fill: bg, stroke: col, transition: "fill .5s, stroke .5s" }} strokeWidth={4} />
-          <circle r={13} style={{ fill: col, transition: "fill .5s" }} />
-          <circle r={5.5} style={{ fill: "var(--background)" }} />
-          <circle cx={-4} cy={-4} r={2.4} style={{ fill: "var(--background)" }} opacity={0.8} />
-        </motion.g>
-      </svg>
+      <motion.div className="grid place-items-center" initial={{ rotate: spin * 360, scale: mode === "calm" ? 0.92 : 1 }}
+        animate={{ rotate: spin * 360, scale: mode === "calm" ? 0.92 : 1 }} transition={tr}>
+        <Sharingan className="size-[80px]" />
+      </motion.div>
     </div>
   );
 }
@@ -914,7 +912,8 @@ function Eye({ cam, clock, shot, reduce }: { cam: CamMVs; clock: MotionValue<num
   const full = back ? 0.45 : 1;
   const pose = usePose(cam, clock, (t) => ({ p: EYE, o: hidden ? 0 : reduce ? full : full * clamp((t - 0.3) / 0.4, 0, 1), k: back ? 0.75 : 1 }), 1, [0.45, 1.5]);
   const mode: EyeMode = shot === "firstsight" ? "fire" : shot === "transfer" || shot === "swap" ? "watch" : shot === "fingerprint" ? "ping" : "calm";
-  return <Sprite pose={pose}><EyeBadge mode={mode} reduce={reduce} /></Sprite>;
+  const spin = (IDX(shot) >= IDX("firstsight") ? 1 : 0) + (IDX(shot) >= IDX("fingerprint") ? 1 : 0);
+  return <Sprite pose={pose}><EyeBadge mode={mode} spin={spin} reduce={reduce} /></Sprite>;
 }
 
 function Shard({ cam, clock, to, k, reduce }: { cam: CamMVs; clock: MotionValue<number>; to: Hosp; k: number; reduce: boolean }) {

@@ -13,6 +13,7 @@ import {
 } from "framer-motion";
 import { cn } from "@/components/ui";
 import type { RunFacts } from "../story/useRunFacts";
+import { Sharingan } from "./Sharingan";
 
 // ------------------------------------------------------------------ shared bits
 
@@ -128,8 +129,9 @@ export function FirstSightGauge({ score, threshold, signals }: FirstSightGaugePr
         <div className="flex items-center gap-4">
           <span className={cn("relative grid size-14 shrink-0 place-items-center rounded-xl border transition-colors duration-300 motion-reduce:transition-none",
             hot ? "border-alert/50 bg-alert-bg text-alert" : "border-border bg-surface text-fg-muted")}>
-            <motion.span className="grid place-items-center" initial={{ scaleY: 0.08 }} animate={{ scaleY: 1 }} transition={tr(0.2, 0.4)}>
-              <EyeGlyph />
+            <motion.span className="grid place-items-center" initial={{ scaleY: 0.08, rotate: -360 }} animate={{ scaleY: 1, rotate: 0 }}
+              transition={{ scaleY: tr(0.2, 0.4), rotate: tr(0.2, 1.1) }}>
+              <Sharingan className="size-10" />
             </motion.span>
             {hot && <Ring className="rounded-xl border-alert" />}
           </span>
@@ -203,16 +205,6 @@ function ThresholdTick({ f, label }: { f: number; label: string }) {
   );
 }
 
-function EyeGlyph() {
-  return (
-    <svg viewBox="0 0 32 32" fill="none" aria-hidden className="size-8">
-      <path d="M2.5 16c3.6-6.4 8.1-9.6 13.5-9.6s9.9 3.2 13.5 9.6c-3.6 6.4-8.1 9.6-13.5 9.6S6.1 22.4 2.5 16Z"
-        stroke="currentColor" strokeWidth={2.3} strokeLinejoin="round" />
-      <circle cx="16" cy="16" r="5.4" fill="currentColor" />
-      <circle cx="17.9" cy="14.1" r="1.7" className="fill-background" />
-    </svg>
-  );
-}
 
 // ------------------------------------------------------------------ 2. File-copy dialog
 
