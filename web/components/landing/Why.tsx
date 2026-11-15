@@ -55,11 +55,11 @@ const BEATS: { kicker: string; title: string; body: string; glyph: ReactNode; to
   },
   {
     kicker: "So we let it run", title: "They steal fake data.", glyph: <DecoyGlyph />, tone: "text-shadow",
-    body: "Every request still works, inside a decoy built for that attacker. They spend their time on records that don't exist and show us what they're after.",
+    body: "Every request still works, but inside a decoy. They spend their time on records that don't exist and show us what they're after.",
   },
   {
     kicker: "Meanwhile", title: "The real data stays locked.", glyph: <KeyGlyph />, tone: "text-fg",
-    body: "Sensitive fields are encrypted on disk. The key is split across six hospitals and any three are needed to rebuild it, so one break-in can't open it.",
+    body: "Sensitive fields are encrypted on disk. The key is split across six sites and any three are needed to rebuild it, so one break-in can't open it.",
   },
 ];
 

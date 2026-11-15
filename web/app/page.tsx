@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { ArrowRight } from "lucide-react";
-import { ButtonLink, FloatingNav } from "@/components/ui";
-import { CareVisual, MoveVisual, SpotVisual } from "@/components/landing/Visuals";
+import { ButtonLink, FloatingNav, cn } from "@/components/ui";
+import { CareVisual, FingerprintVisual, MoveVisual, ScatterVisual, SpotVisual } from "@/components/landing/Visuals";
 import { WhyNotBlock } from "@/components/landing/Why";
 import { HeroScene } from "@/components/landing/HeroScene";
 import results from "../public/runs/results.json";
@@ -23,35 +23,27 @@ const by = (c: string) => rows.find((r) => r.config === c);
 const pct = (v: number | null | undefined) => (v == null ? "—" : `${Math.round(v * 100)}%`);
 const num = (v: number | null | undefined) => (v == null ? "—" : v.toLocaleString("en-US"));
 
-// The five things the hero picture shows, numbered the same way.
-const LAYERS: { title: string; body: string }[] = [
-  { title: "Caught at login",
-    body: "First Sight notices a stolen password driven by a script, on a device the hospital doesn\u2019t own." },
-  { title: "Moved, not blocked",
-    body: "The session is carried into a decoy hospital built fresh for that attacker. Real charts ask for a badge and MFA." },
-  { title: "Fingerprinted",
-    body: "Lures in the decoy show the tool, the timing and the goal. A forensic report is ready to download." },
-  { title: "Records scattered",
-    body: "An encrypted copy is split across six sites. None of them holds a whole copy or the key." },
-  { title: "Care keeps running",
-    body: "If a shared lab goes down, urgent tests are rerouted to labs that still work." },
-];
-
-const STEPS: { title: string; body: string; visual: ReactNode }[] = [
+// The five things the hero picture shows, numbered the same way. Three cards on the first row, two on the second.
+const STEPS: { title: string; body: string; visual: ReactNode; span: string }[] = [
   {
-    title: "Spot the attacker",
-    body: "Every request passes one gateway. A nurse reading her ward is normal. The same login opening admin pages, backups and bulk exports is not.",
-    visual: <SpotVisual />,
+    title: "Caught at login", span: "lg:col-span-2", visual: <SpotVisual />,
+    body: "Every request passes one gateway. First Sight notices a stolen password driven by a script on a device the hospital doesn’t own, or a ward login that starts opening admin pages and backups.",
   },
   {
-    title: "Move them into a copy",
-    body: "We don't block them, because a block tells them they were seen. The session is moved, silently, into a fake hospital built fresh for that attacker. Every request still works. None of it is real.",
-    visual: <MoveVisual />,
+    title: "Moved, not blocked", span: "lg:col-span-2", visual: <MoveVisual />,
+    body: "The session is moved, silently, into a decoy hospital built fresh for that attacker. Real charts ask for a badge and MFA.",
   },
   {
-    title: "Keep care running",
-    body: "Clinical reads are never faked. If the attack takes a shared lab down, urgent tests are rerouted to labs that still work, so doctors keep getting results.",
-    visual: <CareVisual />,
+    title: "Fingerprinted", span: "lg:col-span-2", visual: <FingerprintVisual />,
+    body: "Lures in the decoy show the tool, the timing and the goal. A forensic report is ready to download.",
+  },
+  {
+    title: "Records scattered", span: "lg:col-span-3", visual: <ScatterVisual />,
+    body: "An encrypted copy of the records is split across six sites. No site holds a whole copy.",
+  },
+  {
+    title: "Care keeps running", span: "md:col-span-2 lg:col-span-3", visual: <CareVisual />,
+    body: "Clinical reads are never faked. If a shared lab goes down, urgent tests are rerouted to labs that still work.",
   },
 ];
 
@@ -90,16 +82,22 @@ export default function Home() {
           <HeroScene className="pointer-events-none lg:-mr-10 lg:w-[calc(100%+2.5rem)] xl:-mr-28 xl:w-[calc(100%+7rem)]" />
         </section>
 
-        <section aria-label="What MayaJaal does" className="grid grid-cols-1 gap-x-6 gap-y-8 border-t border-border py-10 sm:grid-cols-2 lg:grid-cols-5">
-          {LAYERS.map((l, i) => (
-            <div key={l.title}>
-              <p className="flex items-center gap-2.5 text-[15px] font-semibold tracking-[-0.01em]">
-                <span className="flex size-[22px] shrink-0 items-center justify-center rounded-full bg-fg text-[12px] text-background tabular-nums">{i + 1}</span>
-                {l.title}
-              </p>
-              <p className="mt-2.5 text-[13px] leading-relaxed text-fg-muted">{l.body}</p>
-            </div>
-          ))}
+        <section id="how" className="scroll-mt-24 border-t border-border pt-14 pb-16">
+          <h2 className="text-[36px] font-semibold tracking-[-0.035em] sm:text-[40px]">How it works</h2>
+          <div className="mt-10 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-6">
+            {STEPS.map((s, i) => (
+              <article key={s.title} className={cn("flex flex-col rounded-xl border border-border bg-background p-2", s.span)}>
+                <div className="h-[180px] rounded-lg border border-border bg-surface">{s.visual}</div>
+                <div className="px-3 pt-5 pb-4">
+                  <h3 className="flex items-center gap-2.5 text-lg font-semibold tracking-[-0.02em]">
+                    <span className="flex size-[22px] shrink-0 items-center justify-center rounded-full bg-fg text-[12px] text-background tabular-nums">{i + 1}</span>
+                    {s.title}
+                  </h3>
+                  <p className="mt-2 text-[14px] leading-relaxed text-fg-muted">{s.body}</p>
+                </div>
+              </article>
+            ))}
+          </div>
         </section>
 
         <section className="grid grid-cols-1 gap-10 border-t border-border py-12 sm:grid-cols-3 sm:gap-8">
@@ -111,28 +109,12 @@ export default function Home() {
           ))}
         </section>
 
-        <section id="why" className="scroll-mt-24 pt-20">
+        <section id="why" className="scroll-mt-24 py-20">
           <h2 className="text-[36px] font-semibold tracking-[-0.035em] sm:text-[40px]">Why we don&rsquo;t stop the attack</h2>
           <p className="mt-3 max-w-[620px] text-[15px] leading-relaxed text-fg-muted">
             Stopping an attacker doesn&rsquo;t make them leave. It makes them look for another way in.
           </p>
           <WhyNotBlock className="mt-10" />
-        </section>
-
-        <section id="how" className="scroll-mt-24 py-20">
-          <h2 className="text-[36px] font-semibold tracking-[-0.035em] sm:text-[40px]">How it works</h2>
-          <div className="mt-10 grid grid-cols-1 gap-4 md:grid-cols-3">
-            {STEPS.map((s, i) => (
-              <article key={s.title} className="flex flex-col rounded-xl border border-border bg-background p-2">
-                <div className="h-[180px] rounded-lg border border-border bg-surface">{s.visual}</div>
-                <div className="px-3 pt-5 pb-4">
-                  <p className="text-[13px] text-fg-subtle tabular-nums">0{i + 1}</p>
-                  <h3 className="mt-1 text-lg font-semibold tracking-[-0.02em]">{s.title}</h3>
-                  <p className="mt-2 text-[14px] leading-relaxed text-fg-muted">{s.body}</p>
-                </div>
-              </article>
-            ))}
-          </div>
         </section>
 
         <section className="mb-24 flex flex-col items-start justify-between gap-6 rounded-xl border border-border px-6 py-10 sm:flex-row sm:items-center sm:px-10">
