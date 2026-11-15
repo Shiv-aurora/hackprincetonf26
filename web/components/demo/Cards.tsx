@@ -6,6 +6,7 @@ import { WORLD } from "@/lib/contracts";
 import { Badge, ButtonLink, cn } from "@/components/ui";
 import type { ResultRow, ResultsFile } from "./data";
 import { WhyNotBlock } from "@/components/landing/Why";
+import { TitleSlide } from "./slides/Title";
 
 function Center({ children, className }: { children: ReactNode; className?: string }) {
   return (
@@ -18,11 +19,7 @@ function Center({ children, className }: { children: ReactNode; className?: stri
 export function TitleCard({ title, sub }: { title: string; sub: string }) {
   return (
     <Center>
-      <div className="mx-auto max-w-[720px] text-center">
-        <h1 className="text-[56px] leading-none font-semibold tracking-[-0.045em] text-fg sm:text-[72px]">{title}</h1>
-        <p className="mt-5 text-lg text-balance text-fg-muted sm:text-xl">{sub}</p>
-        <p className="mt-2 text-lg font-semibold text-danger sm:text-xl">Without stopping the attacks.</p>
-      </div>
+      <TitleSlide title={title} sub={sub} />
     </Center>
   );
 }
@@ -76,7 +73,8 @@ function columns(results: ResultsFile | null): Col[] {
     const title = WORLD.configs.find((c) => c.id === id)?.title ?? id;
     const rows: ResultRow[] = results?.runs.filter((r) => r.config === id) ?? [];
     if (!rows.length) return { id, title, runs: 0, realTaken: null, believed: null, overlap: null, divert: null };
-    const taken = nums(rows.map((r) => r.real_records_taken));
+    // Real patients the attacker was shown (stronger than "taken"); older results files only have "taken".
+    const taken = nums(rows.map((r) => r.real_records_exposed ?? r.real_records_taken));
     const overlap = nums(rows.map((r) => r.decoy_overlap_between_sessions));
     return {
       id, title, runs: rows.length,
@@ -108,7 +106,7 @@ export function CompareCard({ results, title }: { results: ResultsFile | null; t
             <span key={c.id} className={cn("pb-3 font-medium", c.id === "mayajaal" ? "text-shadow" : "text-fg")}>{c.title}</span>
           ))}
 
-          <RowLabel>Real patient records taken</RowLabel>
+          <RowLabel sub="Any real chart it was able to read">Real patients shown to the attacker</RowLabel>
           {cols.map((c) => (
             <Cell key={c.id}>
               <span className={cn("text-4xl font-semibold tracking-[-0.04em] tabular-nums",
