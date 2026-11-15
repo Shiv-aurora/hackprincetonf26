@@ -9,18 +9,18 @@
 import { useCallback, useState, type ReactNode } from "react";
 import type { MJEvent } from "@/lib/contracts";
 import { WORLD } from "@/lib/contracts";
-import { useMJ } from "@/lib/events";
-import { Button, ButtonLink, Card, FloatingNav, cn } from "@/components/ui";
+import { Card, FloatingNav, cn } from "@/components/ui";
 import { NetworkMap } from "@/components/map";
-import { HospitalNumbers, Narrator, TwoHospitals } from "@/components/hospital/HospitalView";
-import { LearnedPanel, SwitchView, TrackersPanel } from "@/components/hospital/Live";
+import { HospitalNumbers, TwoHospitals } from "@/components/hospital/HospitalView";
+import { LearnedPanel, SwitchView } from "@/components/hospital/Live";
+import { FlashStyles, LogPanel } from "@/components/hospital/Log";
 import { FlowScene } from "@/components/hospital/Flow";
 import { AttackControls } from "@/components/hospital/AttackControls";
 import { FingerprintPanel } from "@/components/hospital/Fingerprint";
 import { LiveBrief } from "@/components/hospital/Brief";
 import {
-  AttackerTerminal, ColumnHeading, ContinuityHUD, DefenderPanel, EventTimeline, RunBadge, SoundButton,
-  StreamStatus, TheReveal, WarRoomSound, hospitalName, playRevealCue, useHasContinuity,
+  AttackerTerminal, ColumnHeading, ContinuityHUD, DefenderPanel, EventTimeline,
+  TheReveal, WarRoomSound, hospitalName, useHasContinuity,
 } from "@/components/consoles";
 
 export interface DashboardProps {
@@ -32,11 +32,9 @@ export interface DashboardProps {
 
 export function Dashboard({ mode = "live", revealOpen = false }: DashboardProps) {
   const demo = mode === "demo";
-  const canReveal = useMJ((s) => !!(s.view.reveal || s.view.exfil));
   const hasContinuity = useHasContinuity();
   const [sel, setSel] = useState<{ id: string; hospital: string | null } | null>(null);
   const focus = sel?.hospital ?? null;
-  const [replay, setReplay] = useState(0);
 
   const onSelect = useCallback((ev: MJEvent) => {
     setSel((cur) => (cur?.id === ev.id ? null : { id: ev.id, hospital: ev.hospital_id }));
@@ -47,35 +45,18 @@ export function Dashboard({ mode = "live", revealOpen = false }: DashboardProps)
   return (
     <div className={cn("flex min-h-dvh flex-col bg-background text-fg", demo && "h-dvh overflow-hidden")}>
       {!demo && <WarRoomSound />}
-      {!demo && <FloatingNav cta={<ButtonLink href="/demo" size="sm" className="rounded-full">Guided demo</ButtonLink>} />}
-      {!demo && (
-        <div className="mx-auto mt-20 flex w-full max-w-[1400px] flex-wrap items-center justify-between gap-3 px-4 sm:px-6">
-          <div className="flex items-center gap-3">
-            <h1 className="text-[15px] font-semibold tracking-[-0.01em]">Live</h1>
-            <RunBadge />
-            <StreamStatus />
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <AttackControls />
-            <span className="hidden h-5 w-px bg-border sm:block" />
-            <Button size="sm" disabled={!canReveal} onClick={() => { playRevealCue(); setReplay((n) => n + 1); }}>
-              Reveal
-            </Button>
-            <SoundButton />
-          </div>
-        </div>
-      )}
+      <FlashStyles />
+      {!demo && <FloatingNav cta={<AttackControls compact />} />}
 
       <DemoFrame demo={demo}>
-      <main className={cn("mx-auto flex w-full max-w-[1400px] flex-col gap-4 px-4 sm:px-6", demo ? "min-h-0 flex-1" : "py-5")}>
-        <Narrator className="min-h-[40px]" />
+      <main className={cn("mx-auto flex w-full max-w-[1400px] flex-col gap-4 px-4 sm:px-6", demo ? "min-h-0 flex-1" : "pt-20 pb-5")}>
         <div className={cn("grid min-h-0 grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]",
           demo ? "flex-1" : "lg:h-[min(56vh,540px)]")}>
           <section className="relative min-h-[360px] rounded-xl border border-border bg-background lg:min-h-0">
             <FlowScene />
           </section>
           <div className="grid min-h-0 grid-rows-[minmax(0,1fr)_auto] gap-4">
-            <TrackersPanel className="min-h-[220px] lg:min-h-0" />
+            <LogPanel className="min-h-[320px] lg:min-h-0" />
             <LearnedPanel />
           </div>
         </div>
@@ -142,7 +123,7 @@ export function Dashboard({ mode = "live", revealOpen = false }: DashboardProps)
 
       {demo
         ? revealOpen && <div className="mj-demo-reveal"><TheReveal auto={false} defaultOpen /></div>
-        : <TheReveal replayKey={replay} />}
+        : <TheReveal />}
     </div>
   );
 }

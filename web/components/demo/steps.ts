@@ -5,7 +5,7 @@
 import type { MJEvent } from "@/lib/contracts";
 import type { View } from "@/lib/events";
 
-export type Focus = "acts" | "narrator" | "scene" | "trackers" | "learned" | "numbers" | "fingerprint";
+export type Focus = "acts" | "narrator" | "scene" | "trackers" | "learned" | "numbers" | "fingerprint" | "logs";
 export type Source = "attack" | "continuity";
 export type SlideId = "question" | "news" | "downtime" | "data";
 
@@ -134,19 +134,19 @@ export const STEPS: Step[] = [
     anchor: beforeFirstAttacker,
   },
   {
-    label: "Login", scenario: "Scenario 1 · Stolen login, modelled on Change Healthcare (2024)", focus: ["narrator", "scene"], seconds: 8, source: "attack",
+    label: "Login", scenario: "Scenario 1 · Stolen login, modelled on Change Healthcare (2024)", focus: ["logs", "scene"], seconds: 8, source: "attack",
     headline: "A stolen nurse login, flagged at once",
     sub: "A script, not the EHR app, on a device we don't own.",
     anchor: (ev) => settle(ev, find(ev, isFirstSight) ?? after(ev, isRealRead, is("agent.tool_result")) ?? find(ev, is("agent.tool_result"))),
   },
   {
-    label: "Scatter", focus: ["scene", "narrator"], seconds: 8, source: "attack",
+    label: "Scatter", focus: ["scene", "logs"], seconds: 8, source: "attack",
     headline: "Meanwhile, the real records are split up",
     sub: "An encrypted copy spread across six hospitals. No one holds the whole key.",
     anchor: (ev) => { const i = find(ev, is("vault.scattered")); return i === null ? null : settle(ev, i); },
   },
   {
-    label: "Step-up", focus: ["narrator", "scene"], seconds: 8, source: "attack",
+    label: "Step-up", focus: ["logs", "scene"], seconds: 8, source: "attack",
     headline: "Real charts need badge and MFA",
     sub: "A phished password can't pass. Nothing real is shown.",
     anchor: (ev) => {
@@ -176,7 +176,7 @@ export const STEPS: Step[] = [
     },
   },
   {
-    label: "Trackers", focus: ["trackers", "scene"], seconds: 7, source: "attack",
+    label: "Trackers", focus: ["logs", "scene"], seconds: 7, source: "attack",
     headline: "Decoy files with trackers",
     sub: "Planted where this attacker is looking.",
     anchor: (ev) => {
@@ -185,7 +185,7 @@ export const STEPS: Step[] = [
     },
   },
   {
-    label: "Bait taken", focus: ["trackers", "learned"], seconds: 8, source: "attack",
+    label: "Bait taken", focus: ["logs", "learned"], seconds: 8, source: "attack",
     headline: (v) => v.honeytokensTouched.length ? "It took the bait" : "Now we know what it wants",
     sub: (v) => `It wants to ${goalWord(v.topGoal).toLowerCase()} (${Math.round((v.posterior[v.topGoal] ?? 0) * 100)}% sure).`,
     anchor: (ev) => {
@@ -204,7 +204,7 @@ export const STEPS: Step[] = [
     },
   },
   {
-    label: "Exfil", focus: ["narrator", "numbers"], seconds: 7, source: "attack",
+    label: "Exfil", focus: ["logs", "numbers"], seconds: 7, source: "attack",
     headline: "It believes it won",
     sub: (v) => v.exfil ? `${v.exfil.records.toLocaleString("en-US")} records “stolen”. Every one fake.` : "It reports success.",
     anchor: (ev) => find(ev, is("agent.claim")) ?? find(ev, is("exfil")),
@@ -220,7 +220,7 @@ export const STEPS: Step[] = [
     anchor: (ev) => ev.length - 1,
   },
   {
-    label: "Outage", scenario: "Scenario 2 · Shared lab goes down, modelled on Synnovis, London (2024)", focus: ["scene", "narrator"], seconds: 8, source: "continuity",
+    label: "Outage", scenario: "Scenario 2 · Shared lab goes down, modelled on Synnovis, London (2024)", focus: ["scene", "logs"], seconds: 8, source: "continuity",
     headline: "The shared lab goes down",
     sub: "Like Synnovis, 2024. Urgent tests reroute to labs that still work.",
     anchor: (ev) => midOutage(ev),

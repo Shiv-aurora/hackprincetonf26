@@ -8,6 +8,7 @@ import type { MJEvent } from "@/lib/contracts";
 import { WORLD } from "@/lib/contracts";
 import { useMJ } from "@/lib/events";
 import { cn } from "@/components/ui";
+import { Flash } from "./Log";
 import { hospitalName } from "@/components/consoles";
 
 const TECHNIQUES: Record<string, string> = {
@@ -67,7 +68,9 @@ function Cell({ label, value, sub, tone }: { label: string; value: ReactNode; su
   return (
     <div className="min-w-0 bg-background px-4 py-3">
       <p className="text-[14px] text-fg-muted">{label}</p>
-      <p className={cn("mt-0.5 truncate text-[19px] font-semibold tracking-[-0.015em] tabular-nums", tone)}>{value}</p>
+      <Flash value={typeof value === "string" ? value : label} className="-mx-1.5 mt-0.5 rounded px-1.5">
+        <p className={cn("truncate text-[19px] font-semibold tracking-[-0.015em] tabular-nums", tone)}>{value}</p>
+      </Flash>
       {sub && <p className="truncate text-[13px] text-fg-subtle">{sub}</p>}
     </div>
   );

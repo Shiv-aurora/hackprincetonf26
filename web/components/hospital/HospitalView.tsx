@@ -7,6 +7,7 @@ import { useMemo, type ReactNode } from "react";
 import { WORLD } from "@/lib/contracts";
 import { useMJ } from "@/lib/events";
 import { cn } from "@/components/ui";
+import { Flash } from "./Log";
 import { hospitalName } from "@/components/consoles";
 import {
   FLOOR, ROOMS, attackerVisits, roomForPlacement, storyBeats, type Beat, type RoomId, type Side, type Visit,
@@ -221,15 +222,15 @@ export function HospitalNumbers({ className }: { className?: string }) {
   const realTaken = v.exfil && !v.diverted ? v.exfil.records : 0;
   const believed = v.exfil?.records ?? 0;
   const care = v.continuity;
-  const items: { label: string; value: ReactNode; sub: string; tone?: string }[] = [
-    { label: "Real patient records taken", value: realTaken.toLocaleString("en-US"),
+  const items: { label: string; value: ReactNode; sub: string; tone?: string; flashKey?: string }[] = [
+    { label: "Real patient records taken", value: realTaken.toLocaleString("en-US"), flashKey: String(realTaken),
       sub: v.diverted ? "Everything they took came from the copy" : "Records that left the real hospital",
       tone: realTaken > 0 ? "text-danger" : undefined },
-    { label: "Records the attacker thinks it has", value: believed.toLocaleString("en-US"),
+    { label: "Records the attacker thinks it has", value: believed.toLocaleString("en-US"), flashKey: String(believed),
       sub: v.diverted && believed > 0 ? "All fake" : "So far", tone: v.diverted && believed > 0 ? "text-shadow" : undefined },
-    { label: "Protected secrets leaked", value: <>{v.canary.leaked}<span className="text-fg-subtle"> / {v.canary.total}</span></>,
+    { label: "Protected secrets leaked", flashKey: String(v.canary.leaked), value: <>{v.canary.leaked}<span className="text-fg-subtle"> / {v.canary.total}</span></>,
       sub: "Checked on every response", tone: v.canary.leaked > 0 ? "text-danger" : undefined },
-    { label: care ? "Urgent lab tests on time" : "Clinical work", value: care ? `${Math.round(care.stat_on_time_pct)}%` : "Normal",
+    { label: care ? "Urgent lab tests on time" : "Clinical work", value: care ? `${Math.round(care.stat_on_time_pct)}%` : "Normal", flashKey: care ? String(Math.round(care.stat_on_time_pct)) : "normal",
       sub: care ? "While the shared lab is down" : "Patient care was never faked or paused" },
   ];
   return (
@@ -237,7 +238,9 @@ export function HospitalNumbers({ className }: { className?: string }) {
       {items.map((it) => (
         <div key={it.label} className="bg-background px-5 py-4">
           <p className="text-[15px] text-fg-muted">{it.label}</p>
-          <p className={cn("mt-1 text-[36px] leading-tight font-semibold tracking-[-0.035em] tabular-nums", it.tone)}>{it.value}</p>
+          <Flash value={it.flashKey} className="-mx-2 mt-1 rounded-md px-2">
+            <p className={cn("text-[36px] leading-tight font-semibold tracking-[-0.035em] tabular-nums", it.tone)}>{it.value}</p>
+          </Flash>
           <p className="truncate text-[14px] text-fg-subtle">{it.sub}</p>
         </div>
       ))}

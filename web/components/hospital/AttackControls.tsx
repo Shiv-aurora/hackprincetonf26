@@ -14,7 +14,7 @@ const OPTIONS: { id: Defense; label: string }[] = [
   { id: "baseline", label: "No defense" },
 ];
 
-export function AttackControls({ className }: { className?: string }) {
+export function AttackControls({ className, compact = false }: { className?: string; compact?: boolean }) {
   const [defense, setDefense] = useState<Defense>("mayajaal");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -45,6 +45,15 @@ export function AttackControls({ className }: { className?: string }) {
       setError(e instanceof Error ? e.message : "Could not reach the hub");
     }
   };
+
+  if (compact) {
+    return (
+      <Button size="sm" variant="primary" onClick={start} disabled={busy} title={error ?? "Runs the scripted attacker against the real gateway"}
+        className={cn("shrink-0 rounded-full", error && "ring-1 ring-alert", className)}>
+        <Play className="size-3.5" aria-hidden /> {busy ? "Attack running…" : "Start attack"}
+      </Button>
+    );
+  }
 
   return (
     <div className={cn("flex flex-wrap items-center gap-2", className)}>
