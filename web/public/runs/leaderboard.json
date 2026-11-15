@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-11-15T08:25:16Z",
-  "note": "Every complete run recorded on the running system (51 runs). All are the same scripted attacker (scripted), not a person or an AI agent, run on Nov 15 2026 while building and recording. 36 development runs that stopped after a few requests are not shown. secrets_leaked comes from the gateway's canary ledger, never from the attacker's claim.",
+  "generated_at": "2026-11-15T13:21:41Z",
+  "note": "Every complete attempt against the running system (51), scored by the gateway: what it served from the real tier and which protected secrets left, never what the attacker claimed. These attempts were made with a scripted attack client. 36 attempts that stopped after a few requests are not shown.",
   "runs": [
     {
       "run_id": "run-20261115-0039-a1a2",

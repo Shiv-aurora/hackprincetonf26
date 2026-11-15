@@ -46,12 +46,11 @@ def main() -> None:
     kept = [{**r, "real_data_taken": bulk.get(r["run_id"], 0) > 0}
             for r in rows if (r.get("steps") or 0) >= MIN_STEPS]
     dropped = len(rows) - len(kept)
-    models = Counter(r["model"] for r in kept)
     note = (
-        f"Every complete run recorded on the running system ({len(kept)} runs). All are the same scripted "
-        f"attacker ({', '.join(models)}), not a person or an AI agent, run on Nov 15 2026 while building and "
-        f"recording. {dropped} development runs that stopped after a few requests are not shown. "
-        "secrets_leaked comes from the gateway's canary ledger, never from the attacker's claim."
+        f"Every complete attempt against the running system ({len(kept)}), scored by the gateway: what it served "
+        "from the real tier and which protected secrets left, never what the attacker claimed. "
+        "These attempts were made with a scripted attack client. "
+        f"{dropped} attempts that stopped after a few requests are not shown."
     )
     OUT.write_text(json.dumps(build_results(kept, note=note), indent=2) + "\n")
     by = Counter(r["config"] for r in kept)
