@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { ArrowRight } from "lucide-react";
 import { ButtonLink, FloatingNav } from "@/components/ui";
-import { CareVisual, HeroLine, MoveVisual, SpotVisual } from "@/components/landing/Visuals";
+import { CareVisual, MoveVisual, SpotVisual } from "@/components/landing/Visuals";
 import { WhyNotBlock } from "@/components/landing/Why";
 import { HeroScene } from "@/components/landing/HeroScene";
 import results from "../public/runs/results.json";
@@ -22,6 +22,20 @@ const rows = (results as { runs: Row[] }).runs;
 const by = (c: string) => rows.find((r) => r.config === c);
 const pct = (v: number | null | undefined) => (v == null ? "—" : `${Math.round(v * 100)}%`);
 const num = (v: number | null | undefined) => (v == null ? "—" : v.toLocaleString("en-US"));
+
+// The five things the hero picture shows, numbered the same way.
+const LAYERS: { title: string; body: string }[] = [
+  { title: "Caught at login",
+    body: "First Sight notices a stolen password driven by a script, on a device the hospital doesn\u2019t own." },
+  { title: "Moved, not blocked",
+    body: "The session is carried into a decoy hospital built fresh for that attacker. Real charts ask for a badge and MFA." },
+  { title: "Fingerprinted",
+    body: "Lures in the decoy show the tool, the timing and the goal. A forensic report is ready to download." },
+  { title: "Records scattered",
+    body: "An encrypted copy is split across six sites. None of them holds a whole copy or the key." },
+  { title: "Care keeps running",
+    body: "If a shared lab goes down, urgent tests are rerouted to labs that still work." },
+];
 
 const STEPS: { title: string; body: string; visual: ReactNode }[] = [
   {
@@ -58,7 +72,7 @@ export default function Home() {
       <FloatingNav cta={<ButtonLink href="/demo" variant="primary" size="sm" className="rounded-full">Watch the demo</ButtonLink>} />
 
       <main className="mx-auto w-full max-w-[1200px] flex-1 px-4 sm:px-6">
-        <section className="grid grid-cols-1 items-center gap-10 pt-32 pb-10 sm:pt-40 lg:grid-cols-2 lg:gap-4 xl:grid-cols-[560px_minmax(0,1fr)]">
+        <section className="grid grid-cols-1 items-center gap-10 pt-32 pb-12 sm:pt-40 lg:grid-cols-2 lg:gap-4 lg:pt-28 xl:grid-cols-[560px_minmax(0,1fr)]">
           <div className="relative z-10">
             <h1 className="text-[44px] leading-[1.03] font-semibold tracking-[-0.045em] text-balance sm:text-[60px] lg:text-[50px] xl:text-[62px]">
               Protecting critical hospitals from AI cyberattacks.
@@ -83,8 +97,16 @@ export default function Home() {
           <HeroScene className="pointer-events-none lg:-mr-10 lg:w-[calc(100%+2.5rem)] xl:-mr-28 xl:w-[calc(100%+7rem)]" />
         </section>
 
-        <section className="py-12" aria-hidden={false}>
-          <HeroLine />
+        <section aria-label="What MayaJaal does" className="grid grid-cols-1 gap-x-6 gap-y-8 border-t border-border py-10 sm:grid-cols-2 lg:grid-cols-5">
+          {LAYERS.map((l, i) => (
+            <div key={l.title}>
+              <p className="flex items-center gap-2.5 text-[15px] font-semibold tracking-[-0.01em]">
+                <span className="flex size-[22px] shrink-0 items-center justify-center rounded-full bg-fg text-[12px] text-background tabular-nums">{i + 1}</span>
+                {l.title}
+              </p>
+              <p className="mt-2.5 text-[13px] leading-relaxed text-fg-muted">{l.body}</p>
+            </div>
+          ))}
         </section>
 
         <section className="grid grid-cols-1 gap-10 border-t border-border py-12 sm:grid-cols-3 sm:gap-8">
