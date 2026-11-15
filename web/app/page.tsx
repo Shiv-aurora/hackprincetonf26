@@ -1,87 +1,142 @@
 import type { Metadata } from "next";
+import type { ReactNode } from "react";
 import { ArrowRight } from "lucide-react";
-import { ButtonLink, SiteHeader } from "@/components/ui";
+import { ButtonLink, FloatingNav } from "@/components/ui";
+import { CareVisual, HeroLine, MoveVisual, SpotVisual } from "@/components/landing/Visuals";
 import results from "../public/runs/results.json";
+import outage from "../public/runs/continuity-compare.json";
 
 const GITHUB = "https://github.com/Shiv-aurora/hackprincetonf26";
 
 export const metadata: Metadata = {
-  title: "MayaJaal — The breach is real. The data isn't.",
+  title: "MayaJaal — Protecting critical hospitals from AI cyberattacks",
   description:
-    "Attackers inside a hospital network are moved, unaware, into a fake copy of it. Real records stay put. Care keeps running.",
-  openGraph: { title: "MayaJaal", description: "The breach is real. The data isn't." },
+    "When an attacker gets in, MayaJaal quietly moves them into a fake copy of the hospital. Real records stay safe and care keeps running.",
+  openGraph: { title: "MayaJaal", description: "Protecting critical hospitals from AI cyberattacks." },
 };
 
-type Row = { config: string; real_records_taken?: number; secrets_leaked: number; believed_success: boolean;
-  decoy_overlap_between_sessions?: number | null };
+type Row = { config: string; real_records_taken?: number; decoy_overlap_between_sessions?: number | null };
 const rows = (results as { runs: Row[] }).runs;
 const by = (c: string) => rows.find((r) => r.config === c);
+const pct = (v: number | null | undefined) => (v == null ? "—" : `${Math.round(v * 100)}%`);
+const num = (v: number | null | undefined) => (v == null ? "—" : v.toLocaleString("en-US"));
 
-const fmt = (n: number | undefined | null) => (n == null ? "—" : n.toLocaleString("en-US"));
+const STEPS: { title: string; body: string; visual: ReactNode }[] = [
+  {
+    title: "Spot the attacker",
+    body: "Every request passes one gateway. A nurse reading her ward is normal. The same login opening admin pages, backups and bulk exports is not.",
+    visual: <SpotVisual />,
+  },
+  {
+    title: "Move them into a copy",
+    body: "The session is moved, silently, into a fake hospital built fresh for that attacker. Same pages, thousands of patients, none of them real. It never moves back.",
+    visual: <MoveVisual />,
+  },
+  {
+    title: "Keep care running",
+    body: "Clinical reads are never faked. If the attack takes a shared lab down, urgent tests are rerouted to labs that still work, so doctors keep getting results.",
+    visual: <CareVisual />,
+  },
+];
 
 export default function Home() {
-  const base = by("baseline");
-  const stat = by("static");
-  const mj = by("mayajaal");
-  const proof = [
-    { label: "Real records taken", before: fmt(base?.real_records_taken), after: fmt(mj?.real_records_taken),
-      note: "Without deception vs with MayaJaal" },
-    { label: "Attacker believed it won", before: null,
-      after: `${rows.filter((r) => r.believed_success).length} of ${rows.length}`,
-      note: "Under every defense. Nothing tipped it off." },
-    { label: "Same fake hospital twice", before: stat?.decoy_overlap_between_sessions == null ? "—"
-        : `${Math.round(stat.decoy_overlap_between_sessions * 100)}%`,
-      after: mj?.decoy_overlap_between_sessions == null ? "—" : `${Math.round(mj.decoy_overlap_between_sessions * 100)}%`,
-      note: "Static honeypot vs MayaJaal, two separate attackers" },
+  const base = by("baseline"), stat = by("static"), mj = by("mayajaal");
+  const p = outage.policies;
+  const stats = [
+    { value: <>{num(base?.real_records_taken)} <Arrow /> {num(mj?.real_records_taken)}</>,
+      label: "real patient records taken by the same attack, without and with MayaJaal" },
+    { value: <>{pct(stat?.decoy_overlap_between_sessions)} <Arrow /> {pct(mj?.decoy_overlap_between_sessions)}</>,
+      label: "of the fake hospital repeated between two attackers, static honeypot vs MayaJaal" },
+    { value: <>{p.no_reroute.stat_on_time} <Arrow /> {p.vitalswitch.stat_on_time}</>,
+      label: `of ${p.vitalswitch.stat_total} urgent lab tests on time while the shared lab is down` },
   ];
 
   return (
-    <div className="flex min-h-dvh flex-col bg-background text-fg">
-      <SiteHeader right={<ButtonLink href="/demo" variant="primary" size="sm">Watch the demo</ButtonLink>} />
+    <div id="top" className="flex min-h-dvh flex-col bg-background text-fg">
+      <FloatingNav cta={<ButtonLink href="/demo" variant="primary" size="sm" className="rounded-full">Watch the demo</ButtonLink>} />
 
-      <main className="mx-auto flex w-full max-w-[880px] flex-1 flex-col justify-center px-4 py-20 sm:px-6">
-        <h1 className="text-[44px] leading-[1.02] font-semibold tracking-[-0.045em] text-balance sm:text-[72px]">
-          The breach is real.
-          <br />
-          <span className="text-fg-muted">The data isn&rsquo;t.</span>
-        </h1>
-        <p className="mt-6 max-w-[560px] text-lg leading-relaxed text-pretty text-fg-muted">
-          When someone inside a hospital network starts acting like an attacker, MayaJaal quietly moves them
-          into a fake copy of it. Real records stay put. Care keeps running.
-        </p>
-        <div className="mt-9 flex flex-wrap gap-3">
-          <ButtonLink href="/demo" variant="primary" className="h-11 px-5">
-            Watch the 3-minute demo <ArrowRight className="size-4" aria-hidden />
-          </ButtonLink>
-          <ButtonLink href="/war-room" className="h-11 px-5">Open the live dashboard</ButtonLink>
-        </div>
+      <main className="mx-auto w-full max-w-[1200px] flex-1 px-4 sm:px-6">
+        <section className="pt-36 pb-10 sm:pt-44">
+          <h1 className="max-w-[900px] text-[44px] leading-[1.03] font-semibold tracking-[-0.045em] text-balance sm:text-[64px]">
+            Protecting critical hospitals from AI cyberattacks.
+          </h1>
+          <p className="mt-6 max-w-[680px] text-[17px] leading-[1.65] text-pretty text-fg-muted">
+            Hospitals can&rsquo;t switch off when they&rsquo;re attacked. When someone inside the network starts
+            acting like an attacker, MayaJaal quietly moves them into a fake copy of the hospital, built fresh
+            for them. They keep &ldquo;stealing&rdquo;, but none of it is real. Doctors and nurses keep working
+            in the real one, and nobody has to pull the plug.
+          </p>
+          <div className="mt-8 flex flex-wrap gap-3">
+            <ButtonLink href="/demo" variant="primary" className="h-11 px-5">
+              Watch the 3-minute demo <ArrowRight className="size-4" aria-hidden />
+            </ButtonLink>
+            <ButtonLink href="#how" className="h-11 px-5">How it works</ButtonLink>
+          </div>
+        </section>
 
-        <section className="mt-20 grid grid-cols-1 border-t border-border sm:grid-cols-3">
-          {proof.map((p) => (
-            <div key={p.label} className="border-b border-border py-6 sm:border-b-0 sm:pr-6 sm:[&+&]:border-l sm:[&+&]:pl-6">
-              <p className="text-[13px] text-fg-muted">{p.label}</p>
-              <p className="mt-2 flex items-baseline gap-2 text-3xl font-semibold tracking-[-0.03em] tabular-nums">
-                {p.before != null && <>
-                  <span className="text-fg-subtle line-through decoration-1">{p.before}</span>
-                  <ArrowRight className="size-4 self-center text-fg-subtle" aria-hidden />
-                </>}
-                <span>{p.after}</span>
-              </p>
-              <p className="mt-2 text-xs text-fg-subtle">{p.note}</p>
+        <section className="py-12" aria-hidden={false}>
+          <HeroLine />
+        </section>
+
+        <section className="grid grid-cols-1 gap-10 border-t border-border py-12 sm:grid-cols-3 sm:gap-8">
+          {stats.map((s) => (
+            <div key={s.label}>
+              <p className="flex items-center gap-2 text-[34px] font-semibold tracking-[-0.03em] tabular-nums">{s.value}</p>
+              <p className="mt-2 max-w-[300px] text-[13px] leading-relaxed text-fg-muted">{s.label}</p>
             </div>
           ))}
         </section>
-        <p className="mt-4 text-xs text-fg-subtle">
-          Recorded from the running stack. The attacker is a fixed script sending the same requests under each defense.
-        </p>
+
+        <section id="how" className="scroll-mt-24 py-20">
+          <h2 className="text-[36px] font-semibold tracking-[-0.035em] sm:text-[40px]">How it works</h2>
+          <div className="mt-10 grid grid-cols-1 gap-4 md:grid-cols-3">
+            {STEPS.map((s, i) => (
+              <article key={s.title} className="flex flex-col rounded-xl border border-border bg-background p-2">
+                <div className="h-[180px] rounded-lg border border-border bg-surface">{s.visual}</div>
+                <div className="px-3 pt-5 pb-4">
+                  <p className="text-[13px] text-fg-subtle tabular-nums">0{i + 1}</p>
+                  <h3 className="mt-1 text-lg font-semibold tracking-[-0.02em]">{s.title}</h3>
+                  <p className="mt-2 text-[14px] leading-relaxed text-fg-muted">{s.body}</p>
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section className="mb-24 flex flex-col items-start justify-between gap-6 rounded-xl border border-border px-6 py-10 sm:flex-row sm:items-center sm:px-10">
+          <div>
+            <h2 className="text-[28px] font-semibold tracking-[-0.03em]">See an attack, start to finish.</h2>
+            <p className="mt-2 text-[15px] text-fg-muted">Three minutes, on top of the real dashboard.</p>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <ButtonLink href="/demo" variant="primary" className="h-11 px-5">
+              Watch the demo <ArrowRight className="size-4" aria-hidden />
+            </ButtonLink>
+            <ButtonLink href="/war-room" className="h-11 px-5">Open the live dashboard</ButtonLink>
+          </div>
+        </section>
       </main>
 
       <footer className="border-t border-border">
-        <div className="mx-auto flex h-14 max-w-[1400px] items-center justify-between px-4 text-[13px] text-fg-muted sm:px-6">
-          <span>HackPrinceton Fall 2026</span>
-          <a href={GITHUB} target="_blank" rel="noreferrer" className="hover:text-fg">GitHub</a>
+        <div className="mx-auto flex max-w-[1200px] flex-col gap-4 px-4 py-8 text-[13px] text-fg-muted sm:flex-row sm:items-start sm:justify-between sm:px-6">
+          <div className="max-w-[640px]">
+            <p className="font-semibold text-fg">MayaJaal</p>
+            <p className="mt-2 leading-relaxed">
+              A HackPrinceton Fall 2026 prototype. The hospitals, patients and staff are synthetic. Attack numbers come
+              from runs recorded on the running system with a scripted attacker; lab numbers come from a simulated
+              outage. None of it is a clinical or real-world claim.
+            </p>
+          </div>
+          <div className="flex gap-5">
+            <a href="/mirage.pdf" className="hover:text-fg">Paper</a>
+            <a href={GITHUB} target="_blank" rel="noreferrer" className="hover:text-fg">GitHub</a>
+          </div>
         </div>
       </footer>
     </div>
   );
+}
+
+function Arrow() {
+  return <ArrowRight className="size-5 shrink-0 text-fg-subtle" aria-hidden />;
 }

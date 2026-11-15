@@ -1,0 +1,72 @@
+{
+    "orders": 40,
+    "policies": {
+        "no_reroute": {
+            "stat_on_time_pct": 0.0,
+            "stat_total": 16,
+            "stat_on_time": 0,
+            "urgent_on_time_pct": 0.0,
+            "urgent_total": 13,
+            "urgent_on_time": 0,
+            "routine_on_time_pct": 0.0,
+            "routine_total": 11,
+            "routine_on_time": 0,
+            "unservable": 0,
+            "late": 40
+        },
+        "nearest": {
+            "stat_on_time_pct": 62.5,
+            "stat_total": 16,
+            "stat_on_time": 10,
+            "urgent_on_time_pct": 100.0,
+            "urgent_total": 13,
+            "urgent_on_time": 13,
+            "routine_on_time_pct": 100.0,
+            "routine_total": 11,
+            "routine_on_time": 11,
+            "unservable": 0,
+            "late": 6
+        },
+        "vitalswitch": {
+            "stat_on_time_pct": 93.8,
+            "stat_total": 16,
+            "stat_on_time": 15,
+            "urgent_on_time_pct": 100.0,
+            "urgent_total": 13,
+            "urgent_on_time": 13,
+            "routine_on_time_pct": 100.0,
+            "routine_total": 11,
+            "routine_on_time": 11,
+            "unservable": 1,
+            "late": 0
+        }
+    },
+    "baseline": {
+        "stat_on_time_pct": 100.0,
+        "stat_total": 16,
+        "stat_on_time": 16,
+        "urgent_on_time_pct": 100.0,
+        "urgent_total": 13,
+        "urgent_on_time": 13,
+        "routine_on_time_pct": 100.0,
+        "routine_total": 11,
+        "routine_on_time": 11,
+        "unservable": 0,
+        "late": 0
+    },
+    "scenario": "synnovis",
+    "seed": 1,
+    "model": {
+        "shared_lab": "lum",
+        "in_house_spare_fraction": 0.1,
+        "courier_overhead_min": 12.0,
+        "min_per_grid_unit": 0.4,
+        "deadlines_min": {
+            "stat": 60.0,
+            "urgent": 240.0,
+            "routine": 1440.0
+        },
+        "epoch_min": 2.0,
+        "note": "Scripted simulation. Lumen stays down for the whole scenario."
+    }
+}

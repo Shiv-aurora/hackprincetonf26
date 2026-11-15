@@ -15,9 +15,31 @@ export function Logo({ className }: { className?: string; label?: boolean }) {
 }
 
 const NAV = [
+  { href: "/#how", label: "How it works" },
   { href: "/demo", label: "Demo" },
   { href: "/war-room", label: "Live" },
+  { href: "/mirage.pdf", label: "Paper" },
 ];
+
+/** Landing navigation: a floating rounded bar, centered. Hairline border, no blur, no shadow glow. */
+export function FloatingNav({ cta }: { cta?: ReactNode }) {
+  return (
+    <div className="pointer-events-none fixed inset-x-0 top-4 z-40 flex justify-center px-4">
+      <nav className="pointer-events-auto flex h-12 w-full max-w-[680px] items-center gap-1 rounded-full border border-border bg-background/95 pr-1.5 pl-5">
+        <Link href="/" className="mr-3 text-[15px] font-semibold tracking-[-0.02em] text-fg">MayaJaal</Link>
+        <div className="hidden items-center sm:flex">
+          {NAV.map((n) => (
+            <Link key={n.href} href={n.href}
+              className="rounded-full px-3 py-1.5 text-[13px] text-fg-muted transition-colors hover:bg-surface-2 hover:text-fg">
+              {n.label}
+            </Link>
+          ))}
+        </div>
+        <div className="ml-auto">{cta}</div>
+      </nav>
+    </div>
+  );
+}
 
 /** Top bar used on every page. `right` is for page-specific controls (status dot, sound toggle). */
 export function SiteHeader({ active, right, className }: { active?: string; right?: ReactNode; className?: string }) {
