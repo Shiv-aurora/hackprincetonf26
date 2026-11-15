@@ -12,7 +12,8 @@ import { Caption, Controls } from "./Pills";
 import { CloseCard, CompareCard, TitleCard, WhyCard } from "./Cards";
 import { STEPS, resolveAnchors, text } from "./steps";
 import { Slide } from "./slides";
-import { BriefCard } from "./BriefCard";
+import { ZeroLeakCard } from "./cards/ZeroLeak";
+import { InvestigatorCard } from "./cards/Investigator";
 import { FilmLayer } from "./film/Layer";
 import { runLabel, useDemoData } from "./data";
 
@@ -116,9 +117,10 @@ export function DemoTour() {
       {cur.card === "close" && <CloseCard title={headline} />}
       {cur.card === "why" && <WhyCard title={headline} />}
       {cur.card === "slide" && cur.slide && <Slide key={cur.slide} id={cur.slide} title={headline} />}
-      {cur.card === "brief" && <BriefCard title={headline} />}
+      {cur.card === "leak" && <ZeroLeakCard />}
+      {cur.card === "investigator" && <InvestigatorCard />}
       {cur.card === "film" && cur.film && <FilmLayer key="film" shot={cur.film} />}
-      {cur.card !== "title" && cur.card !== "close" && cur.card !== "why" && cur.card !== "slide" && cur.card !== "brief" && (
+      {cur.card !== "title" && cur.card !== "close" && cur.card !== "why" && cur.card !== "slide" && (
         <Caption stepKey={step} kicker={kicker} headline={cur.card === "compare" ? "" : headline} sub={cur.card && cur.card !== "film" ? undefined : sub} />
       )}
 

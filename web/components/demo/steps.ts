@@ -26,7 +26,7 @@ export interface Step {
   /** Index of the last event to fold in; null = not found (falls back to the previous step's index). */
   anchor: (events: MJEvent[]) => number | null;
   /** Full-screen content instead of the plain caption. */
-  card?: "title" | "compare" | "close" | "why" | "slide" | "brief" | "film";
+  card?: "title" | "compare" | "close" | "why" | "slide" | "film" | "leak" | "investigator";
   /** Which film shot, when card = "film" (see film/Film.tsx). Consecutive film steps share one camera. */
   film?: FilmShot;
   /** Which explainer slide, when card = "slide". */
@@ -202,13 +202,13 @@ export const STEPS: Step[] = [
 
 
   {
-    label: "Reveal", focus: [], reveal: true, seconds: 9, source: "attack",
-    headline: "The reveal",
-    anchor: (ev) => settle(ev, find(ev, is("reveal"))) ?? ev.length - 1,
+    label: "No leaks", card: "leak", focus: [], seconds: 10, source: "attack",
+    headline: "Nothing real leaks",
+    anchor: (ev) => ev.length - 1,
   },
   {
-    label: "Brief", card: "brief", focus: [], seconds: 9, source: "attack",
-    headline: "The brief for the security team",
+    label: "Investigator", card: "investigator", focus: [], seconds: 10, source: "attack",
+    headline: "Our LangChain agent writes the case file",
     anchor: (ev) => ev.length - 1,
   },
   {
