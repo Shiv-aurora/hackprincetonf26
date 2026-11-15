@@ -59,8 +59,8 @@ function Panel({ title, aside, className, children, demo }: {
 }) {
   return (
     <section data-demo={demo} className={cn("flex min-h-0 flex-col rounded-xl border border-border bg-background", className)}>
-      <header className="flex h-11 shrink-0 items-center justify-between border-b border-border px-4">
-        <h3 className="text-[13px] font-medium">{title}</h3>
+      <header className="flex h-12 shrink-0 items-center justify-between border-b border-border px-4">
+        <h3 className="text-[16px] font-semibold tracking-[-0.01em]">{title}</h3>
         {aside}
       </header>
       <div className="min-h-0 flex-1">{children}</div>
@@ -227,26 +227,25 @@ export function TrackersPanel({ className }: { className?: string }) {
   const taken = list.filter((t) => t.taken).length;
   return (
     <Panel demo="trackers" className={className} title="Trackers in the decoy"
-      aside={<span className="text-xs text-fg-muted tabular-nums">{list.length} planted · <span className={taken ? "text-shadow" : undefined}>{taken} taken</span></span>}>
+      aside={<span className="text-[14px] text-fg-muted tabular-nums">{list.length} planted · <span className={taken ? "text-shadow" : undefined}>{taken} taken</span></span>}>
       <div className="h-full overflow-y-auto">
         {list.length === 0 && (
-          <p className="px-4 py-4 text-[13px] leading-relaxed text-fg-subtle">
-            Once someone is moved into the decoy, we plant fake files with hidden trackers: backups, passwords,
-            datasets. If they take one, it fires.
+          <p className="px-4 py-4 text-[16px] leading-relaxed text-fg-subtle">
+            Fake files with hidden trackers, planted in the decoy.
           </p>
         )}
         <ul className="divide-y divide-border">
           {list.map((t) => (
-            <li key={t.key} className={cn("mj-fade flex items-start gap-3 px-4 py-2.5", t.taken && "bg-shadow-bg")}>
-              <span className={cn("mt-1.5 size-2 shrink-0 rotate-45", t.taken ? "bg-shadow" : "border border-shadow/60")} />
+            <li key={t.key} className={cn("mj-fade flex items-start gap-3 px-4 py-3", t.taken && "bg-shadow-bg")}>
+              <span className={cn("mt-2 size-2.5 shrink-0 rotate-45", t.taken ? "bg-shadow" : "border border-shadow/60")} />
               <div className="min-w-0 flex-1">
-                <p className="flex items-center justify-between gap-2 text-[13px]">
+                <p className="flex items-center justify-between gap-2 text-[16px]">
                   <span className={cn("truncate font-medium", t.taken ? "text-shadow" : "text-fg")}>{t.name}</span>
-                  <span className={cn("shrink-0 text-[11px]", t.taken ? "font-medium text-shadow" : "text-fg-subtle")}>
+                  <span className={cn("shrink-0 text-[14px]", t.taken ? "font-medium text-shadow" : "text-fg-subtle")}>
                     {t.taken ? "Taken" : "Waiting"}
                   </span>
                 </p>
-                <p className="truncate text-xs text-fg-subtle">
+                <p className="truncate text-[14px] text-fg-subtle">
                   in {t.where}{t.taken && t.learned ? ` · told us: ${t.learned}` : ""}
                 </p>
               </div>
@@ -271,18 +270,17 @@ const ROWS: { goal: string; label: string }[] = [
 export function LearnedPanel({ className }: { className?: string }) {
   const post = useMJ((s) => s.view.posterior) as Record<string, number>;
   const top = useMJ((s) => s.view.topGoal) as string;
-  const evidence = useMJ((s) => s.view.intentEvidence);
   return (
     <Panel demo="learned" className={className} title="What they're after"
-      aside={<span className="text-xs text-fg-muted">Updated on every request</span>}>
-      <div className="flex h-full flex-col justify-center gap-2 px-4 py-3">
+      >
+      <div className="flex h-full flex-col justify-center gap-1.5 px-4 py-3">
         {ROWS.map((r) => {
           const p = post[r.goal] ?? 0;
           const lead = r.goal === top;
           return (
-            <div key={r.goal} className="grid grid-cols-[132px_minmax(0,1fr)_40px] items-center gap-3 text-[13px]">
+            <div key={r.goal} className="grid grid-cols-[170px_minmax(0,1fr)_48px] items-center gap-3 text-[16px]">
               <span className={lead ? "font-medium text-fg" : "text-fg-muted"}>{r.label}</span>
-              <span className="h-1.5 overflow-hidden rounded-full bg-surface-2">
+              <span className="h-2 overflow-hidden rounded-full bg-surface-2">
                 <span className={cn("block h-full rounded-full transition-[width] duration-200", lead ? "bg-fg" : "bg-fg-subtle/60")}
                   style={{ width: `${Math.round(p * 100)}%` }} />
               </span>
@@ -290,7 +288,6 @@ export function LearnedPanel({ className }: { className?: string }) {
             </div>
           );
         })}
-        {evidence && <p className="mt-1 truncate text-xs text-fg-subtle">Why: {evidence}</p>}
       </div>
     </Panel>
   );

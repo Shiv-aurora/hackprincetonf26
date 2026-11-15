@@ -96,7 +96,10 @@ export function CompareCard({ results, title }: { results: ResultsFile | null; t
     <Center>
       <div className="mx-auto w-full max-w-[880px] rounded-xl border border-border bg-background p-6 sm:p-8">
         <div className="flex items-baseline justify-between gap-4">
-          <h2 className="text-2xl font-semibold tracking-[-0.03em] text-fg">{title}</h2>
+          <div>
+            <h2 className="text-2xl font-semibold tracking-[-0.03em] text-fg">{title}</h2>
+            <p className="mt-1 text-sm text-fg-muted">Scenario 1 · Stolen login, modelled on Change Healthcare (2024)</p>
+          </div>
           {missing && <Badge>Recording…</Badge>}
         </div>
 
@@ -148,7 +151,10 @@ export function CompareCard({ results, title }: { results: ResultsFile | null; t
           ))}
         </div>
 
-        <p className="mt-5 truncate text-xs text-fg-subtle" title={results?.note}>
+        <p className="mt-5 text-sm text-fg-muted">
+          Both scenarios replay the public outline of real incidents on our synthetic hospital; no real patient data was used.
+        </p>
+        <p className="mt-1 truncate text-xs text-fg-subtle" title={results?.note}>
           {missing ? "Benchmark runs are being recorded. No numbers until they land." : results.note}
         </p>
       </div>

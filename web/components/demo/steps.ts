@@ -28,6 +28,8 @@ export interface Step {
   card?: "title" | "compare" | "close" | "why" | "slide" | "brief";
   /** Which explainer slide, when card = "slide". */
   slide?: SlideId;
+  /** Names the real incident this scenario replays, shown where the scenario first appears. */
+  scenario?: string;
   /** Open the Reveal sheet. */
   reveal?: boolean;
 }
@@ -126,13 +128,13 @@ export const STEPS: Step[] = [
     anchor: beforeFirstAttacker,
   },
   {
-    label: "Normal shift", focus: ["acts", "scene"], seconds: 5, source: "attack",
+    label: "Normal shift", focus: ["scene"], seconds: 5, source: "attack",
     headline: "A normal shift",
     sub: "Staff at work. Sensitive records encrypted on disk.",
     anchor: beforeFirstAttacker,
   },
   {
-    label: "Login", focus: ["narrator", "scene"], seconds: 8, source: "attack",
+    label: "Login", scenario: "Scenario 1 · Stolen login, modelled on Change Healthcare (2024)", focus: ["narrator", "scene"], seconds: 8, source: "attack",
     headline: "A stolen nurse login, flagged at once",
     sub: "A script, not the EHR app, on a device we don't own.",
     anchor: (ev) => settle(ev, find(ev, isFirstSight) ?? after(ev, isRealRead, is("agent.tool_result")) ?? find(ev, is("agent.tool_result"))),
@@ -154,7 +156,7 @@ export const STEPS: Step[] = [
     },
   },
   {
-    label: "Decoy", focus: ["acts", "scene"], seconds: 10, source: "attack",
+    label: "Decoy", focus: ["scene"], seconds: 10, source: "attack",
     headline: "It reaches for admin. We don't block it.",
     sub: "It's moved into a decoy. Every request works. None of it is real.",
     anchor: (ev) => settle(ev, after(ev, is("session.diverted"), is("agent.tool_result"))),
@@ -218,7 +220,7 @@ export const STEPS: Step[] = [
     anchor: (ev) => ev.length - 1,
   },
   {
-    label: "Outage", focus: ["scene", "narrator"], seconds: 8, source: "continuity",
+    label: "Outage", scenario: "Scenario 2 · Shared lab goes down, modelled on Synnovis, London (2024)", focus: ["scene", "narrator"], seconds: 8, source: "continuity",
     headline: "The shared lab goes down",
     sub: "Like Synnovis, 2024. Urgent tests reroute to labs that still work.",
     anchor: (ev) => midOutage(ev),

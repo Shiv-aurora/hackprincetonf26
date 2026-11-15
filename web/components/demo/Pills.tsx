@@ -15,10 +15,10 @@ export function Caption({ stepKey, kicker, headline, sub }: { stepKey: number; k
         <motion.div key={stepKey}
           initial={reduce ? false : { opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}
           transition={reduce ? { duration: 0 } : FADE}
-          className="pointer-events-auto max-w-[min(680px,100%)] rounded-xl border border-border bg-background px-5 py-2 text-center">
-          <p className="text-xs text-fg-muted tabular-nums">{kicker}</p>
-          {headline && <h1 className="truncate text-[17px] leading-6 font-semibold tracking-[-0.02em] text-fg">{headline}</h1>}
-          {sub && <p className="truncate text-[13px] leading-[18px] text-fg-muted">{sub}</p>}
+          className="pointer-events-auto max-w-[min(900px,100%)] rounded-xl border border-border bg-background px-6 py-2.5 text-center">
+          <p className="text-[14px] text-fg-muted tabular-nums">{kicker}</p>
+          {headline && <h1 className="truncate text-[24px] leading-8 font-semibold tracking-[-0.025em] text-fg">{headline}</h1>}
+          {sub && <p className="truncate text-[17px] leading-6 text-fg-muted">{sub}</p>}
         </motion.div>
       </AnimatePresence>
     </div>

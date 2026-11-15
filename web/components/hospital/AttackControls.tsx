@@ -58,6 +58,9 @@ export function AttackControls({ className }: { className?: string }) {
           </button>
         ))}
       </div>
+      <span className="hidden text-xs text-fg-subtle xl:inline" title="Replays the public outline of a real incident on our synthetic hospital; no real patient data is used.">
+        Stolen login · modelled on Change Healthcare (2024)
+      </span>
       <Button size="sm" variant="primary" onClick={start} disabled={busy}>
         <Play className="size-3.5" aria-hidden /> {busy ? "Attack running…" : "Start attack"}
       </Button>

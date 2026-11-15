@@ -32,9 +32,9 @@ export function Narrator({ className }: { className?: string }) {
   const now = beats.at(-1);
   return (
     <div data-demo="narrator" className={cn("flex min-h-[64px] flex-col justify-center", className)}>
-      <p key={now?.id ?? "idle"} className={cn("mj-fade flex items-start gap-3 text-[22px] leading-snug font-semibold tracking-[-0.02em] text-balance",
+      <p key={now?.id ?? "idle"} className={cn("mj-fade flex items-start gap-3 text-[26px] leading-snug font-semibold tracking-[-0.025em] text-balance",
         now ? TONE_TEXT[now.tone] : "text-fg-muted")}>
-        <span className={cn("mt-[11px] size-2 shrink-0 rounded-full", now ? TONE_DOT[now.tone] : "bg-border-strong")} />
+        <span className={cn("mt-[13px] size-2.5 shrink-0 rounded-full", now ? TONE_DOT[now.tone] : "bg-border-strong")} />
         {now?.text ?? "Waiting for activity on the hospital network."}
       </p>
     </div>
@@ -236,9 +236,9 @@ export function HospitalNumbers({ className }: { className?: string }) {
     <div data-demo="numbers" className={cn("grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-border bg-border lg:grid-cols-4", className)}>
       {items.map((it) => (
         <div key={it.label} className="bg-background px-5 py-4">
-          <p className="text-[13px] text-fg-muted">{it.label}</p>
-          <p className={cn("mt-1 text-[30px] font-semibold tracking-[-0.03em] tabular-nums", it.tone)}>{it.value}</p>
-          <p className="text-xs text-fg-subtle">{it.sub}</p>
+          <p className="text-[15px] text-fg-muted">{it.label}</p>
+          <p className={cn("mt-1 text-[36px] leading-tight font-semibold tracking-[-0.035em] tabular-nums", it.tone)}>{it.value}</p>
+          <p className="truncate text-[14px] text-fg-subtle">{it.sub}</p>
         </div>
       ))}
     </div>

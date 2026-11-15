@@ -15,7 +15,6 @@ import { NetworkMap } from "@/components/map";
 import { HospitalNumbers, Narrator, TwoHospitals } from "@/components/hospital/HospitalView";
 import { LearnedPanel, SwitchView, TrackersPanel } from "@/components/hospital/Live";
 import { HospitalScene } from "@/components/hospital/Scene";
-import { ActsBar } from "@/components/hospital/Acts";
 import { AttackControls } from "@/components/hospital/AttackControls";
 import { FingerprintPanel } from "@/components/hospital/Fingerprint";
 import { LiveBrief } from "@/components/hospital/Brief";
@@ -69,7 +68,6 @@ export function Dashboard({ mode = "live", revealOpen = false }: DashboardProps)
 
       <DemoFrame demo={demo}>
       <main className={cn("mx-auto flex w-full max-w-[1400px] flex-col gap-4 px-4 sm:px-6", demo ? "min-h-0 flex-1" : "py-5")}>
-        <ActsBar />
         <Narrator className="min-h-[40px]" />
         <div className={cn("grid min-h-0 grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]",
           demo ? "flex-1" : "lg:h-[min(56vh,540px)]")}>
@@ -164,7 +162,7 @@ const ZOOM_CSS = `
 function DemoFrame({ demo, children }: { demo: boolean; children: ReactNode }) {
   if (!demo) return <>{children}</>;
   return (
-    <div className="flex min-h-0 flex-1 flex-col pt-[88px] pb-[72px]">
+    <div className="flex min-h-0 flex-1 flex-col pt-[112px] pb-[72px]">
       <style>{ZOOM_CSS}</style>
       <div className="mj-demo-zoom flex min-h-0 flex-1 flex-col">{children}</div>
     </div>

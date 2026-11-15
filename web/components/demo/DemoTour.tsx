@@ -102,7 +102,7 @@ export function DemoTour() {
 
   const kicker = data.status === "error" ? "No recorded run found"
     : data.status === "loading" ? "Loading run…"
-    : `Step ${step + 1} · ${cur.label}`;
+    : cur.scenario ? `Step ${step + 1} · ${cur.scenario}` : `Step ${step + 1} · ${cur.label}`;
 
   return (
     <>

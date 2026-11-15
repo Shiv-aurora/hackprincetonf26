@@ -66,9 +66,9 @@ function fingerprint(events: MJEvent[]): Fp | null {
 function Cell({ label, value, sub, tone }: { label: string; value: ReactNode; sub?: ReactNode; tone?: string }) {
   return (
     <div className="min-w-0 bg-background px-4 py-3">
-      <p className="text-[12px] text-fg-muted">{label}</p>
-      <p className={cn("mt-0.5 truncate text-[15px] font-semibold tracking-[-0.01em] tabular-nums", tone)}>{value}</p>
-      {sub && <p className="truncate text-[11px] text-fg-subtle">{sub}</p>}
+      <p className="text-[14px] text-fg-muted">{label}</p>
+      <p className={cn("mt-0.5 truncate text-[19px] font-semibold tracking-[-0.015em] tabular-nums", tone)}>{value}</p>
+      {sub && <p className="truncate text-[13px] text-fg-subtle">{sub}</p>}
     </div>
   );
 }
@@ -84,14 +84,12 @@ export function FingerprintPanel({ className }: { className?: string }) {
 
   return (
     <section data-demo="fingerprint" className={cn("rounded-xl border border-border bg-background", className)}>
-      <header className="flex h-11 items-center justify-between gap-3 border-b border-border px-4">
-        <h3 className="text-[13px] font-medium">Who is this? <span className="font-normal text-fg-subtle">Attacker fingerprint</span></h3>
-        <span className="hidden truncate text-xs text-fg-subtle sm:block">
-          Only what their own requests told our gateway. Nothing runs on their machine.
-        </span>
+      <header className="flex h-12 items-center justify-between gap-3 border-b border-border px-4">
+        <h3 className="text-[16px] font-semibold tracking-[-0.01em]">Who is this?</h3>
+        <span className="hidden truncate text-[14px] text-fg-subtle sm:block">From their own requests only</span>
       </header>
       {!fp ? (
-        <p className="px-4 py-4 text-[13px] text-fg-subtle">No attacker activity yet.</p>
+        <p className="px-4 py-4 text-[16px] text-fg-subtle">No attacker activity yet.</p>
       ) : (
         <div className="grid grid-cols-2 gap-px overflow-hidden rounded-b-xl bg-border sm:grid-cols-3 xl:grid-cols-6">
           <Cell label="Seen from" value={fp.ips.length ? fp.ips.join(", ") : "Unknown"}
