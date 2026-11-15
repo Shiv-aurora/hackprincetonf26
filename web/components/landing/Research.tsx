@@ -70,21 +70,21 @@ export function Research({ className }: { className?: string }) {
   return (
     <div className={cn("grid grid-cols-1 gap-4 md:grid-cols-2", className)}>
       <article className={CARD}>
-        <a href="/mirage.pdf" target="_blank" rel="noreferrer" aria-label="Open the Mirage paper"
+        <a href="/mirage.pdf" target="_blank" rel="noreferrer" aria-label="Open the Mirage draft paper"
           className={cn(PANEL, "group relative block overflow-hidden")}>
           <Image src={paperPage} alt="First page of the Mirage paper: title, abstract and architecture figure."
             sizes="(min-width: 768px) 520px, 90vw"
             className="absolute inset-x-5 top-5 h-auto w-[calc(100%-2.5rem)] rounded-t-[5px] border border-border-strong bg-white transition-transform duration-200 group-hover:-translate-y-1 sm:inset-x-8 sm:w-[calc(100%-4rem)]" />
         </a>
         <div className="flex flex-1 flex-col px-3 pt-6 pb-4">
-          <p className={KICKER}>Our own algorithm, with a paper</p>
+          <p className={KICKER}>Our own algorithm, with a draft paper</p>
           <h3 className={NAME}>Mirage</h3>
           <p className={SUB}>Model-based Intent Reasoning for Adaptive Generated Environments</p>
           <p className={BODY}>Works out what the attacker is after and adapts the decoy to them. Results are simulated.</p>
           <div className="mt-auto pt-5">
             <a href="/mirage.pdf" target="_blank" rel="noreferrer"
               className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-fg px-4 text-sm font-medium text-background transition-opacity hover:opacity-90">
-              Read the paper <ArrowUpRight className="size-4" aria-hidden />
+              Read the draft paper <ArrowUpRight className="size-4" aria-hidden />
             </a>
           </div>
         </div>
@@ -93,7 +93,7 @@ export function Research({ className }: { className?: string }) {
       <article className={CARD}>
         <div className={PANEL}><ScoreBar /></div>
         <div className="flex flex-1 flex-col px-3 pt-6 pb-4">
-          <p className={KICKER}>Our own algorithm, built for this project</p>
+          <p className={KICKER}>Our own algorithm, built at this hackathon</p>
           <h3 className={NAME}>First Sight</h3>
           <p className={SUB}>Flags a stolen login on the first request</p>
           <p className={BODY}>Nine weak clues add up to one score. Weights are set by hand.</p>

@@ -69,7 +69,7 @@ export default function Home() {
           <div className="relative z-10">
             <a href="#research"
               className="mb-6 inline-flex h-8 items-center gap-2 rounded-full border border-border bg-background pr-3 pl-3.5 text-[13px] font-medium text-fg transition-colors hover:bg-surface-2">
-              Backed by research <span className="text-fg-subtle">Read the paper</span>
+              Backed by research <span className="text-fg-subtle">Read the draft paper</span>
               <ArrowRight className="size-3.5 text-fg-subtle" aria-hidden />
             </a>
             <h1 className="text-[44px] leading-[1.03] font-semibold tracking-[-0.045em] text-balance sm:text-[60px] lg:text-[50px] xl:text-[62px]">
@@ -126,7 +126,7 @@ export default function Home() {
         <section id="research" className="scroll-mt-24 pb-20">
           <h2 className="text-[36px] font-semibold tracking-[-0.035em] sm:text-[40px]">Backed by research</h2>
           <p className="mt-3 max-w-[620px] text-[15px] leading-relaxed text-fg-muted">
-            Two algorithms we built for this project.
+            Two algorithms of our own, both built during HackPrinceton Fall 2026.
           </p>
           <Research className="mt-10" />
         </section>
