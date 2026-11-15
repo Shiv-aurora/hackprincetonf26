@@ -65,7 +65,7 @@ export function Dashboard({ mode = "live", revealOpen = false }: DashboardProps)
           <section data-demo="attacker" className="flex min-h-0 flex-col">
             <ColumnHeading
               title="What the attacker sees"
-              description={`An AI agent using a phished login for ${ep.username}, ${ep.role} at ${hospitalName(ep.hospital_id)}.`}
+              description={`Someone using a phished login for ${ep.username}, ${ep.role} at ${hospitalName(ep.hospital_id)}.`}
             />
             <AttackerTerminal className="h-[480px] lg:h-auto lg:flex-1" />
           </section>
