@@ -9,19 +9,22 @@ export function cn(...a: Parameters<typeof clsx>) {
   return twMerge(clsx(...a));
 }
 
-/** The illusion eye: an almond eye whose iris is a woven swirl (four spiral threads crossing a ring),
- *  i.e. a hypnotic spiral that is also a net. Monochrome, follows the theme via currentColor. */
+/** The illusion eye. Artwork: "Mangekyou Sharingan Itachi.svg" by ShounenSuki, CC BY-SA 3.0, via
+ *  Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Mangekyou_Sharingan_Itachi.svg).
+ *  Converted to JSX with a viewBox; shapes and colours unchanged. Credited in the landing footer. */
 export function LogoMark({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round"
-      strokeLinejoin="round" aria-hidden="true" focusable="false" className={cn("size-5 shrink-0", className)}>
-      <path d="M1.5 12C5.5 3.5 18.5 3.5 22.5 12C18.5 20.5 5.5 20.5 1.5 12Z" />
-      <circle cx="12" cy="12" r="4.75" strokeWidth={1.25} />
-      <g strokeWidth={1}>
-        <circle cx="12" cy="12" r="2.9" />
-        <path d="M12 10.8A3.16 3.16 0 0 1 16.68 12.82M13.2 12A3.16 3.16 0 0 1 11.18 16.68M12 13.2A3.16 3.16 0 0 1 7.32 11.18M10.8 12A3.16 3.16 0 0 1 12.82 7.32" />
-      </g>
-      <circle cx="12" cy="12" r="1.25" fill="currentColor" stroke="none" />
+    <svg viewBox="0 0 300 300" aria-hidden="true" focusable="false" className={cn("size-5 shrink-0", className)}>
+      <defs>
+        <radialGradient id="mj-sharingan-gr">
+          <stop offset="0" stopColor="#660000" />
+          <stop offset="0.5" stopColor="#c30000" />
+          <stop offset="1" stopColor="#a00000" />
+        </radialGradient>
+      </defs>
+      <circle cx="150" cy="150" r="145" fill="url(#mj-sharingan-gr)" stroke="#000" strokeWidth={10} />
+      <path fill="#000" d="M 177.6,10.7 C 135,68.4 155.4,100.7 179.8,118.5 C 260.9,160.6 274.8,214.5 255.9,244.9 C 237.3,191.9 198,172.4 158.5,194.9 C 86.9,238.6 40.7,231.2 15.7,196.6 C 58.2,203.1 109.1,193.5 107.9,128.3 C 109.5,97.6 111.5,16.6 177.6,10.7 z" />
+      <circle cx="150" cy="150" r="20" fill="#a00000" />
     </svg>
   );
 }

@@ -139,6 +139,11 @@ export default function Home() {
               from runs recorded on the running system with a scripted attacker; lab numbers come from a simulated
               outage. None of it is a clinical or real-world claim.
             </p>
+            <p className="mt-2 text-[12px]">
+              Logo eye:{" "}
+              <a href="https://commons.wikimedia.org/wiki/File:Mangekyou_Sharingan_Itachi.svg" target="_blank" rel="noreferrer" className="underline underline-offset-2 hover:text-fg">ShounenSuki</a>,{" "}
+              <a href="https://creativecommons.org/licenses/by-sa/3.0" target="_blank" rel="noreferrer" className="underline underline-offset-2 hover:text-fg">CC BY-SA 3.0</a>, via Wikimedia Commons.
+            </p>
           </div>
           <div className="flex gap-5">
             <a href="/mirage.pdf" className="hover:text-fg">Paper</a>
