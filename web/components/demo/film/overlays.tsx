@@ -1,7 +1,8 @@
 "use client";
-// 2D "insert" panels the film shows over its 3D stage: the First Sight gauge, the file-copy dialog, the
-// zoomed-in tracker document, the fingerprint card and the key split. Each is position-agnostic (the film
-// places it), has a fixed width, and plays its own short choreography on mount (settled by ~3 s).
+// 2D "insert" panels the film shows over its 3D stage: First Sight's nine signals and score, the file-copy
+// dialog, the zoomed-in tracker document, the fingerprint card and the recovery copy (encrypt, cut and spread,
+// split the key). Each is position-agnostic (the film places it), has a fixed width, and plays its own short
+// choreography on mount (settled by ~3–6 s).
 // Colour code: blue = real data, amber = attacker / suspicious, purple = decoy + trackers, green = safe.
 // Reduced motion: every transition is instant, so each panel renders straight to its end state.
 // Numbers come from the props (the recorded run); null props render the shapes without numbers.
@@ -9,16 +10,17 @@
 import { useEffect, useState, type ReactNode } from "react";
 import {
   AnimatePresence, animate, motion, useMotionValue, useMotionValueEvent, useReducedMotion, useTransform,
-  type Transition,
+  type MotionValue, type Transition,
 } from "framer-motion";
+import { Database, DatabaseBackup } from "lucide-react";
 import { cn } from "@/components/ui";
+import { WORLD } from "@/lib/contracts";
 import type { RunFacts } from "../story/useRunFacts";
 import { Sharingan } from "./Sharingan";
 
 // ------------------------------------------------------------------ shared bits
 
 const EASE = [0.16, 1, 0.3, 1] as const;
-const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
 
 /** Transition factory: instant under reduced motion. */
 function useTr() {
@@ -76,132 +78,226 @@ function Check({ className, delay = 0, strokeWidth = 2.6 }: { className?: string
 
 const fmtInt = (n: number) => Math.round(n).toLocaleString("en-US");
 
-// ------------------------------------------------------------------ 1. First Sight gauge
+// ------------------------------------------------------------------ 1. First Sight: nine signals, one score
 
 export interface FirstSightGaugeProps { score: number | null; threshold: number | null; signals: string[] }
 
-// Semicircle gauge geometry (SVG drawn 1:1 in px).
-const G = { w: 420, h: 250, cx: 210, cy: 226, r: 160, sw: 22 };
-const G_ARC = `M ${G.cx - G.r} ${G.cy} A ${G.r} ${G.r} 0 0 1 ${G.cx + G.r} ${G.cy}`;
-const G_LEN = Math.PI * G.r;
-const G_SWEEP = { delay: 0.55, duration: 1.3 };
-const G_SIGNALS = G_SWEEP.delay + G_SWEEP.duration + 0.1;
+interface FsSignal { id: string; login: boolean; label: string; short: string; w: number; each?: boolean; match: RegExp }
 
-function onArc(f: number, r = G.r) {
-  const a = Math.PI * (1 - Math.max(0, Math.min(1, f)));
-  return { x: G.cx + r * Math.cos(a), y: G.cy - r * Math.sin(a) };
-}
+// First Sight is a CUSUM test (Page, 1954) over nine weak signals: every signal seen adds its weight to a running
+// score, every ordinary request takes DRIFT off, and the alarm goes at the limit. Signals, wording and weights
+// from backend/mayajaal/real/firstsight.py (W, WHY; the weights are hand-set log-likelihood-ratio guesses).
+// `match` finds a signal in the run's reason text, which is what the `signals` prop carries.
+const FS_SIGNALS: FsSignal[] = [
+  { id: "scripted_client", login: true, label: "Script, not the EHR app", short: "Script", w: 2.2, match: /script/i },
+  { id: "no_client", login: true, label: "No client identity", short: "No ID", w: 1.0, match: /no client/i },
+  { id: "new_address", login: true, label: "First login from this address", short: "Address", w: 0.8, match: /new address|from this address/i },
+  { id: "failed_logins", login: true, label: "Wrong passwords just before", short: "Passwords", w: 0.6, each: true, match: /password/i },
+  { id: "unmanaged_device", login: true, label: "Not a hospital device", short: "Device", w: 1.2, match: /device/i },
+  { id: "machine_pace", login: false, label: "Machine-regular pace", short: "Pace", w: 0.9, match: /pace/i },
+  { id: "burst", login: false, label: "Faster than a person can click", short: "Burst", w: 0.4, match: /faster|click/i },
+  { id: "probing", login: false, label: "Asks for things that don't exist", short: "Probing", w: 0.7, match: /exist|probing/i },
+  { id: "fan_out", login: false, label: "More charts than a nurse opens", short: "Charts", w: 0.5, each: true, match: /charts/i },
+];
+const FS_DRIFT = 0.3;
+// The scan reaches a row every `step` s; a weight seen grows into the bar over `grow` s. Settled by ~3.5 s.
+const T_FS = { scan: 1.3, step: 0.3, grow: 0.5 };
+const FS_BAR_W = 412; // bar width in px (panel 560 − padding − the score column): decides which segment labels fit
 
-export function FirstSightGauge({ score, threshold, signals }: FirstSightGaugeProps) {
-  const reduce = useReducedMotion();
-  const tr = useTr();
-  // Scale: the limit sits at the top of the arc (max = 2 × limit) unless the score needs more room.
-  const max = threshold != null
-    ? Math.max(threshold * 2, score != null ? Math.ceil(score * 2.2) / 2 : 0)
-    : Math.max(1, Math.ceil((score ?? 1) * 1.25));
-  const v = useMotionValue(0);
-  const [crossed, setCrossed] = useState(false);
-  const [landed, setLanded] = useState(false);
-  useMotionValueEvent(v, "change", (x) => { if (threshold != null && x >= threshold) setCrossed(true); });
-  useEffect(() => {
-    if (score == null) return;
-    const c = animate(v, score, reduce
-      ? { duration: 0, onComplete: () => setLanded(true) }
-      : { ...G_SWEEP, ease: easeOutCubic, onComplete: () => setLanded(true) });
-    return () => c.stop();
-  }, [score, reduce, v]);
-
-  // Arc segments as explicit dash lengths along the semicircle (grey up to the limit, amber beyond it).
-  const thF = threshold != null ? threshold / max : null;
-  const lowDash = useTransform(v, (x) => `${(Math.min(x, threshold ?? x) / max) * G_LEN} ${G_LEN * 2}`);
-  const lowOpacity = useTransform(v, (x) => (x > 0.001 ? 1 : 0));
-  const highDash = useTransform(v, (x) => `${(threshold != null ? Math.max(0, x - threshold) / max : 0) * G_LEN} ${G_LEN * 2}`);
-  const highOpacity = useTransform(v, (x) => (threshold != null && x > threshold + 0.001 ? 1 : 0));
-  const knobX = useTransform(v, (x) => onArc(x / max).x);
-  const knobY = useTransform(v, (x) => onArc(x / max).y);
-  const num = useTransform(v, (x) => x.toFixed(1));
-  const hot = crossed && score != null;
-  const land = score != null ? onArc(score / max) : null;
-
+export function FirstSightGauge(props: FirstSightGaugeProps) {
+  // The scan (and its clock) starts once the run's score is known; until then the rows wait unchecked.
   return (
-    <Panel width={480} label="First Sight">
-      <div className="px-7 pt-6 pb-7">
-        <div className="flex items-center gap-4">
-          <span className={cn("relative grid size-14 shrink-0 place-items-center rounded-xl border transition-colors duration-300 motion-reduce:transition-none",
-            hot ? "border-alert/50 bg-alert-bg text-alert" : "border-border bg-surface text-fg-muted")}>
-            <motion.span className="grid place-items-center" initial={{ scaleY: 0.08, rotate: -360 }} animate={{ scaleY: 1, rotate: 0 }}
-              transition={{ scaleY: tr(0.2, 0.4), rotate: tr(0.2, 1.1) }}>
-              <Sharingan className="size-10" />
-            </motion.span>
-            {hot && <Ring className="rounded-xl border-alert" />}
-          </span>
-          <div className="min-w-0">
-            <p className="text-[25px] leading-none font-semibold tracking-[-0.03em]">First Sight</p>
-            <p className="mt-2 text-[17px] leading-none text-fg-muted">Caught at login</p>
-          </div>
-        </div>
-
-        <div className="relative mx-auto mt-4" style={{ width: G.w, height: G.h }}>
-          <svg width={G.w} height={G.h} viewBox={`0 0 ${G.w} ${G.h}`} aria-hidden className="block overflow-visible">
-            <path d={G_ARC} fill="none" strokeWidth={G.sw} strokeLinecap="round" className="stroke-surface-2" />
-            <path d={G_ARC} fill="none" strokeWidth={G.sw} strokeLinecap="round" className="stroke-border" strokeOpacity={0.6} />
-            <motion.path d={G_ARC} fill="none" strokeWidth={G.sw} strokeLinecap="round" className="stroke-fg-subtle"
-              style={{ strokeDasharray: lowDash, opacity: lowOpacity }} />
-            {thF != null && (
-              <motion.path d={G_ARC} fill="none" strokeWidth={G.sw} strokeLinecap="round" className="stroke-alert"
-                style={{ strokeDasharray: highDash, strokeDashoffset: -thF * G_LEN, opacity: highOpacity }} />
-            )}
-            {thF != null && threshold != null && (
-              <motion.g initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={tr(0.3, 0.3)}>
-                <ThresholdTick f={thF} label={`Limit ${threshold.toFixed(1)}`} />
-              </motion.g>
-            )}
-            {score != null && (
-              <motion.circle cx={knobX} cy={knobY} r={12} strokeWidth={5}
-                className={cn("fill-background transition-[stroke] duration-300 motion-reduce:transition-none", hot ? "stroke-alert" : "stroke-fg-muted")} />
-            )}
-            {landed && land && hot && (
-              <motion.circle cx={land.x} cy={land.y} fill="none" strokeWidth={3} className="stroke-alert"
-                initial={{ r: 12, opacity: 0.9 }} animate={{ r: 44, opacity: 0 }} transition={tr(0, 0.9, { ease: "easeOut" })} />
-            )}
-          </svg>
-          {score != null && (
-            <div className="absolute inset-x-0 flex flex-col items-center" style={{ bottom: G.h - G.cy - 4 }}>
-              <motion.span className={cn("text-[60px] leading-none font-semibold tracking-[-0.045em] tabular-nums transition-colors duration-300 motion-reduce:transition-none",
-                hot ? "text-alert" : "text-fg")}>
-                {num}
-              </motion.span>
-              <span className="mt-2 text-[17px] leading-none text-fg-muted">Risk score</span>
-            </div>
-          )}
-        </div>
-
-        {signals.length > 0 && (
-          <div className="mt-5 flex flex-col items-start gap-2.5">
-            {signals.map((s, i) => (
-              <motion.span key={s} initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }} transition={tr(G_SIGNALS + i * 0.3, 0.4)}
-                className="inline-flex items-center gap-2.5 rounded-full border border-alert/40 bg-alert-bg py-2 pr-4.5 pl-3 text-[18px] leading-none font-medium text-alert">
-                <Check delay={G_SIGNALS + i * 0.3 + 0.15} />
-                {s}
-              </motion.span>
-            ))}
-          </div>
-        )}
-      </div>
+    <Panel width={560} label="First Sight">
+      <FsBody key={props.score != null ? "run" : "wait"} {...props} />
     </Panel>
   );
 }
 
-function ThresholdTick({ f, label }: { f: number; label: string }) {
-  const a = onArc(f, G.r - 18);
-  const b = onArc(f, G.r + 18);
-  const t = onArc(f, G.r + 34);
-  const anchor = f < 0.42 ? "end" : f > 0.58 ? "start" : "middle";
+function FsBody({ score, threshold, signals }: FirstSightGaugeProps) {
+  const reduce = useReducedMotion();
+  const tr = useTr();
+  const ready = score != null;
+  const isFired = (s: FsSignal) => signals.some((t) => s.match.test(t));
+  // Caught at login unless a request signal is among the reasons. At login no request has been sent, so the
+  // request rows are not checked: they are watched from the first request on (and in this run the script's
+  // later pace would have tripped one, so "checked, not seen" would be false for them).
+  const atLogin = !FS_SIGNALS.some((s) => !s.login && isFired(s)) && !signals.some((t) => /by request \d/i.test(t));
+  const scanned = FS_SIGNALS.filter((s) => s.login || !atLogin);
+  const at = (s: FsSignal) => T_FS.scan + scanned.indexOf(s) * T_FS.step;
+  const decideAt = T_FS.scan + scanned.length * T_FS.step + 0.1;
+
+  // The bar: the weights seen, stacked in list order. If they don't add up to the run's score, one plain bar.
+  let segs = scanned.filter(isFired).map((s) => ({ id: s.id, short: s.short, w: s.w, at: at(s) }));
+  if (score != null && Math.abs(segs.reduce((a, g) => a + g.w, 0) - score) > 0.05) {
+    segs = score > 0 ? [{ id: "score", short: "Score", w: score, at: T_FS.scan }] : [];
+  }
+  const starts = segs.map((_, j) => segs.slice(0, j).reduce((a, g) => a + g.w, 0));
+  const max = threshold != null
+    ? Math.max(threshold * 2, score != null ? Math.ceil(score * 2.2) / 2 : 0)
+    : Math.max(1, Math.ceil((score ?? 1) * 1.25));
+  const plan = segs.map((g) => `${g.w}@${g.at}`).join(" ");
+
+  // The score counts up as each weight lands: one keyframed animation, holds between the weights.
+  const v = useMotionValue(0);
+  const [crossedLive, setCrossed] = useState(false);
+  useMotionValueEvent(v, "change", (x) => { if (threshold != null && x >= threshold) setCrossed(true); });
+  useEffect(() => {
+    if (score == null) return;
+    if (reduce || !plan) { v.set(score); return; }
+    const kf = [0], times = [0];
+    let acc = 0;
+    for (const part of plan.split(" ")) {
+      const [w, t] = part.split("@").map(Number);
+      kf.push(acc, acc + w);
+      times.push(t, t + T_FS.grow);
+      acc += w;
+    }
+    kf[kf.length - 1] = score;
+    const total = times[times.length - 1];
+    const c = animate(v, kf, { duration: total, times: times.map((t) => t / total), ease: "easeOut" });
+    return () => c.stop();
+  }, [score, plan, reduce, v]);
+  const num = useTransform(v, (x) => x.toFixed(1));
+  const over = score != null && threshold != null && score >= threshold;
+  const crossed = over && (reduce ? true : crossedLive);
+  const flagged = useAt(decideAt, over);
+  const thPct = threshold != null ? `${(threshold / max) * 100}%` : null;
+
   return (
-    <>
-      <line x1={a.x} y1={a.y} x2={b.x} y2={b.y} strokeWidth={3.5} strokeLinecap="round" className="stroke-fg" />
-      <text x={t.x} y={t.y + 4} textAnchor={anchor} className="fill-fg-muted text-[17px]">{label}</text>
-    </>
+    <div className="px-7 pt-6 pb-6">
+      <div className="flex items-center gap-4">
+        <span className={cn("relative grid size-14 shrink-0 place-items-center rounded-xl border transition-colors duration-300 motion-reduce:transition-none",
+          crossed ? "border-alert/50 bg-alert-bg text-alert" : "border-border bg-surface text-fg-muted")}>
+          <motion.span className="grid place-items-center" initial={{ scaleY: 0.08, rotate: -360 }} animate={{ scaleY: 1, rotate: 0 }}
+            transition={{ scaleY: tr(0.2, 0.4), rotate: tr(0.2, 1.1) }}>
+            <Sharingan className="size-10" />
+          </motion.span>
+          {crossed && <Ring className="rounded-xl border-alert" />}
+        </span>
+        <div className="min-w-0">
+          <p className="text-[25px] leading-none font-semibold tracking-[-0.03em]">First Sight</p>
+          <p className="mt-2 text-[17px] leading-none text-fg-muted">Nine weak signals, added up</p>
+        </div>
+        {flagged && (
+          <motion.span initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} transition={tr(0, 0.3)}
+            className="relative ml-auto inline-flex shrink-0 items-center gap-2 self-start rounded-full border border-alert/45 bg-alert-bg px-3.5 py-2 text-[16px] leading-none font-semibold text-alert">
+            <span className="size-2 rounded-full bg-alert" />
+            {atLogin ? "Flagged at login" : "Flagged"}
+            <Ring className="rounded-full border-alert" grow={[1.15, 1.6]} />
+          </motion.span>
+        )}
+      </div>
+
+      <div className="mt-5 flex flex-col">
+        <FsGroupHead title="At login" />
+        {FS_SIGNALS.filter((s) => s.login).map((s) => (
+          <FsRow key={s.id} s={s} at={at(s)} check={ready && scanned.includes(s)} fired={isFired(s)} />
+        ))}
+        <FsGroupHead title="On each request" note={ready && atLogin ? "none sent yet" : undefined} className="mt-1.5" />
+        {FS_SIGNALS.filter((s) => !s.login).map((s) => (
+          <FsRow key={s.id} s={s} at={at(s)} check={ready && scanned.includes(s)} fired={isFired(s)} />
+        ))}
+      </div>
+
+      <div className="mt-4 flex items-start gap-4 border-t border-border pt-5">
+        <div className="min-w-0 flex-1">
+          <div className="relative h-[30px]">
+            <div className="absolute inset-0 rounded-md bg-surface-2" />
+            {segs.map((g, j) => (
+              <FsSeg key={g.id} v={v} start={starts[j]} w={g.w} max={max} first={j === 0}
+                label={(g.w / max) * FS_BAR_W >= 118 ? `${g.short} +${g.w.toFixed(1)}` : (g.w / max) * FS_BAR_W >= 48 ? `+${g.w.toFixed(1)}` : ""} />
+            ))}
+            {thPct && <span aria-hidden className="absolute -top-[7px] -bottom-[7px] w-[3px] -translate-x-1/2 rounded-full bg-fg" style={{ left: thPct }} />}
+          </div>
+          <div className="relative mt-3 h-4">
+            {thPct && threshold != null && (
+              <span className="absolute -translate-x-1/2 text-[16px] leading-none whitespace-nowrap text-fg-muted tabular-nums" style={{ left: thPct }}>
+                Limit {threshold.toFixed(1)}
+              </span>
+            )}
+          </div>
+        </div>
+        <div className="-mt-[7px] flex w-[76px] shrink-0 flex-col items-end gap-1.5">
+          <motion.span className={cn("text-[44px] leading-none font-semibold tracking-[-0.04em] tabular-nums transition-colors duration-300 motion-reduce:transition-none",
+            crossed ? "text-alert" : ready ? "text-fg" : "text-fg-subtle")}>
+            {ready ? num : "–"}
+          </motion.span>
+          <span className="text-[16px] leading-none text-fg-muted">score</span>
+        </div>
+      </div>
+
+      <p className="mt-4 text-[16px] leading-snug text-fg-muted">
+        A CUSUM test (Page, 1954). Each ordinary request takes {FS_DRIFT.toFixed(1)} off.
+      </p>
+    </div>
+  );
+}
+
+function FsGroupHead({ title, note, className }: { title: string; note?: string; className?: string }) {
+  return (
+    <div className={cn("flex h-[26px] items-center justify-between px-3 text-[16px] leading-none", className)}>
+      <span className="font-medium text-fg-muted">{title}</span>
+      {note && <span className="text-fg-subtle">{note}</span>}
+    </div>
+  );
+}
+
+/** One signal: waits, is checked when the scan reaches it, and lights amber (with its weight) if it was seen. */
+function FsRow({ s, at, check, fired }: { s: FsSignal; at: number; check: boolean; fired: boolean }) {
+  const tr = useTr();
+  const hit = useAt(at, check);
+  const seen = hit && fired;
+  return (
+    <div className="relative grid h-[33px] grid-cols-[22px_minmax(0,1fr)_auto] items-center gap-3 px-3">
+      <motion.span aria-hidden className="absolute inset-0 rounded-lg border border-alert/45 bg-alert-bg"
+        initial={{ opacity: 0 }} animate={{ opacity: seen ? 1 : 0 }} transition={tr(0, 0.25)} />
+      {seen && <Ring className="rounded-lg border-alert" grow={[1.02, 1.55]} />}
+      <FsMark state={seen ? "seen" : hit ? "clear" : "wait"} />
+      <span className={cn("relative truncate text-[18px] leading-none transition-colors duration-200 motion-reduce:transition-none",
+        seen ? "font-medium text-fg" : "text-fg-muted")}>
+        {s.label}
+      </span>
+      <span className={cn("relative text-[17px] leading-none whitespace-nowrap tabular-nums transition-colors duration-200 motion-reduce:transition-none",
+        seen ? "font-semibold text-alert" : "text-fg-subtle")}>
+        +{s.w.toFixed(1)}{s.each && <span className="text-[16px]"> each</span>}
+      </span>
+    </div>
+  );
+}
+
+/** Row marker: an empty ring (not checked), a grey tick (checked, not seen) or a filled amber "!" (seen). */
+function FsMark({ state }: { state: "wait" | "clear" | "seen" }) {
+  const tr = useTr();
+  return (
+    <span className={cn("relative grid size-[22px] place-items-center rounded-full border-[1.5px] transition-colors duration-200 motion-reduce:transition-none",
+      state === "seen" ? "border-alert bg-alert text-background" : state === "clear" ? "border-fg-subtle text-fg-muted" : "border-border-strong")}>
+      {state === "clear" && <Check className="size-[15px]" strokeWidth={2.8} />}
+      {state === "seen" && (
+        <motion.svg viewBox="0 0 20 20" fill="none" aria-hidden className="size-[15px]"
+          initial={{ scale: 0.3, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={tr(0, 0.25)}>
+          <path d="M10 3.6v8" stroke="currentColor" strokeWidth={3.2} strokeLinecap="round" />
+          <circle cx="10" cy="16" r="2" fill="currentColor" />
+        </motion.svg>
+      )}
+    </span>
+  );
+}
+
+/** One weight in the score bar; grows with the score, so the stack always ends where the number is. */
+function FsSeg({ v, start, w, max, first, label }: { v: MotionValue<number>; start: number; w: number; max: number; first: boolean; label: string }) {
+  const width = useTransform(v, (x) => `${(Math.min(Math.max(x - start, 0), w) / max) * 100}%`);
+  const opacity = useTransform(v, (x) => (x > start + 0.01 ? 1 : 0));
+  const text = useTransform(v, (x) => (x >= start + w * 0.85 ? 1 : 0));
+  return (
+    <motion.div className={cn("absolute inset-y-0 overflow-hidden rounded-md bg-alert", !first && "border-l-2 border-background")}
+      style={{ left: `${(start / max) * 100}%`, width, opacity }}>
+      {label && (
+        <motion.span className="absolute inset-0 grid place-items-center text-[16px] leading-none font-semibold whitespace-nowrap text-background tabular-nums"
+          style={{ opacity: text }}>
+          {label}
+        </motion.span>
+      )}
+    </motion.div>
   );
 }
 
@@ -763,122 +859,261 @@ function FingerprintGlyph() {
   );
 }
 
-// ------------------------------------------------------------------ 5. Key split
+// ------------------------------------------------------------------ 5. Recovery copy: encrypt, cut and spread, split the key
 
-export interface KeySplitProps { holders: string[]; threshold: number | null; verified: boolean }
-
-const HOSPITAL: Record<string, string> = {
-  aur: "St. Aurelia", riv: "Riverside", nor: "Northgate", eas: "Eastbank", wes: "Westfield", lum: "Lumen",
-};
-const KS = { w: 504, h: 330, cx: 252, cy: 165, rx: 186, ry: 128, inward: 0.1 };
-// Opaque tints, so the joining lines never show through a chip.
-const OK_TINT = "bg-[color-mix(in_srgb,var(--ok)_16%,var(--background))]";
-const T_KS = { key: 0.1, split: 0.75, fly: 0.6, flyStep: 0.07, lit: 1.65, litStep: 0.2, rebuilt: 2.3, tested: 2.65 };
-
-/** `k` holder indices spread evenly round the ring (6 and 3 → 0, 2, 4). */
-function spread(n: number, k: number): number[] {
-  return Array.from({ length: k }, (_, j) => Math.round((j * n) / k));
+export interface KeySplitProps {
+  holders: string[];
+  threshold: number | null;
+  verified: boolean;
+  /** The run's `vault.scattered` facts (`facts.scatter`): pieces, copies of each, size. Optional: without it the
+   *  panel draws the backend's fixed layout (3 pieces, hospital i holds piece i mod 3) and shows no size. */
+  scatter?: RunFacts["scatter"];
 }
 
-export function KeySplit({ holders, threshold, verified }: KeySplitProps) {
-  const tr = useTr();
-  const n = holders.length;
-  const k = threshold != null && threshold > 0 && threshold <= n ? threshold : null;
-  const chosen = k != null ? spread(n, k) : [];
-  const split = useAt(T_KS.split, n > 0);
-  const rebuilt = useAt(T_KS.rebuilt, k != null);
-  const tested = useAt(T_KS.tested, k != null && verified);
-  const pos = holders.map((_, i) => {
-    const a = -Math.PI / 2 + (i * 2 * Math.PI) / Math.max(1, n);
-    return { x: KS.cx + KS.rx * Math.cos(a), y: KS.cy + KS.ry * Math.sin(a) };
-  });
+const HOSPITAL: Record<string, string> = {
+  aur: "St. Aurelia", riv: "Riverside", nor: "Northgate", eas: "Eastbank", wes: "Westfield", lum: "Lumen Labs",
+};
+// Opaque tints, so a chip in flight never shows what is under it.
+const OK_TINT = "bg-[color-mix(in_srgb,var(--ok)_16%,var(--background))]";
+const OK_TINT_SOFT = "bg-[color-mix(in_srgb,var(--ok)_8%,var(--background))]";
+// Stage geometry, px 1:1. Top row: the records, the encrypted copy (later cut into pieces) and its one-time key.
+// Below, one card per hospital, three to a row. Card i holds piece i mod 3 (backend/mayajaal/real/scatter.py),
+// so each column is one piece and the second row holds the second copy of every piece.
+const KS = {
+  w: 504, row: 64, gridY: 114, cols: 3, cardW: 160, cardH: 84, gapX: 12, gapY: 12,
+  rec: { x: 0, w: 138 }, arrow: { x0: 146, x1: 198 }, block: { x: 206, w: 184, gap: 8 }, key: { x: 424, w: 80 },
+  piece: { dx: 12, dy: 42, w: 62, h: 30 }, share: { dx: 84, dy: 42, w: 44, h: 30 },
+};
+// Choreography, s after mount (the film fades the panel in from ~0.9 s). Three beats; settled by ~6 s.
+const T_KS = {
+  enc: 1.1, made: 1.5,                                         // 1: arrow, then the locked copy and its key
+  cut: 2.4, fly: 2.75, flyCol: 0.14, flyRow: 0.06, flyDur: 0.7, // 2: the copy is cut, each piece flies to 2 hospitals
+  split: 4.0, shareStep: 0.07, shareDur: 0.65,                 // 3: the key splits, one share per hospital
+  test: 5.15, testStep: 0.16, done: 5.65,                      // the rebuild the run did, from the second copies
+};
 
+export function KeySplit({ holders, threshold, verified, scatter }: KeySplitProps) {
+  const live = holders.length > 0;
   return (
-    <Panel width={560} label="Key split">
-      <div className="px-7 pt-6 pb-7">
-        <div className="flex items-center gap-4">
-          <span className="grid size-14 shrink-0 place-items-center rounded-xl border border-border bg-surface text-fg">
-            <KeyGlyph className="size-8" />
-          </span>
-          <div className="min-w-0">
-            <p className="text-[25px] leading-none font-semibold tracking-[-0.03em]">Recovery key, split</p>
-            <p className="mt-2 text-[17px] leading-none text-fg-muted">Nobody holds it whole</p>
-          </div>
-        </div>
-
-        <div className="relative mx-auto mt-3" style={{ width: KS.w, height: KS.h }}>
-          {/* Faint ring the pieces sit on, and the lines that join the chosen ones back to the key. */}
-          <svg className="absolute inset-0" width={KS.w} height={KS.h} viewBox={`0 0 ${KS.w} ${KS.h}`} fill="none" aria-hidden>
-            <motion.ellipse cx={KS.cx} cy={KS.cy} rx={KS.rx} ry={KS.ry} strokeWidth={1.5} strokeDasharray="2 8" strokeLinecap="round"
-              className="stroke-border-strong" initial={{ opacity: 0 }} animate={{ opacity: split ? 1 : 0 }} transition={tr(0.2, 0.5)} />
-            {chosen.map((i, j) => {
-              const p = pos[i];
-              const q = { x: p.x + (KS.cx - p.x) * KS.inward, y: p.y + (KS.cy - p.y) * KS.inward };
-              return (
-                <motion.line key={i} x1={q.x} y1={q.y} x2={KS.cx} y2={KS.cy} strokeWidth={2.5} strokeLinecap="round" className="stroke-ok"
-                  initial={{ pathLength: 0, opacity: 0 }} animate={{ pathLength: 1, opacity: 0.75 }}
-                  transition={tr(T_KS.lit + j * T_KS.litStep + 0.12, 0.45)} />
-              );
-            })}
-          </svg>
-
-          {holders.map((id, i) => (
-            <ShareChip key={id} id={id} i={i} x={pos[i].x} y={pos[i].y} chosen={chosen.indexOf(i)} dim={rebuilt && !chosen.includes(i)} />
-          ))}
-
-          <div className="absolute" style={{ left: KS.cx, top: KS.cy, transform: "translate(-50%, -50%)" }}>
-            <motion.div initial={{ opacity: 0, scale: 0.85 }} animate={{ opacity: 1, scale: 1 }} transition={tr(T_KS.key, 0.45)}
-              className={cn("relative grid size-[88px] place-items-center rounded-2xl border-2 transition-colors duration-300 motion-reduce:transition-none",
-                rebuilt ? cn("border-ok text-ok", OK_TINT)
-                  : split ? "border-dashed border-border-strong bg-background text-fg-subtle"
-                    : "border-border-strong bg-surface-2 text-fg")}>
-              <KeyGlyph className="size-12" />
-              {rebuilt && <Ring className="rounded-2xl border-ok" />}
-              {rebuilt && (
-                <motion.span initial={{ opacity: 0, scale: 0.5 }} animate={{ opacity: 1, scale: 1 }} transition={tr(0.05, 0.3)}
-                  className="absolute -right-2.5 -bottom-2.5 grid size-8 place-items-center rounded-full border-2 border-background bg-ok text-background">
-                  <Check className="size-4" strokeWidth={3.2} />
-                </motion.span>
-              )}
-            </motion.div>
-          </div>
-        </div>
-
-        <div className="mt-3 flex min-h-[44px] items-center justify-between gap-4 border-t border-border pt-5">
-          {k != null ? (
-            <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={tr(T_KS.rebuilt, 0.4)} className="text-[20px] text-fg-muted">
-              Any <span className="font-semibold text-fg tabular-nums">{k}</span> of <span className="font-semibold text-fg tabular-nums">{n}</span> rebuild it
-            </motion.p>
-          ) : <span />}
-          {k != null && verified && (
-            <motion.span initial={{ opacity: 0, y: 6 }} animate={tested ? { opacity: 1, y: 0 } : { opacity: 0, y: 6 }} transition={tr(0, 0.35)}
-              className="inline-flex items-center gap-2 rounded-full border border-ok/40 bg-ok/10 py-1.5 pr-4 pl-3 text-[17px] leading-none font-medium text-ok">
-              <Check className="size-[18px]" strokeWidth={3} delay={0.1} />
-              Rebuild tested
-            </motion.span>
-          )}
-        </div>
-      </div>
+    <Panel width={560} label="Recovery copy">
+      {/* Until the run is loaded the cards wait empty; the beats (and their clock) start once holders are known. */}
+      <KsBody key={live ? "run" : "wait"} live={live} holders={live ? holders : WORLD.key_shares.holders}
+        threshold={threshold} verified={verified} scatter={scatter ?? null} />
     </Panel>
   );
 }
 
-function ShareChip({ id, i, x, y, chosen, dim }: { id: string; i: number; x: number; y: number; chosen: number; dim: boolean }) {
+function KsBody({ live, holders, threshold, verified, scatter }: {
+  live: boolean; holders: string[]; threshold: number | null; verified: boolean; scatter: RunFacts["scatter"];
+}) {
   const tr = useTr();
-  const lit = useAt(T_KS.lit + Math.max(0, chosen) * T_KS.litStep, chosen >= 0);
-  const home = lit ? { x: (KS.cx - x) * KS.inward, y: (KS.cy - y) * KS.inward } : { x: 0, y: 0 };
+  const n = holders.length;
+  const pieces = Math.max(1, scatter?.pieces ?? 3);
+  const copies = scatter?.replicas ?? Math.floor(n / pieces);
+  const k = threshold != null && threshold > 0 && threshold <= n ? threshold : null;
+  const rows = Math.max(1, Math.ceil(n / KS.cols));
+  const stageH = KS.gridY + rows * KS.cardH + (rows - 1) * KS.gapY;
+  const segW = (KS.block.w - (pieces - 1) * KS.block.gap) / pieces;
+  const segX = (p: number) => KS.block.x + p * (segW + KS.block.gap);
+  const card = (i: number) => ({ x: (i % KS.cols) * (KS.cardW + KS.gapX), y: KS.gridY + Math.floor(i / KS.cols) * (KS.cardH + KS.gapY) });
+  // The run proved the copy by rebuilding it from the second copy of every piece (scatter.py: holders[3:6]).
+  const tested = live && verified && n >= 2 * pieces ? Array.from({ length: pieces }, (_, j) => pieces + j) : [];
+  const mb = scatter?.bytes ? `${(scatter.bytes / 1e6).toFixed(1)} MB` : null;
+  const keyC = { x: KS.key.x + KS.key.w / 2, y: KS.row / 2 };
+
+  const b1 = useAt(T_KS.enc, live);
+  const made = useAt(T_KS.made, live);
+  const b2 = useAt(T_KS.cut, live);
+  const left = useAt(T_KS.fly + 0.3, live);      // the pieces have left the top row
+  const b3 = useAt(T_KS.split, live);
+  const split = useAt(T_KS.split + 0.3, live);   // nobody holds the key whole any more
+  const done = useAt(T_KS.done, tested.length > 0);
+  const foot = useAt(T_KS.done + 0.25, live);
+  const arrowLen = KS.arrow.x1 - KS.arrow.x0;
+
   return (
-    <div className="absolute" style={{ left: x, top: y, transform: "translate(-50%, -50%)" }}>
-      <motion.div initial={{ x: KS.cx - x, y: KS.cy - y, opacity: 0, scale: 0.4 }}
-        animate={{ ...home, opacity: dim ? 0.4 : 1, scale: 1 }}
-        transition={lit || dim ? tr(0, 0.5) : tr(T_KS.split + i * T_KS.flyStep, T_KS.fly)}
-        className={cn("relative flex items-center gap-2 rounded-xl border px-3.5 py-2 text-[17px] leading-none font-medium whitespace-nowrap transition-colors duration-300 motion-reduce:transition-none",
-          lit ? cn("border-ok/60 text-ok", OK_TINT) : "border-border-strong bg-surface text-fg")}>
-        <KeyGlyph className={cn("size-[18px]", lit ? "text-ok" : "text-fg-subtle")} />
-        {HOSPITAL[id] ?? id}
-        {lit && <Ring className="rounded-xl border-ok" grow={[1.2, 1.5]} />}
-      </motion.div>
+    <div className="px-7 pt-6 pb-6">
+      <div className="flex items-center gap-4">
+        <span className="grid size-14 shrink-0 place-items-center rounded-xl border border-border bg-surface text-fg">
+          <DatabaseBackup className="size-7" strokeWidth={1.9} aria-hidden />
+        </span>
+        <div className="min-w-0">
+          <p className="text-[25px] leading-none font-semibold tracking-[-0.03em]">Recovery copy</p>
+          <p className="mt-2 text-[17px] leading-none text-fg-muted">Made the moment First Sight fired</p>
+        </div>
+      </div>
+
+      <div className="relative mt-5" style={{ width: KS.w, height: stageH }}>
+        {/* 1. The records, an arrow, the copy (whole and locked, then cut into numbered pieces), the key. */}
+        <div className="absolute flex items-center gap-3 rounded-xl border border-focus/45 bg-focus/10 px-3.5"
+          style={{ left: KS.rec.x, top: 0, width: KS.rec.w, height: KS.row }}>
+          <Database className="size-7 shrink-0 text-focus" strokeWidth={1.9} aria-hidden />
+          <span className="flex flex-col gap-1.5">
+            <span className="text-[17px] leading-none font-semibold text-fg">Records</span>
+            {mb && <span className="text-[16px] leading-none text-fg-muted tabular-nums">{mb}</span>}
+          </span>
+        </div>
+        <svg className="absolute overflow-visible text-fg-subtle" style={{ left: KS.arrow.x0, top: KS.row / 2 - 8 }}
+          width={arrowLen} height={16} viewBox={`0 0 ${arrowLen} 16`} fill="none" aria-hidden>
+          <motion.path d={`M2 8H${arrowLen - 3}M${arrowLen - 9} 2.5L${arrowLen - 3} 8L${arrowLen - 9} 13.5`}
+            stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round"
+            initial={{ pathLength: 0, opacity: 0 }} animate={b1 ? { pathLength: 1, opacity: 1 } : { pathLength: 0, opacity: 0 }} transition={tr(0, 0.35)} />
+        </svg>
+        {made && (
+          <motion.div className={cn("absolute grid place-items-center rounded-xl border-2 border-ok/70 text-ok", OK_TINT)}
+            style={{ left: KS.block.x, top: 0, width: KS.block.w, height: KS.row }}
+            initial={{ opacity: 0, scale: 0.9 }} animate={b2 ? { opacity: 0, scale: 1 } : { opacity: 1, scale: 1 }} transition={tr(0, b2 ? 0.15 : 0.4)}>
+            <span className="flex items-center gap-2.5">
+              <LockGlyph className="size-6" closeAt={0.3} />
+              <span className="text-[16px] leading-none font-semibold">AES-256-GCM</span>
+            </span>
+          </motion.div>
+        )}
+        {Array.from({ length: pieces }, (_, p) => {
+          const shut = ((pieces - 1) / 2 - p) * KS.block.gap;   // the offset that closes the gaps: one block again
+          return (
+            <div key={p} className="absolute" style={{ left: segX(p), top: 0, width: segW, height: KS.row }}>
+              <motion.span className="absolute inset-0 grid place-items-center rounded-lg border-2 border-dashed border-ok/40 text-[18px] leading-none font-semibold text-ok/50 tabular-nums"
+                initial={{ opacity: 0 }} animate={{ opacity: left ? 1 : 0 }} transition={tr(0, 0.3)}>
+                {p + 1}
+              </motion.span>
+              <motion.span className={cn("absolute inset-0 grid place-items-center rounded-lg border-2 border-ok/70 text-[20px] leading-none font-semibold text-ok tabular-nums", OK_TINT)}
+                initial={{ opacity: 0, x: shut }} animate={b2 && !left ? { opacity: 1, x: 0 } : { opacity: 0, x: b2 ? 0 : shut }} transition={tr(0, 0.3)}>
+                {p + 1}
+              </motion.span>
+            </div>
+          );
+        })}
+        <div className="absolute" style={{ left: KS.key.x, top: 0, width: KS.key.w, height: KS.row }}>
+          <motion.span className="absolute inset-0 grid place-items-center rounded-xl border-2 border-dashed border-border-strong text-fg-subtle"
+            initial={{ opacity: 0 }} animate={{ opacity: split ? 1 : 0 }} transition={tr(0, 0.3)}>
+            <KeyGlyph className="size-8 opacity-60" />
+          </motion.span>
+          <motion.span className="absolute inset-0 grid place-items-center rounded-xl border border-border-strong bg-surface text-fg"
+            initial={{ opacity: 0, scale: 0.85 }} animate={made && !split ? { opacity: 1, scale: 1 } : { opacity: 0, scale: made ? 1 : 0.85 }}
+            transition={tr(made && !split ? 0.15 : 0, 0.35)}>
+            <KeyGlyph className="size-9" />
+          </motion.span>
+        </div>
+        {made && (
+          <>
+            <motion.span className="absolute text-center text-[16px] leading-none text-fg-muted" style={{ left: KS.block.x, width: KS.block.w, top: KS.row + 12 }}
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={tr(0.1, 0.3)}>
+              Encrypted copy
+            </motion.span>
+            <motion.span key={split ? "shares" : "key"} className="absolute text-center text-[16px] leading-none whitespace-nowrap text-fg-muted tabular-nums"
+              style={{ left: KS.key.x - 12, width: KS.key.w + 24, top: KS.row + 12 }}
+              initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={tr(split ? 0 : 0.2, 0.3)}>
+              {split ? `${n} shares` : "Key"}
+            </motion.span>
+          </>
+        )}
+
+        {/* 2 and 3. The hospitals; the pieces, then the key shares, fly into their slots. */}
+        {holders.map((id, i) => {
+          const c = card(i);
+          const t = tested.indexOf(i);
+          return <KsCard key={id} name={HOSPITAL[id] ?? id} x={c.x} y={c.y} lit={t >= 0} litAt={T_KS.test + Math.max(0, t) * T_KS.testStep} />;
+        })}
+        {live && holders.map((id, i) => {
+          const c = card(i), p = i % pieces;
+          const to = { x: c.x + KS.piece.dx + KS.piece.w / 2, y: c.y + KS.piece.dy + KS.piece.h / 2 };
+          const delay = T_KS.fly + (i % KS.cols) * T_KS.flyCol + Math.floor(i / KS.cols) * T_KS.flyRow;
+          return (
+            <motion.span key={`piece-${id}`} aria-hidden className={cn("absolute flex items-center justify-center gap-1.5 rounded-md border border-ok/60 text-ok", OK_TINT)}
+              style={{ left: c.x + KS.piece.dx, top: c.y + KS.piece.dy, width: KS.piece.w, height: KS.piece.h }}
+              initial={{ x: segX(p) + segW / 2 - to.x, y: KS.row / 2 - to.y, opacity: 0, scale: 0.8 }}
+              animate={{ x: 0, y: 0, opacity: 1, scale: 1 }}
+              transition={{ ...tr(delay, T_KS.flyDur), opacity: tr(delay, 0.15) }}>
+              <LockGlyph className="size-4" />
+              <span className="text-[16px] leading-none font-semibold tabular-nums">{p + 1}</span>
+            </motion.span>
+          );
+        })}
+        {live && holders.map((id, i) => {
+          const c = card(i);
+          const to = { x: c.x + KS.share.dx + KS.share.w / 2, y: c.y + KS.share.dy + KS.share.h / 2 };
+          const delay = T_KS.split + i * T_KS.shareStep;
+          return (
+            <motion.span key={`share-${id}`} aria-hidden className="absolute grid place-items-center rounded-md border border-border-strong bg-background text-fg"
+              style={{ left: c.x + KS.share.dx, top: c.y + KS.share.dy, width: KS.share.w, height: KS.share.h }}
+              initial={{ x: keyC.x - to.x, y: keyC.y - to.y, opacity: 0, scale: 0.8 }}
+              animate={{ x: 0, y: 0, opacity: 1, scale: 1 }}
+              transition={{ ...tr(delay, T_KS.shareDur), opacity: tr(delay, 0.15) }}>
+              <KeyGlyph className="size-5" />
+            </motion.span>
+          );
+        })}
+      </div>
+
+      <ol className="mt-5 flex flex-col gap-2 border-t border-border pt-4">
+        <Beat n={1} on={b1} title="Encrypt" detail="AES-256-GCM, one-time key" />
+        <Beat n={2} on={b2} title="Cut and spread" detail={copies > 0 ? `${pieces} pieces, each at ${copies} hospitals` : undefined} />
+        <Beat n={3} on={b3} title="Split the key" detail={k != null ? `any ${k} of ${n} rebuild it` : undefined}
+          right={done ? (
+            <motion.span initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={tr(0, 0.35)}
+              className="inline-flex items-center gap-1.5 rounded-full border border-ok/40 bg-ok/10 py-1.5 pr-3.5 pl-2.5 text-[16px] leading-none font-medium text-ok">
+              <Check className="size-4" strokeWidth={3} delay={0.1} />
+              Tested
+            </motion.span>
+          ) : undefined} />
+      </ol>
+
+      <motion.p initial={{ opacity: 0, y: 6 }} animate={foot ? { opacity: 1, y: 0 } : { opacity: 0, y: 6 }} transition={tr(0, 0.4)}
+        className="mt-4 flex items-center gap-3 rounded-xl bg-surface px-4 py-3 text-[17px] leading-snug text-fg-muted">
+        <LockGlyph className="size-5 text-fg" />
+        <span><span className="font-semibold text-fg">One hospital breached?</span> It holds nothing readable.</span>
+      </motion.p>
     </div>
+  );
+}
+
+/** A hospital: its name and two empty slots (a piece, a key share). Turns green when the rebuild test uses it. */
+function KsCard({ name, x, y, lit, litAt }: { name: string; x: number; y: number; lit: boolean; litAt: number }) {
+  const tr = useTr();
+  const on = useAt(litAt, lit);
+  return (
+    <div className={cn("absolute rounded-xl border transition-colors duration-300 motion-reduce:transition-none", on ? cn("border-ok/70", OK_TINT_SOFT) : "border-border bg-surface")}
+      style={{ left: x, top: y, width: KS.cardW, height: KS.cardH }}>
+      <span className="absolute top-3.5 left-3.5 text-[17px] leading-none font-medium whitespace-nowrap text-fg">{name}</span>
+      <span className="absolute rounded-md border border-dashed border-border-strong" style={{ left: KS.piece.dx, top: KS.piece.dy, width: KS.piece.w, height: KS.piece.h }} />
+      <span className="absolute rounded-md border border-dashed border-border-strong" style={{ left: KS.share.dx, top: KS.share.dy, width: KS.share.w, height: KS.share.h }} />
+      {on && (
+        <motion.span initial={{ opacity: 0, scale: 0.5 }} animate={{ opacity: 1, scale: 1 }} transition={tr(0, 0.3)}
+          className="absolute top-2.5 right-2.5 grid size-6 place-items-center rounded-full bg-ok text-background">
+          <Check className="size-3.5" strokeWidth={3.4} delay={0.05} />
+        </motion.span>
+      )}
+      {on && <Ring className="rounded-xl border-ok" grow={[1.08, 1.16]} />}
+    </div>
+  );
+}
+
+/** One numbered beat of the explainer; fades in when its beat starts. */
+function Beat({ n, on, title, detail, right }: { n: number; on: boolean; title: string; detail?: string; right?: ReactNode }) {
+  const tr = useTr();
+  return (
+    <motion.li initial={{ opacity: 0, x: -8 }} animate={on ? { opacity: 1, x: 0 } : { opacity: 0, x: -8 }} transition={tr(0, 0.35)}
+      className="flex min-h-8 items-center gap-3">
+      <span className="grid size-[26px] shrink-0 place-items-center rounded-full border border-border-strong text-[16px] leading-none font-semibold text-fg tabular-nums">{n}</span>
+      <span className="min-w-0 text-[18px] leading-tight">
+        <span className="font-semibold text-fg">{title}</span>
+        {detail && <span className="text-fg-muted"> · {detail}</span>}
+      </span>
+      {right && <span className="ml-auto shrink-0">{right}</span>}
+    </motion.li>
+  );
+}
+
+/** Padlock; with `closeAt` the shackle drops shut that many seconds after mount. */
+function LockGlyph({ className, closeAt }: { className?: string; closeAt?: number }) {
+  const tr = useTr();
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden className={cn("shrink-0", className)}>
+      <motion.path d="M8 11V8a4 4 0 0 1 8 0v3" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round"
+        initial={{ y: closeAt != null ? -3.5 : 0 }} animate={{ y: 0 }} transition={tr(closeAt ?? 0, 0.25)} />
+      <rect x="5" y="11" width="14" height="10" rx="2.2" stroke="currentColor" strokeWidth={2.2} />
+    </svg>
   );
 }
 

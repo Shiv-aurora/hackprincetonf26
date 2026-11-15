@@ -108,7 +108,7 @@ const SPEC: Record<Shot, Spec> = {
   network: { az: 12, el: 50, pts: CITY, insert: "none", pad: 0.05 },
   hospital: { az: 12, el: 40, insert: "none", pad: 0.07, pts: [...hospPts(EB, 1.6), ...STACK_PTS(REAL), add(REAL, -3.0, 0.4, 0.6), ...box(GATE, 2.0, 1.0, 2.0)] },
   request: { az: 34, el: 14, insert: "none", pad: 0.08, pts: [...LAP_PTS, ...GATE_PTS, ...hospPts(EB, 0.4)] },
-  firstsight: { az: 22, el: 15, insert: "right", panel: 480, pad: 0.12, pts: [...GATE_PTS, add(GATE, 2.2, 1.2, 0)] },
+  firstsight: { az: 22, el: 15, insert: "right", panel: 560, pad: 0.12, pts: [...GATE_PTS, add(GATE, 2.2, 1.2, 0)] },
   transfer: { az: 14, el: 27, insert: "right", panel: 560, pad: 0.07, pts: [...STACK_PTS(TWIN, 1.2), ...LAP_PTS, ...GATE_PTS, add(APEX, 0, 0.8, 0)] },
   swap: { az: -24, el: 30, insert: "right", panel: 560, pad: 0.05, pts: [...STACK_PTS(TWIN, 1.3), ...STACK_PTS(REAL, 1.7), ...hospPts(EB, 1.2), ...GATE_PTS, ...LAP_PTS] },
   tracker: { az: 14, el: 16, look: APEX, dist: 3.1, insert: "center" },
@@ -1283,7 +1283,7 @@ function Inserts({ shot, facts, reduce, w, h }: { shot: Shot; facts: RunFacts | 
       )}
       {shot === "disperse" && (
         <Insert key="key" side="right" w={w} h={h} reduce={reduce} delay={1.0}>
-          <KeySplit holders={facts?.scatter?.holders ?? []} threshold={facts?.scatter?.keyThreshold ?? null} verified={!!facts?.scatter?.verified} />
+          <KeySplit holders={facts?.scatter?.holders ?? []} threshold={facts?.scatter?.keyThreshold ?? null} verified={!!facts?.scatter?.verified} scatter={facts?.scatter ?? null} />
         </Insert>
       )}
     </AnimatePresence>
