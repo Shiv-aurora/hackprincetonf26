@@ -26,7 +26,8 @@ const GOALS: Record<string, string> = {
 const TRACKER: Record<string, string> = {
   url: "README link", mrn: "fake patient ID", file: "unique file", credential: "fake password", api_key: "fake API key",
 };
-const hname = (id: string | null | undefined) => WORLD.hospitals.find((h) => h.id === id)?.name.split(" ")[0] ?? id ?? "";
+const hname = (id: string | null | undefined) =>
+  WORLD.hospitals.find((h) => h.id === id)?.name.replace(/^St\.\s+/, "").split(" ")[0] ?? id ?? "";
 
 function shortPath(p: string): string {
   const [path, q] = p.split("?");

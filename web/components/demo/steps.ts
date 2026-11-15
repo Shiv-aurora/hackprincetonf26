@@ -8,6 +8,7 @@ import type { View } from "@/lib/events";
 export type Focus = "acts" | "narrator" | "scene" | "trackers" | "learned" | "numbers" | "fingerprint" | "logs";
 export type Source = "attack" | "continuity";
 export type SlideId = "question" | "news" | "downtime" | "data";
+export type FilmShot = "network" | "hospital" | "request" | "firstsight" | "transfer" | "swap" | "tracker" | "fingerprint" | "disperse";
 
 export interface Step {
   /** One or two words, shown as "Step 3 · Divert". */
@@ -25,7 +26,9 @@ export interface Step {
   /** Index of the last event to fold in; null = not found (falls back to the previous step's index). */
   anchor: (events: MJEvent[]) => number | null;
   /** Full-screen content instead of the plain caption. */
-  card?: "title" | "compare" | "close" | "why" | "slide" | "brief";
+  card?: "title" | "compare" | "close" | "why" | "slide" | "brief" | "film";
+  /** Which film shot, when card = "film" (see film/Film.tsx). Consecutive film steps share one camera. */
+  film?: FilmShot;
   /** Which explainer slide, when card = "slide". */
   slide?: SlideId;
   /** Names the real incident this scenario replays, shown where the scenario first appears. */
@@ -67,14 +70,8 @@ function settle(events: MJEvent[], i: number | null): number | null {
 
 const isRealRead: Pred = (e) =>
   e.type === "request" && e.actor === "attacker" && e.tier === "real" && e.data.surface === "fhir" && e.data.status < 400;
-const isBulk: Pred = (e) =>
-  e.type === "request" && e.actor === "attacker" && e.tier === "shadow" &&
-  (/_count=\d{3,}/.test(e.data.path) || e.data.bytes > 500_000);
 const isFirstSight: Pred = (e) => e.type === "policy.decision" && e.data.reason.startsWith("First Sight");
-const isStepUp: Pred = (e) =>
-  e.type === "request" && e.actor === "attacker" && e.data.status === 401 && e.tier === "none";
 const isOutage: Pred = (e) => e.type === "node.status" && e.data.status !== "healthy";
-const exfilAt = (ev: MJEvent[]) => find(ev, is("exfil")) ?? ev.length;
 const beforeFirstAttacker = (ev: MJEvent[]) => { const i = find(ev, attacker); return i === null ? null : Math.max(0, i - 1); };
 
 /** Mid-outage: the first continuity.stats with at least half the run's peak reroute routes on the map
@@ -127,90 +124,79 @@ export const STEPS: Step[] = [
     headline: "A hospital's most valuable asset: your data",
     anchor: beforeFirstAttacker,
   },
+
   {
-    label: "Normal shift", focus: ["scene"], seconds: 5, source: "attack",
-    headline: "A normal shift",
-    sub: "Staff at work. Sensitive records encrypted on disk.",
+    label: "Hospitals", card: "film", film: "network", focus: [], seconds: 6, source: "attack",
+    headline: "Six hospitals. One network.",
     anchor: beforeFirstAttacker,
   },
   {
-    label: "Login", scenario: "Scenario 1 · Stolen login, modelled on Change Healthcare (2024)", focus: ["logs", "scene"], seconds: 8, source: "attack",
-    headline: "A stolen nurse login, flagged at once",
-    sub: "A script, not the EHR app, on a device we don't own.",
+    label: "The vault", card: "film", film: "hospital", focus: [], seconds: 6, source: "attack",
+    headline: "Each one holds a vault of patient records",
+    anchor: beforeFirstAttacker,
+  },
+  {
+    label: "Unknown request", scenario: "Scenario 1 · Stolen login, modelled on Change Healthcare (2024)", card: "film", film: "request", focus: [], seconds: 6, source: "attack",
+    headline: "An unknown request, with a nurse's password",
+    anchor: beforeFirstAttacker,
+  },
+  {
+    label: "First Sight", card: "film", film: "firstsight", focus: [], seconds: 9, source: "attack",
+    headline: "First Sight catches it at login",
+    sub: "A script, not the EHR app, on a device we don't own. We let it in.",
+    anchor: beforeFirstAttacker,
+  },
+  {
+    label: "Copying", card: "film", film: "transfer", focus: [], seconds: 8, source: "attack",
+    headline: "It starts copying patient files",
+    anchor: beforeFirstAttacker,
+  },
+  {
+    label: "The switch", card: "film", film: "swap", focus: [], seconds: 9, source: "attack",
+    headline: "It's copying from a decoy",
+    sub: "Built for this attacker. The real records never left.",
+    anchor: beforeFirstAttacker,
+  },
+  {
+    label: "Trackers", card: "film", film: "tracker", focus: [], seconds: 9, source: "attack",
+    headline: "Every fake file carries trackers",
+    sub: "Values that exist only in this attacker's copy.",
+    anchor: beforeFirstAttacker,
+  },
+  {
+    label: "Who is this?", card: "film", film: "fingerprint", focus: [], seconds: 9, source: "attack",
+    headline: "The trackers tell us who it is",
+    sub: "We don't block it. Blocked, it tries another door.",
+    anchor: beforeFirstAttacker,
+  },
+  {
+    label: "Scatter", card: "film", film: "disperse", focus: [], seconds: 9, source: "attack",
+    headline: "Meanwhile, the real data spreads out",
+    sub: "An encrypted copy across six hospitals. Any 3 rebuild the key.",
+    anchor: beforeFirstAttacker,
+  },
+  {
+    label: "Real system", focus: ["scene", "logs"], seconds: 8, source: "attack",
+    headline: "Now the real system, same attack",
+    sub: "A recorded run. Every line on the right happened.",
     anchor: (ev) => settle(ev, find(ev, isFirstSight) ?? after(ev, isRealRead, is("agent.tool_result")) ?? find(ev, is("agent.tool_result"))),
   },
+
+
   {
-    label: "Scatter", focus: ["scene", "logs"], seconds: 8, source: "attack",
-    headline: "Meanwhile, the real records are split up",
-    sub: "An encrypted copy spread across six hospitals. No one holds the whole key.",
-    anchor: (ev) => { const i = find(ev, is("vault.scattered")); return i === null ? null : settle(ev, i); },
-  },
-  {
-    label: "Step-up", focus: ["logs", "scene"], seconds: 8, source: "attack",
-    headline: "Real charts need badge and MFA",
-    sub: "A phished password can't pass. Nothing real is shown.",
-    anchor: (ev) => {
-      const s = find(ev, isStepUp);
-      if (s !== null) return settle(ev, find(ev, is("agent.tool_result"), s) ?? s);
-      const i = find(ev, (e) => e.type === "session.diverted"); return i === null ? null : Math.max(0, i - 1);
-    },
-  },
-  {
-    label: "Decoy", focus: ["scene"], seconds: 10, source: "attack",
+    label: "Decoy", focus: ["scene"], seconds: 8, source: "attack",
     headline: "It reaches for admin. We don't block it.",
     sub: "It's moved into a decoy. Every request works. None of it is real.",
     anchor: (ev) => settle(ev, after(ev, is("session.diverted"), is("agent.tool_result"))),
   },
+
+
+
+
+
+
   {
-    label: "Why", card: "why", focus: [], seconds: 8, source: "attack",
-    headline: "Why we don't stop the attack",
-    anchor: (ev) => settle(ev, after(ev, is("session.diverted"), is("agent.tool_result"))),
-  },
-  {
-    label: "Bulk pull", focus: ["scene", "numbers"], seconds: 7, source: "attack",
-    headline: "Thousands of patients. All fake.",
-    sub: "Generated per session. Never copied from real records.",
-    anchor: (ev) => {
-      const i = lastBefore(ev, isBulk, exfilAt(ev));
-      return i === null ? null : settle(ev, find(ev, is("agent.tool_result"), i + 1));
-    },
-  },
-  {
-    label: "Trackers", focus: ["logs", "scene"], seconds: 7, source: "attack",
-    headline: "Decoy files with trackers",
-    sub: "Planted where this attacker is looking.",
-    anchor: (ev) => {
-      const t = find(ev, is("honeytoken.touched"));
-      return t === null ? lastBefore(ev, is("breadcrumb.planted"), exfilAt(ev)) : Math.max(0, t - 1);
-    },
-  },
-  {
-    label: "Bait taken", focus: ["logs", "learned"], seconds: 8, source: "attack",
-    headline: (v) => v.honeytokensTouched.length ? "It took the bait" : "Now we know what it wants",
-    sub: (v) => `It wants to ${goalWord(v.topGoal).toLowerCase()} (${Math.round((v.posterior[v.topGoal] ?? 0) * 100)}% sure).`,
-    anchor: (ev) => {
-      const t = lastBefore(ev, is("honeytoken.touched"));
-      if (t !== null) return settle(ev, find(ev, is("intent.update"), t) ?? t);
-      return lastBefore(ev, is("intent.update"), exfilAt(ev));
-    },
-  },
-  {
-    label: "Who is this?", focus: ["fingerprint"], seconds: 8, source: "attack",
-    headline: "Who is this?",
-    sub: "Address, tools, timing, stolen login. And a decoy only they hold.",
-    anchor: (ev) => {
-      const t = lastBefore(ev, is("honeytoken.touched"));
-      return t === null ? lastBefore(ev, is("intent.update"), exfilAt(ev)) : settle(ev, find(ev, is("intent.update"), t) ?? t);
-    },
-  },
-  {
-    label: "Exfil", focus: ["logs", "numbers"], seconds: 7, source: "attack",
-    headline: "It believes it won",
-    sub: (v) => v.exfil ? `${v.exfil.records.toLocaleString("en-US")} records “stolen”. Every one fake.` : "It reports success.",
-    anchor: (ev) => find(ev, is("agent.claim")) ?? find(ev, is("exfil")),
-  },
-  {
-    label: "Reveal", focus: [], reveal: true, seconds: 10, source: "attack",
+    label: "Reveal", focus: [], reveal: true, seconds: 9, source: "attack",
     headline: "The reveal",
     anchor: (ev) => settle(ev, find(ev, is("reveal"))) ?? ev.length - 1,
   },
@@ -226,13 +212,13 @@ export const STEPS: Step[] = [
     anchor: (ev) => midOutage(ev),
   },
   {
-    label: "Care", focus: ["numbers"], seconds: 7, source: "continuity",
+    label: "Care", focus: ["numbers"], seconds: 6, source: "continuity",
     headline: "Care continues",
     sub: (v) => v.continuity ? `${Math.round(v.continuity.stat_on_time_pct)}% of urgent tests still on time.` : "",
     anchor: (ev) => lastBefore(ev, is("continuity.stats")),
   },
   {
-    label: "Compare", card: "compare", focus: [], seconds: 11, source: "attack",
+    label: "Compare", card: "compare", focus: [], seconds: 10, source: "attack",
     headline: "Same attack, three defenses",
     anchor: (ev) => ev.length - 1,
   },
@@ -245,9 +231,6 @@ export const STEPS: Step[] = [
 
 export const TOTAL_SECONDS = STEPS.reduce((s, x) => s + x.seconds, 0);
 
-function goalWord(g: View["topGoal"]): string {
-  return { benign: "Do normal work", recon: "Map the network", exfil: "Steal patient data", tamper: "Change lab results", disrupt: "Shut services down" }[g];
-}
 
 export function text(t: Step["headline"] | undefined, v: View): string {
   if (!t) return "";
