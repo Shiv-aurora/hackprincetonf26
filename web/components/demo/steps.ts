@@ -103,7 +103,7 @@ export const STEPS: Step[] = [
   {
     label: "Normal shift", focus: ["acts", "scene"], seconds: 10, source: "attack",
     headline: "A normal shift",
-    sub: "Staff at work. Patient records encrypted at rest.",
+    sub: "Staff at work. Sensitive records encrypted on disk.",
     anchor: beforeFirstAttacker,
   },
   {

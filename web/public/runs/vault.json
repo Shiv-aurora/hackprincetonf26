@@ -1,0 +1,164 @@
+{
+ "algorithm": "AES-256-GCM",
+ "encrypted_fields": [
+  {
+   "table": "patients",
+   "column": "notes",
+   "rows": 1199,
+   "encrypted_rows": 1199,
+   "null_rows": 0
+  },
+  {
+   "table": "patients",
+   "column": "ssn",
+   "rows": 1199,
+   "encrypted_rows": 1199,
+   "null_rows": 0
+  },
+  {
+   "table": "patients",
+   "column": "address",
+   "rows": 1199,
+   "encrypted_rows": 1199,
+   "null_rows": 0
+  },
+  {
+   "table": "patients",
+   "column": "phone",
+   "rows": 1199,
+   "encrypted_rows": 1199,
+   "null_rows": 0
+  },
+  {
+   "table": "users",
+   "column": "secret",
+   "rows": 18,
+   "encrypted_rows": 18,
+   "null_rows": 0
+  },
+  {
+   "table": "canaries",
+   "column": "canary",
+   "rows": 12,
+   "encrypted_rows": 12,
+   "null_rows": 0
+  },
+  {
+   "table": "files",
+   "column": "content",
+   "rows": 20,
+   "encrypted_rows": 10,
+   "null_rows": 10
+  }
+ ],
+ "shares": {
+  "scheme": "shamir-gf256",
+  "threshold": 3,
+  "total": 6,
+  "holders": [
+   "aur",
+   "riv",
+   "nor",
+   "eas",
+   "wes",
+   "lum"
+  ],
+  "used_at_start": [
+   "aur",
+   "riv",
+   "nor"
+  ],
+  "files_present": [
+   "aur",
+   "riv",
+   "nor",
+   "eas",
+   "wes",
+   "lum"
+  ],
+  "demo_note": "all share files are on this one machine in the demo; in a deployment each hospital holds only its own"
+ },
+ "sample": {
+  "table": "patients",
+  "row_key": "MRN-100421",
+  "fields": [
+   {
+    "field": "mrn",
+    "encrypted": false,
+    "stored": "MRN-100421"
+   },
+   {
+    "field": "name",
+    "encrypted": false,
+    "stored": "Kaitlyn Dunn"
+   },
+   {
+    "field": "dob",
+    "encrypted": false,
+    "stored": "2002-06-30"
+   },
+   {
+    "field": "sex",
+    "encrypted": false,
+    "stored": "F"
+   },
+   {
+    "field": "hospital_id",
+    "encrypted": false,
+    "stored": "nor"
+   },
+   {
+    "field": "address",
+    "encrypted": true,
+    "stored": "enc:v1:XBx1zQO7SKNr744kzM_b0\u2026",
+    "stored_length": 113
+   },
+   {
+    "field": "phone",
+    "encrypted": true,
+    "stored": "enc:v1:gLo4NddoDQJH7NO2WNlip\u2026",
+    "stored_length": 63
+   },
+   {
+    "field": "ssn",
+    "encrypted": true,
+    "stored": "enc:v1:nf-vKZ31dGhj5Uz3MFxv8\u2026",
+    "stored_length": 59
+   },
+   {
+    "field": "conditions",
+    "encrypted": false,
+    "stored": "[\"J44.9 COPD\"]"
+   },
+   {
+    "field": "medications",
+    "encrypted": false,
+    "stored": "[\"lisinopril 10 mg daily\"]"
+   },
+   {
+    "field": "allergies",
+    "encrypted": false,
+    "stored": "[]"
+   },
+   {
+    "field": "attending",
+    "encrypted": false,
+    "stored": "Dr. Mary Taylor"
+   },
+   {
+    "field": "notes",
+    "encrypted": true,
+    "stored": "enc:v1:7iY215QX5vub1BIhDW5pK\u2026",
+    "stored_length": 151
+   }
+  ]
+ },
+ "self_check": {
+  "db_file": "real.db",
+  "bytes_scanned": 2060288,
+  "canaries_checked": 12,
+  "canary_plaintexts_found": 0,
+  "ssn_like_strings_found": 0,
+  "ok": true
+ }
+}

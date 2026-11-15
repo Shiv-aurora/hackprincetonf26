@@ -217,7 +217,7 @@ export function HospitalScene({ className }: { className?: string }) {
 
       {/* flat captions for the two campuses */}
       <div className="pointer-events-none absolute inset-x-4 bottom-3 flex justify-between text-[12px]">
-        <span className="text-fg-muted"><span className="font-medium text-fg">Real hospital</span> · staff working, records encrypted</span>
+        <span className="text-fg-muted"><span className="font-medium text-fg">Real hospital</span> · staff working, sensitive fields encrypted</span>
         <span className={diverted ? "text-shadow" : "text-fg-subtle"}>
           <span className="font-medium">Decoy hospital</span> · {diverted ? "built for this attacker" : "not built yet"}
         </span>

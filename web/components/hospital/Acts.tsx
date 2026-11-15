@@ -7,7 +7,7 @@ import { useMJ } from "@/lib/events";
 import { cn } from "@/components/ui";
 
 const ACTS = [
-  { title: "A normal shift", line: "Staff read charts, the lab runs tests. Patient records are encrypted at rest." },
+  { title: "A normal shift", line: "Staff read charts, the lab runs tests. Notes, SSNs and passwords are encrypted on disk; the key needs 3 of 6 hospitals." },
   { title: "Detected", line: "A stolen nurse login starts acting like an attacker. Change Healthcare (2024) began the same way: one stolen login, no MFA." },
   { title: "Contained", line: "Moved into a decoy built just for them, while care carries on. In the Synnovis attack (2024), London hospitals lost their pathology service." },
 ];
