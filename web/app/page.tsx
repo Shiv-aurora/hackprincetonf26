@@ -5,6 +5,7 @@ import { ButtonLink, FloatingNav, cn } from "@/components/ui";
 import { CareVisual, FingerprintVisual, MoveVisual, ScatterVisual, SpotVisual } from "@/components/landing/Visuals";
 import { WhyNotBlock } from "@/components/landing/Why";
 import { HeroScene } from "@/components/landing/HeroScene";
+import { Research } from "@/components/landing/Research";
 import results from "../public/runs/results.json";
 import outage from "../public/runs/continuity-compare.json";
 
@@ -78,6 +79,10 @@ export default function Home() {
               </ButtonLink>
               <ButtonLink href="#how" className="h-11 px-5">How it works</ButtonLink>
             </div>
+            <p className="mt-5 text-[13px] text-fg-muted">
+              Backed by research.{" "}
+              <a href="#research" className="text-fg underline underline-offset-4 hover:opacity-80">See the algorithm and the draft paper</a>
+            </p>
           </div>
           <HeroScene className="pointer-events-none lg:-mr-10 lg:w-[calc(100%+2.5rem)] xl:-mr-28 xl:w-[calc(100%+7rem)]" />
         </section>
@@ -115,6 +120,15 @@ export default function Home() {
             Stopping an attacker doesn&rsquo;t make them leave. It makes them look for another way in.
           </p>
           <WhyNotBlock className="mt-10" />
+        </section>
+
+        <section id="research" className="scroll-mt-24 pb-20">
+          <h2 className="text-[36px] font-semibold tracking-[-0.035em] sm:text-[40px]">The research behind it</h2>
+          <p className="mt-3 max-w-[620px] text-[15px] leading-relaxed text-fg-muted">
+            Two pieces do the deciding: a detector that flags the login, and an adaptive layer that works out what the
+            attacker wants.
+          </p>
+          <Research className="mt-10" />
         </section>
 
         <section className="mb-24 flex flex-col items-start justify-between gap-6 rounded-xl border border-border px-6 py-10 sm:flex-row sm:items-center sm:px-10">
