@@ -7,7 +7,7 @@ import type { View } from "@/lib/events";
 
 export type Focus = "acts" | "narrator" | "scene" | "trackers" | "learned" | "numbers" | "fingerprint" | "logs";
 export type Source = "attack" | "continuity";
-export type SlideId = "question" | "news" | "downtime" | "data";
+export type SlideId = "question" | "news" | "downtime" | "data" | "firstsight" | "paper" | "math" | "belief" | "planner";
 export type FilmShot = "network" | "hospital" | "request" | "firstsight" | "transfer" | "swap" | "tracker" | "fingerprint" | "disperse";
 
 export interface Step {
@@ -147,6 +147,12 @@ export const STEPS: Step[] = [
     anchor: beforeFirstAttacker,
   },
   {
+    // Same anchor as the film around it: anchors are monotonic, so a later one here would drag the film steps along.
+    label: "How it works", card: "slide", slide: "firstsight", focus: [], seconds: 10, source: "attack",
+    headline: "How First Sight works",
+    anchor: beforeFirstAttacker,
+  },
+  {
     label: "Copying", card: "film", film: "transfer", focus: [], seconds: 8, source: "attack",
     headline: "It starts copying patient files",
     anchor: beforeFirstAttacker,
@@ -217,6 +223,29 @@ export const STEPS: Step[] = [
     sub: (v) => v.continuity ? `${Math.round(v.continuity.stat_on_time_pct)}% of urgent tests still on time.` : "",
     anchor: (ev) => lastBefore(ev, is("continuity.stats")),
   },
+
+  // The research behind it: the MIRAGE draft paper, its equations, the recorded run's belief and the simulation.
+  {
+    label: "Research", card: "slide", slide: "paper", focus: [], seconds: 10, source: "attack",
+    headline: "Backed by research: MIRAGE",
+    anchor: (ev) => ev.length - 1,
+  },
+  {
+    label: "The math", card: "slide", slide: "math", focus: [], seconds: 11, source: "attack",
+    headline: "How MIRAGE decides",
+    anchor: (ev) => ev.length - 1,
+  },
+  {
+    label: "Belief", card: "slide", slide: "belief", focus: [], seconds: 10, source: "attack",
+    headline: "Belief, request by request",
+    anchor: (ev) => ev.length - 1,
+  },
+  {
+    label: "Simulation", card: "slide", slide: "planner", focus: [], seconds: 10, source: "attack",
+    headline: "Against a cautious attacker",
+    anchor: (ev) => ev.length - 1,
+  },
+
   {
     label: "Compare", card: "compare", focus: [], seconds: 10, source: "attack",
     headline: "Same attack, three defenses",

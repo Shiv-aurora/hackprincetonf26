@@ -84,18 +84,29 @@ function Eye({ reduce }: { reduce: boolean }) {
       initial={{ rotate: -140, scale: 0.86 }} animate={{ rotate: 0, scale: 1 }} transition={t(1.4, 0.1)}>
       <motion.div className="size-full" initial={{ rotate: 0 }} animate={{ rotate: reduce ? 0 : 360 }}
         transition={reduce ? { duration: 0 } : { duration: 90, delay: 2.4, ease: "linear", repeat: Infinity }}>
+        {/* The logo's red Sharingan (same colours as LogoMark): the rim draws in red, the iris fills, the black
+            swirl draws over it, then the pupil. */}
         <svg viewBox="0 0 300 300" aria-hidden="true" focusable="false" className="size-full overflow-visible">
-          <motion.circle cx={150} cy={150} r={145} className="fill-background" stroke="currentColor" strokeWidth={4}
-            initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={t(0.9, 0.05)} />
-          <motion.circle cx={150} cy={150} r={112} fill="none" className="stroke-border-strong" strokeWidth={2}
-            initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={t(0.9, 0.35)} />
-          <motion.path d={SWIRL} stroke="currentColor" strokeWidth={3} strokeLinejoin="round" fill="currentColor"
+          <defs>
+            <radialGradient id="mj-title-iris">
+              <stop offset="0" stopColor="#660000" />
+              <stop offset="0.5" stopColor="#c30000" />
+              <stop offset="1" stopColor="#a00000" />
+            </radialGradient>
+          </defs>
+          <motion.circle cx={150} cy={150} r={145} fill="url(#mj-title-iris)" stroke="#c30000" strokeWidth={6}
+            initial={{ pathLength: 0, fillOpacity: 0 }} animate={{ pathLength: 1, fillOpacity: 1 }}
+            transition={reduce ? { duration: 0 } : {
+              pathLength: { duration: 0.9, delay: 0.05, ease: EASE },
+              fillOpacity: { duration: 0.5, delay: 0.55, ease: EASE },
+            }} />
+          <motion.path d={SWIRL} stroke="#000" strokeWidth={3} strokeLinejoin="round" fill="#000"
             initial={{ pathLength: 0, fillOpacity: 0 }} animate={{ pathLength: 1, fillOpacity: 1 }}
             transition={reduce ? { duration: 0 } : {
               pathLength: { duration: 0.9, delay: 0.25, ease: EASE },
               fillOpacity: { duration: 0.45, delay: 0.95, ease: EASE },
             }} />
-          <motion.circle cx={150} cy={150} r={20} className="fill-shadow"
+          <motion.circle cx={150} cy={150} r={20} fill="#a00000"
             initial={{ scale: 0 }} animate={{ scale: 1 }} transition={t(0.4, 1.05)} />
         </svg>
       </motion.div>
